@@ -1,0 +1,15 @@
+{
+  "name": "@furfeel/simulator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Payload simulator standing in for ESP32 firmware before hardware exists (docs/07).",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/simulate.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.10.0"
+  }
+}

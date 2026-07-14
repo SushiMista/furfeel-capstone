@@ -1,0 +1,85 @@
+{
+  "$comment": "FurFeel design tokens — single source of truth (docs/19 Design Guide: blue + white). Do not hardcode these values in components; regenerate platform files with: node packages/shared/scripts/generate_design_tokens.mjs",
+  "font": {
+    "family": "Inter",
+    "fallback": "system-ui, -apple-system, 'Segoe UI', sans-serif"
+  },
+  "type": {
+    "display": { "sizePx": 30, "weight": 700 },
+    "h1": { "sizePx": 24, "weight": 700 },
+    "h2": { "sizePx": 20, "weight": 600 },
+    "h3": { "sizePx": 16, "weight": 600 },
+    "body": { "sizePx": 15, "weight": 400 },
+    "bodyMobile": { "sizePx": 16, "weight": 400 },
+    "label": { "sizePx": 12, "weight": 600, "letterSpacingPx": 0.4, "uppercase": true },
+    "caption": { "sizePx": 12, "weight": 400 },
+    "vitalNumber": { "sizePx": 30, "weight": 700 }
+  },
+  "color": {
+    "base": {
+      "bg": "#F7F9FC",
+      "surface": "#FFFFFF",
+      "surfaceAlt": "#F1F5F9",
+      "ink": "#0F172A",
+      "inkMuted": "#64748B",
+      "hairline": "#E2E8F0"
+    },
+    "brand": {
+      "brand": "#2563EB",
+      "brandStrong": "#1D4ED8",
+      "brandInk": "#1E3A8A",
+      "brandSoft": "#EAF1FE",
+      "accent": "#14B8A6"
+    },
+    "warm": {
+      "warm": "#F59E0B",
+      "warmSoft": "#FEF3E2"
+    },
+    "status": {
+      "calm": { "fg": "#0F9D8C", "bg": "#E6F6F3" },
+      "mild": { "fg": "#CA8A04", "bg": "#FBF3D6" },
+      "moderate": { "fg": "#EA7317", "bg": "#FCEBD9" },
+      "high": { "fg": "#DC2626", "bg": "#FBE4E2" }
+    },
+    "statusHighOwner": "#E5533D"
+  },
+  "colorDark": {
+    "$comment": "ADDED: dark-theme palette for the user_settings theme option (docs/04/05). Same cool-slate + blue family as docs/19; every fg/bg pair keeps >=4.5:1 contrast. Status ramp keeps the canonical hues, lifted for dark surfaces.",
+    "base": {
+      "bg": "#0B1220",
+      "surface": "#111B2E",
+      "surfaceAlt": "#18243B",
+      "ink": "#E6EDF8",
+      "inkMuted": "#94A7C4",
+      "hairline": "#223250"
+    },
+    "brand": {
+      "brand": "#5B8DEF",
+      "brandStrong": "#7DA4F3",
+      "brandInk": "#BFD2F8",
+      "brandSoft": "#17294B",
+      "accent": "#2DD4BF"
+    },
+    "warm": {
+      "warm": "#F5B04A",
+      "warmSoft": "#33270F"
+    },
+    "status": {
+      "calm": { "fg": "#3BC9B4", "bg": "#0D2B27" },
+      "mild": { "fg": "#E3B93B", "bg": "#2C2409" },
+      "moderate": { "fg": "#F0914B", "bg": "#33200D" },
+      "high": { "fg": "#F07364", "bg": "#391411" }
+    },
+    "statusHighOwner": "#F08A7B"
+  },
+  "radius": {
+    "dashboard": { "sm": 8, "md": 12, "lg": 16, "pill": 999 },
+    "mobile": { "sm": 12, "md": 16, "lg": 20, "pill": 999 }
+  },
+  "spacing": [4, 8, 12, 16, 24, 32, 48],
+  "shadow": {
+    "card": "0 1px 2px rgba(15,23,42,.06), 0 4px 12px rgba(15,23,42,.05)"
+  },
+  "motion": { "fastMs": 150, "slowMs": 250, "easing": "ease-out" },
+  "touchTargetMinPx": 44
+}

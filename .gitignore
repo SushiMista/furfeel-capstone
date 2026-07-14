@@ -1,0 +1,52 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+dist/
+build/
+.turbo/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Flutter / Dart
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/.packages
+apps/mobile/build/
+apps/mobile/.pub-cache/
+apps/mobile/.pub/
+**/ios/Flutter/.last_build_id
+**/android/.gradle/
+
+# Deno / Supabase Edge Functions
+services/edge/**/.deno/
+supabase/.branches/
+supabase/.temp/
+
+# Vite / React dashboard
+apps/dashboard/dist/
+apps/dashboard/.vite/
+
+# PlatformIO / Arduino firmware
+firmware/esp32/.pio/
+firmware/esp32/build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Local AI / agent state
+.claude/
+.agents/
+skills-lock.json

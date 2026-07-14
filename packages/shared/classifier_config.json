@@ -1,0 +1,91 @@
+{
+  "_disclaimer": "PROVISIONAL engineering defaults — NOT vet-validated. Pending baseline research (docs/15). Tune only with veterinary sign-off; log any change as an ADR (docs/02).",
+  "model_version": "rule-v1",
+
+  "global_baselines": {
+    "_comment": "docs/08 Global Default Baselines (medium adult dog, resting). dog_baselines rows override heart_rate/respiratory/temperature per-dog; there is no per-dog motion baseline column, so motion_activity always uses this default.",
+    "heart_rate_bpm": 90,
+    "respiratory_rate_bpm": 24,
+    "body_temperature_c": 38.7,
+    "motion_activity": 0.3
+  },
+
+  "scoring_rules": {
+    "_comment": "docs/08 Scoring Rules (rule-v1). hr_ratio = heart_rate_bpm / baseline heart_rate_bpm; rr_ratio = respiratory_rate_bpm / baseline respiratory_rate_bpm. Tiers are evaluated as [min, max) unless max is null (unbounded). Rules are skipped entirely when their input field is null (docs/07: 'the classifier skips rules for null fields').",
+
+    "heart_rate_elevated": {
+      "input": "hr_ratio",
+      "tiers": [
+        { "min": 1.15, "max": 1.35, "points": 1, "reason": "hr_ratio 1.15-1.35" },
+        { "min": 1.35, "max": 1.6, "points": 2, "reason": "hr_ratio 1.35-1.6" },
+        { "min": 1.6, "max": null, "points": 3, "reason": "hr_ratio>1.6" }
+      ]
+    },
+
+    "respiratory_elevated": {
+      "input": "rr_ratio",
+      "tiers": [
+        { "min": 1.3, "max": 1.8, "points": 1, "reason": "rr_ratio 1.3-1.8" },
+        { "min": 1.8, "max": null, "points": 2, "reason": "rr panting" }
+      ]
+    },
+
+    "body_temperature": {
+      "input": "body_temperature_c",
+      "tiers": [
+        { "min": 39.2, "max": 39.7, "points": 1, "reason": "temp 39.2-39.7" },
+        { "min": 39.7, "max": null, "points": 2, "reason": "temp>39.7" }
+      ]
+    },
+
+    "motion_restlessness": {
+      "input": "motion_activity",
+      "tiers": [
+        { "min": 0.6, "max": 0.8, "points": 1, "reason": "motion 0.6-0.8" },
+        { "min": 0.8, "max": null, "points": 2, "reason": "motion>0.8" }
+      ]
+    },
+
+    "posture_moving_with_high_motion": {
+      "_comment": "docs/08: 'Posture = moving sustained with high motion' +1. Doc does not define 'high motion' numerically for this rule; reuses the motion_restlessness tier-1 floor (0.6) as the threshold. Flagged as an inference — revisit once trend/posture history is available.",
+      "posture": "moving",
+      "motion_activity_min": 0.6,
+      "points": 1,
+      "reason": "posture moving + high motion"
+    },
+
+    "environmental_amplifier": {
+      "_comment": "docs/08: ambient > 32C OR humidity > 80% (heat stress context) +1.",
+      "ambient_temperature_c_above": 32,
+      "humidity_percent_above": 80,
+      "points": 1,
+      "reason": "environmental heat stress context"
+    },
+
+    "rising_trend": {
+      "_comment": "docs/08: 'stress score rose across last 3 readings' +1. Interpreted as: the 3 most recent prior stress_classifications scores for this dog, ordered oldest-to-newest, are strictly increasing. Requires at least 3 prior scores; skipped otherwise.",
+      "window_size": 3,
+      "points": 1,
+      "reason": "rising trend over last 3 readings"
+    }
+  },
+
+  "level_thresholds": {
+    "_comment": "docs/08 Score -> level mapping. Evaluated as [min, max] inclusive; high has no upper bound.",
+    "calm": { "min": 0, "max": 1 },
+    "mild": { "min": 2, "max": 3 },
+    "moderate": { "min": 4, "max": 6 },
+    "high": { "min": 7, "max": null }
+  },
+
+  "validation_ranges": {
+    "_comment": "docs/07 Validation Ranges. Values outside range are flagged is_valid=false at the row level; the out-of-range field is stored as null in the structured telemetry_readings column (raw_payload always keeps the true received value verbatim per ADR-003). These are sensor/hardware plausibility bounds, not clinical thresholds.",
+    "heart_rate_bpm": { "min": 20, "max": 300 },
+    "body_temperature_c": { "min": 30.0, "max": 43.0 },
+    "respiratory_rate_bpm": { "min": 3, "max": 200 },
+    "motion_activity": { "min": 0.0, "max": 1.0 },
+    "ambient_temperature_c": { "min": -10, "max": 60 },
+    "humidity_percent": { "min": 0, "max": 100 },
+    "captured_at_max_skew_hours": 1
+  }
+}
