@@ -30,7 +30,7 @@ const _slides = [
     icon: Icons.monitor_heart_outlined,
     title: 'Feel what they feel',
     body: 'The FurFeel harness streams your dog\'s heart rate, breathing, '
-        'temperature, and movement — live, wherever you are.',
+        'temperature, and movement, live to your phone.',
   ),
   _Slide(
     icon: Icons.spa_outlined,
@@ -42,7 +42,7 @@ const _slides = [
     icon: Icons.volunteer_activism_outlined,
     title: 'Care as a team',
     body: 'Your vet can see the same picture you do. FurFeel supports your '
-        'decisions together — it never diagnoses.',
+        'decisions together. It never diagnoses.',
   ),
 ];
 
@@ -147,7 +147,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
             Padding(
               padding: const EdgeInsets.only(bottom: FurFeelTokens.space4),
               child: Text(
-                'Decision support for you and your care team — never a diagnosis.',
+                'Decision support for you and your care team, never a diagnosis.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodySmall?.copyWith(color: FurFeelTokens.inkMuted),
               ),

@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../theme/furfeel_tokens.dart';
+import '../util/motion.dart';
+import '../widgets/auth_form.dart';
 
 /// Sign-in callback: returns null on success, or a user-facing error message.
 typedef SignIn = Future<String?> Function(String email, String password);
 
+/// Modern-minimal sign-in (docs/19 tokens, docs/04 auth flow): left-aligned
+/// headline, full-width fields, inline error, one primary action. No card
+/// chrome; the screen itself is the surface.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, required this.signIn});
+  const LoginPage({super.key, required this.signIn, this.onCreateAccount});
 
   final SignIn signIn;
+
+  /// Optional cross-link to the sign-up screen ("New here? Create account").
+  final VoidCallback? onCreateAccount;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -19,6 +27,7 @@ class _LoginPageState extends State<LoginPage> {
   final _password = TextEditingController();
   String? _error;
   bool _submitting = false;
+  bool _obscure = true;
 
   @override
   void dispose() {
@@ -49,69 +58,94 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(FurFeelTokens.space5),
+      appBar: AppBar(),
+      body: SafeArea(
+        child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(FurFeelTokens.space5),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'FurFeel',
-                      textAlign: TextAlign.center,
-                      style: textTheme.headlineMedium?.copyWith(
-                        color: FurFeelTokens.brandInk,
-                        fontWeight: FontWeight.w800,
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: FurFeelTokens.space5,
+                vertical: FurFeelTokens.space4,
+              ),
+              children: [
+                Text(
+                  'Welcome back',
+                  style: textTheme.headlineMedium?.copyWith(
+                    color: FurFeelTokens.brandInk,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ).entrance(context),
+                const SizedBox(height: FurFeelTokens.space2),
+                Text(
+                  'Sign in to see how your dog is doing.',
+                  style: textTheme.bodyMedium?.copyWith(color: FurFeelTokens.inkMuted),
+                ).entrance(context, index: 1),
+                const SizedBox(height: FurFeelTokens.space6),
+                AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _email,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(labelText: 'Email'),
                       ),
-                    ),
-                    const SizedBox(height: FurFeelTokens.space2),
-                    Text(
-                      'Welcome back — your best friend missed you.',
-                      textAlign: TextAlign.center,
-                      style: textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: FurFeelTokens.space5),
-                    TextField(
-                      controller: _email,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      decoration: const InputDecoration(labelText: 'Email'),
-                    ),
-                    const SizedBox(height: FurFeelTokens.space3),
-                    TextField(
-                      controller: _password,
-                      obscureText: true,
-                      autofillHints: const [AutofillHints.password],
-                      decoration: const InputDecoration(labelText: 'Password'),
-                      onSubmitted: (_) => _submit(),
-                    ),
-                    if (_error != null) ...[
                       const SizedBox(height: FurFeelTokens.space3),
-                      Container(
-                        padding: const EdgeInsets.all(FurFeelTokens.space3),
-                        decoration: BoxDecoration(
-                          color: FurFeelTokens.statusHighBg,
-                          borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
-                        ),
-                        child: Text(
-                          _error!,
-                          style: TextStyle(color: FurFeelTokens.statusHighFg),
+                      TextField(
+                        controller: _password,
+                        obscureText: _obscure,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
+                        onSubmitted: (_) => _submit(),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          suffixIcon: IconButton(
+                            onPressed: () => setState(() => _obscure = !_obscure),
+                            tooltip: _obscure ? 'Show password' : 'Hide password',
+                            icon: Icon(
+                              _obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: FurFeelTokens.inkMuted,
+                            ),
+                          ),
                         ),
                       ),
                     ],
-                    const SizedBox(height: FurFeelTokens.space4),
-                    ElevatedButton(
-                      onPressed: _submitting ? null : _submit,
-                      child: Text(_submitting ? 'Signing in…' : 'Sign in'),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                ).entrance(context, index: 2),
+                if (_error != null) ...[
+                  const SizedBox(height: FurFeelTokens.space4),
+                  InlineFormError(message: _error!),
+                ],
+                const SizedBox(height: FurFeelTokens.space5),
+                ElevatedButton(
+                  onPressed: _submitting ? null : _submit,
+                  child: _submitting
+                      ? const BusyButtonLabel(label: 'Signing in')
+                      : const Text('Sign in'),
+                ).entrance(context, index: 3),
+                if (widget.onCreateAccount != null) ...[
+                  const SizedBox(height: FurFeelTokens.space3),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'New here?',
+                        style: textTheme.bodyMedium
+                            ?.copyWith(color: FurFeelTokens.inkMuted),
+                      ),
+                      TextButton(
+                        onPressed: widget.onCreateAccount,
+                        child: const Text('Create account'),
+                      ),
+                    ],
+                  ).entrance(context, index: 4),
+                ],
+              ],
             ),
           ),
         ),

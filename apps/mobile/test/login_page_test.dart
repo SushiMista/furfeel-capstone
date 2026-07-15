@@ -16,10 +16,15 @@ void main() {
       ),
     );
 
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, ' owner@example.com ');
     await tester.enterText(find.byType(TextField).last, 'password123');
     await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
+    // On success the button stays busy (the page pops in production, but here
+    // LoginPage is the root route), so the spinner never settles -- use fixed
+    // pumps instead of pumpAndSettle.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(seenEmail, 'owner@example.com'); // trimmed
     expect(find.textContaining('Invalid'), findsNothing);
@@ -72,5 +77,48 @@ void main() {
     // otherwise the user is stuck staring at a dead login form (see bug report).
     expect(find.byType(LoginPage), findsNothing);
     expect(find.text('I already have an account'), findsOneWidget);
+  });
+
+  testWidgets('password visibility toggle reveals and re-hides the input', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: LoginPage(signIn: (email, password) async => null)),
+    );
+    await tester.pumpAndSettle();
+
+    TextField password() => tester.widget(find.byType(TextField).last);
+    expect(password().obscureText, isTrue);
+
+    await tester.tap(find.byTooltip('Show password'));
+    await tester.pump();
+    expect(password().obscureText, isFalse);
+
+    await tester.tap(find.byTooltip('Hide password'));
+    await tester.pump();
+    expect(password().obscureText, isTrue);
+  });
+
+  testWidgets('create-account cross-link fires its callback', (tester) async {
+    var linked = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(
+          signIn: (email, password) async => null,
+          onCreateAccount: () => linked = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Create account'));
+    expect(linked, isTrue);
+  });
+
+  testWidgets('cross-link is absent when no callback is provided', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: LoginPage(signIn: (email, password) async => null)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create account'), findsNothing);
   });
 }
