@@ -34,6 +34,11 @@ class _LoginPageState extends State<LoginPage> {
     });
     final error = await widget.signIn(_email.text.trim(), _password.text);
     if (!mounted) return;
+    if (error == null) {
+      // Signed in: the root auth stream swaps to the home shell.
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
     setState(() {
       _submitting = false;
       _error = error;
