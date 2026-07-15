@@ -47,6 +47,7 @@ class _FurFeelAppState extends State<FurFeelApp> with WidgetsBindingObserver {
   late final SupabaseClient _client = Supabase.instance.client;
   late final SupabaseFurFeelRepository _repository = SupabaseFurFeelRepository(_client);
   late final SettingsController _settings = SettingsController(_repository);
+  final _navigatorKey = GlobalKey<NavigatorState>();
 
   // Cold-start gate: splash holds until the seen-flag is read AND the brand
   // beat has had a moment on screen, so the splash never just flickers.
@@ -59,7 +60,13 @@ class _FurFeelAppState extends State<FurFeelApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     if (_client.auth.currentSession != null) _settings.load();
     _client.auth.onAuthStateChange.listen((state) {
-      if (state.event == AuthChangeEvent.signedIn) _settings.load();
+      if (state.event == AuthChangeEvent.signedIn) {
+        _settings.load();
+        // OAuth sign-ins (e.g. Google) land via this stream while a pushed
+        // auth screen may still sit on top of the home StreamBuilder -- pop
+        // back so the freshly signed-in shell is actually visible.
+        _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      }
       if (state.event == AuthChangeEvent.signedOut) _settings.clear();
     });
     _bootstrap();
@@ -107,6 +114,7 @@ class _FurFeelAppState extends State<FurFeelApp> with WidgetsBindingObserver {
           controller: _settings,
           child: MaterialApp(
             title: 'FurFeel',
+            navigatorKey: _navigatorKey,
             debugShowCheckedModeBanner: false,
             theme: buildFurFeelTheme(dark: dark),
             home: !_splashDone || _onboardingSeen == null

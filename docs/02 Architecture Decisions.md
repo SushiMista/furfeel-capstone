@@ -122,3 +122,15 @@ Linked notes:
 - [[04 Mobile App Design]]
 - [[05 Veterinary Dashboard Design]]
 - [[12 Security and Privacy]]
+
+## ADR-011: Google Sign-In via Supabase OAuth (Browser Flow)
+Status: Accepted
+
+Decision: Add "Continue with Google" to the mobile app's auth screens using Supabase's OAuth browser flow (`signInWithOAuth`) for all platforms, rather than the native `google_sign_in` SDK. The deep link `io.furfeel.app://login-callback` returns mobile users to the app; web returns to the page origin. The `handle_new_user` trigger falls back to `full_name` metadata so Google signups get a proper display name.
+
+Reason: One code path covers web, Android, and iOS with zero client-held secrets (the Google client secret lives only in the Supabase provider config). The native SDK flow can be added later purely as a UX upgrade without schema or provider changes. Google accounts sharing an email with an existing password account are auto-linked by Supabase, so no duplicate-user handling is needed.
+
+Linked notes:
+- [[04 Mobile App Design]]
+- [[09 Database Schema]]
+- [[12 Security and Privacy]]

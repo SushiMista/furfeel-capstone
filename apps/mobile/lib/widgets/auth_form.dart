@@ -34,6 +34,54 @@ class InlineFormError extends StatelessWidget {
   }
 }
 
+/// "or" divider between the primary action and alternative sign-in methods.
+class OrDivider extends StatelessWidget {
+  const OrDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: FurFeelTokens.hairline)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: FurFeelTokens.space3),
+          child: Text(
+            'or',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: FurFeelTokens.inkMuted),
+          ),
+        ),
+        Expanded(child: Divider(color: FurFeelTokens.hairline)),
+      ],
+    );
+  }
+}
+
+/// "Continue with Google" secondary action. The caller owns the OAuth call;
+/// this stays a dumb button so it is testable without Supabase.
+class GoogleSignInButton extends StatelessWidget {
+  const GoogleSignInButton({super.key, required this.onPressed, this.busy = false});
+
+  final VoidCallback? onPressed;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(FurFeelTokens.touchTargetMin),
+        shape: const StadiumBorder(),
+      ),
+      onPressed: busy ? null : onPressed,
+      child: busy
+          ? const BusyButtonLabel(label: 'Opening Google')
+          : const Text('Continue with Google'),
+    );
+  }
+}
+
 /// Busy state for a primary button: small spinner + label. Colors inherit the
 /// button's disabled foreground so contrast stays theme-managed.
 class BusyButtonLabel extends StatelessWidget {

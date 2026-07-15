@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -27,12 +28,36 @@ class WelcomePage extends StatelessWidget {
     }
   }
 
+  /// Google OAuth (ADR-011). On web this redirects the page to Google and the
+  /// session is restored on return; on Android/iOS it opens the browser and
+  /// comes back through the io.furfeel.app://login-callback deep link. Either
+  /// way the root auth stream flips the app to the home shell.
+  Future<String?> _signInWithGoogle() async {
+    try {
+      await client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb ? null : 'io.furfeel.app://login-callback',
+        authScreenLaunchMode:
+            kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+        // Always show Google's account chooser instead of silently reusing
+        // the active Google session -- the owner picks which account to use.
+        queryParams: {'prompt': 'select_account'},
+      );
+      return null;
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (_) {
+      return 'Could not start Google sign-in. Check your connection and try again.';
+    }
+  }
+
   // Login and sign-up cross-link to each other with pushReplacement, so the
   // back gesture always returns to this welcome screen, never ping-pongs.
   void _openLogin(BuildContext context, {bool replace = false}) {
     final route = MaterialPageRoute<void>(
       builder: (_) => LoginPage(
         signIn: _signIn,
+        onGoogleSignIn: _signInWithGoogle,
         onCreateAccount: () => _openSignUp(context, replace: true),
       ),
     );
@@ -44,6 +69,7 @@ class WelcomePage extends StatelessWidget {
     final route = MaterialPageRoute<void>(
       builder: (_) => SignUpPage(
         client: client,
+        onGoogleSignIn: _signInWithGoogle,
         onSignIn: () => _openLogin(context, replace: true),
       ),
     );
@@ -149,9 +175,17 @@ class WelcomePage extends StatelessWidget {
 /// Same skeleton as the sign-in screen: left-aligned headline, full-width
 /// fields, inline error, one primary action.
 class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key, required this.client, this.onSignIn});
+  const SignUpPage({
+    super.key,
+    required this.client,
+    this.onGoogleSignIn,
+    this.onSignIn,
+  });
 
   final SupabaseClient client;
+
+  /// Optional Google OAuth starter (also creates the account on first use).
+  final Future<String?> Function()? onGoogleSignIn;
 
   /// Optional cross-link to the sign-in screen.
   final VoidCallback? onSignIn;
@@ -166,6 +200,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _password = TextEditingController();
   String? _error;
   bool _submitting = false;
+  bool _googleBusy = false;
   bool _obscure = true;
 
   @override
@@ -174,6 +209,20 @@ class _SignUpPageState extends State<SignUpPage> {
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  Future<void> _submitGoogle() async {
+    setState(() {
+      _googleBusy = true;
+      _error = null;
+    });
+    final error = await widget.onGoogleSignIn!();
+    if (!mounted) return;
+    if (error == null) return; // Redirecting; root auth stream takes over.
+    setState(() {
+      _googleBusy = false;
+      _error = error;
+    });
   }
 
   Future<void> _submit() async {
@@ -300,11 +349,20 @@ class _SignUpPageState extends State<SignUpPage> {
                 ],
                 const SizedBox(height: FurFeelTokens.space5),
                 ElevatedButton(
-                  onPressed: _submitting ? null : _submit,
+                  onPressed: _submitting || _googleBusy ? null : _submit,
                   child: _submitting
                       ? const BusyButtonLabel(label: 'Creating account')
                       : const Text('Create account'),
                 ).entrance(context, index: 3),
+                if (widget.onGoogleSignIn != null) ...[
+                  const SizedBox(height: FurFeelTokens.space4),
+                  const OrDivider(),
+                  const SizedBox(height: FurFeelTokens.space4),
+                  GoogleSignInButton(
+                    busy: _googleBusy,
+                    onPressed: _submitting ? null : _submitGoogle,
+                  ).entrance(context, index: 4),
+                ],
                 if (widget.onSignIn != null) ...[
                   const SizedBox(height: FurFeelTokens.space3),
                   Row(
@@ -320,7 +378,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         child: const Text('Sign in'),
                       ),
                     ],
-                  ).entrance(context, index: 4),
+                  ).entrance(context, index: 5),
                 ],
               ],
             ),

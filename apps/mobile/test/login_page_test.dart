@@ -121,4 +121,59 @@ void main() {
 
     expect(find.text('Create account'), findsNothing);
   });
+
+  testWidgets('google button starts OAuth and stays busy on success', (tester) async {
+    var started = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(
+          signIn: (email, password) async => null,
+          onGoogleSignIn: () async {
+            started++;
+            return null;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Continue with Google'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(started, 1);
+    // Success means a redirect is coming -- the button stays busy so the
+    // user cannot double-launch the flow.
+    expect(find.text('Opening Google'), findsOneWidget);
+  });
+
+  testWidgets('google button surfaces OAuth errors inline and re-enables', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(
+          signIn: (email, password) async => null,
+          onGoogleSignIn: () async => 'Could not start Google sign-in.',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Continue with Google'));
+    // Fixed pumps: the inline error's entrance animation schedules delayed
+    // timers that pumpAndSettle trips over at teardown.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Could not start Google sign-in.'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+  });
+
+  testWidgets('google button is absent when no OAuth callback is provided', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: LoginPage(signIn: (email, password) async => null)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Continue with Google'), findsNothing);
+  });
 }

@@ -11,9 +11,18 @@ typedef SignIn = Future<String?> Function(String email, String password);
 /// headline, full-width fields, inline error, one primary action. No card
 /// chrome; the screen itself is the surface.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, required this.signIn, this.onCreateAccount});
+  const LoginPage({
+    super.key,
+    required this.signIn,
+    this.onGoogleSignIn,
+    this.onCreateAccount,
+  });
 
   final SignIn signIn;
+
+  /// Optional Google OAuth starter: returns null on success (navigation is
+  /// handled by the root auth stream), or a user-facing error message.
+  final Future<String?> Function()? onGoogleSignIn;
 
   /// Optional cross-link to the sign-up screen ("New here? Create account").
   final VoidCallback? onCreateAccount;
@@ -27,6 +36,7 @@ class _LoginPageState extends State<LoginPage> {
   final _password = TextEditingController();
   String? _error;
   bool _submitting = false;
+  bool _googleBusy = false;
   bool _obscure = true;
 
   @override
@@ -50,6 +60,24 @@ class _LoginPageState extends State<LoginPage> {
     }
     setState(() {
       _submitting = false;
+      _error = error;
+    });
+  }
+
+  Future<void> _submitGoogle() async {
+    setState(() {
+      _googleBusy = true;
+      _error = null;
+    });
+    final error = await widget.onGoogleSignIn!();
+    if (!mounted) return;
+    if (error == null) {
+      // Stay busy: the page is about to redirect (web) or the session will
+      // arrive via deep link and the root auth stream pops this screen.
+      return;
+    }
+    setState(() {
+      _googleBusy = false;
       _error = error;
     });
   }
@@ -123,11 +151,20 @@ class _LoginPageState extends State<LoginPage> {
                 ],
                 const SizedBox(height: FurFeelTokens.space5),
                 ElevatedButton(
-                  onPressed: _submitting ? null : _submit,
+                  onPressed: _submitting || _googleBusy ? null : _submit,
                   child: _submitting
                       ? const BusyButtonLabel(label: 'Signing in')
                       : const Text('Sign in'),
                 ).entrance(context, index: 3),
+                if (widget.onGoogleSignIn != null) ...[
+                  const SizedBox(height: FurFeelTokens.space4),
+                  const OrDivider(),
+                  const SizedBox(height: FurFeelTokens.space4),
+                  GoogleSignInButton(
+                    busy: _googleBusy,
+                    onPressed: _submitting ? null : _submitGoogle,
+                  ).entrance(context, index: 4),
+                ],
                 if (widget.onCreateAccount != null) ...[
                   const SizedBox(height: FurFeelTokens.space3),
                   Row(
@@ -143,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: const Text('Create account'),
                       ),
                     ],
-                  ).entrance(context, index: 4),
+                  ).entrance(context, index: 5),
                 ],
               ],
             ),
