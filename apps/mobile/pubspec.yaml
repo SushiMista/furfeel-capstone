@@ -40,6 +40,8 @@ dependencies:
   image_picker: ^1.2.3
   # ADDED: declarative motion for the owner app (docs/19 §5a names it).
   flutter_animate: ^4.5.2
+  # ADDED: persists the "onboarding seen" flag so the intro only runs once.
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
