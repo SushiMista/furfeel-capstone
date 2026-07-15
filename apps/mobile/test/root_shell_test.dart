@@ -29,6 +29,13 @@ TelemetryReading reading({int? hr = 92, int? rr = 22}) => TelemetryReading(
 Widget app(FakeRepository repository) => SettingsScope(
       controller: SettingsController(repository),
       child: MaterialApp(
+        // Tests run under reduced motion so ambient loops (e.g. the Activity
+        // paw bobbing while the dog is moving) go static and pumpAndSettle
+        // settles -- same code path a reduced-motion user gets.
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          child: child!,
+        ),
         home: RootShell(
           repository: repository,
           userEmail: 'owner@example.com',

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
 import '../data/settings_controller.dart';
+import '../models/activity_state.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/friendly_time.dart';
 import '../util/motion.dart';
+import '../widgets/activity_indicator.dart';
 import '../widgets/dog_avatar.dart';
 import '../widgets/stress_pill.dart';
 import '../widgets/vet_note_card.dart';
@@ -156,6 +158,16 @@ class _VitalGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = SettingsScope.of(context);
 
+    // Activity shows what the dog is doing, not a raw 0-1 index -- posture +
+    // intensity mapped to a word (docs/04: a glance should answer without a
+    // sensor feed). Squares with no reading show a dash.
+    final activityState = reading == null
+        ? ActivityState.noSignal
+        : activityStateFrom(
+            posture: reading!.posture,
+            motionActivity: reading!.motionActivity,
+          );
+
     (String, String) valueAndUnit(VitalKind kind) => switch (kind) {
           VitalKind.heartRate => (reading?.heartRateBpm?.toString() ?? '—', 'bpm'),
           VitalKind.breathing =>
@@ -164,8 +176,7 @@ class _VitalGrid extends StatelessWidget {
               settings.formatTemperature(reading?.bodyTemperatureC),
               settings.temperatureUnitLabel,
             ),
-          VitalKind.activity =>
-            (reading?.motionActivity?.toStringAsFixed(1) ?? '—', ''),
+          VitalKind.activity => (activityState.label, ''),
         };
 
     return GridView.count(
@@ -181,6 +192,7 @@ class _VitalGrid extends StatelessWidget {
             kind: kind,
             value: valueAndUnit(kind).$1,
             unit: valueAndUnit(kind).$2,
+            activityState: kind == VitalKind.activity ? activityState : null,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => VitalDetailPage(
@@ -203,12 +215,17 @@ class _VitalSquare extends StatelessWidget {
     required this.value,
     required this.unit,
     required this.onTap,
+    this.activityState,
   });
 
   final VitalKind kind;
   final String value;
   final String unit;
   final VoidCallback onTap;
+
+  /// Set only on the Activity square: swaps the numeric value for an
+  /// animated state indicator + state word.
+  final ActivityState? activityState;
 
   @override
   Widget build(BuildContext context) {
@@ -250,29 +267,54 @@ class _VitalSquare extends StatelessWidget {
                   duration: context.reduceMotion
                       ? Duration.zero
                       : FurFeelTokens.motionSlow,
-                  child: Text.rich(
-                    key: ValueKey(value),
-                    TextSpan(
-                      text: value,
-                      style: TextStyle(
-                        fontSize: FurFeelTokens.typeVitalNumberSize,
-                        fontWeight: FurFeelTokens.typeVitalNumberWeight,
-                        color: FurFeelTokens.ink,
-                        height: 1.1,
-                      ),
-                      children: [
-                        if (unit.isNotEmpty)
-                          TextSpan(
-                            text: ' $unit',
-                            style: TextStyle(
-                              fontSize: FurFeelTokens.typeCaptionSize,
-                              fontWeight: FontWeight.w400,
-                              color: FurFeelTokens.inkMuted,
+                  child: activityState != null
+                      ? Row(
+                          key: ValueKey(value),
+                          children: [
+                            ActivityIndicator(state: activityState!),
+                            const SizedBox(width: FurFeelTokens.space2),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  value,
+                                  style: TextStyle(
+                                    fontSize: FurFeelTokens.typeH2Size,
+                                    fontWeight: FurFeelTokens.typeVitalNumberWeight,
+                                    color: activityState == ActivityState.noSignal
+                                        ? FurFeelTokens.inkMuted
+                                        : FurFeelTokens.ink,
+                                    height: 1.1,
+                                  ),
+                                ),
+                              ),
                             ),
+                          ],
+                        )
+                      : Text.rich(
+                          key: ValueKey(value),
+                          TextSpan(
+                            text: value,
+                            style: TextStyle(
+                              fontSize: FurFeelTokens.typeVitalNumberSize,
+                              fontWeight: FurFeelTokens.typeVitalNumberWeight,
+                              color: FurFeelTokens.ink,
+                              height: 1.1,
+                            ),
+                            children: [
+                              if (unit.isNotEmpty)
+                                TextSpan(
+                                  text: ' $unit',
+                                  style: TextStyle(
+                                    fontSize: FurFeelTokens.typeCaptionSize,
+                                    fontWeight: FontWeight.w400,
+                                    color: FurFeelTokens.inkMuted,
+                                  ),
+                                ),
+                            ],
                           ),
-                      ],
-                    ),
-                  ),
+                        ),
                 ),
               ],
             ),

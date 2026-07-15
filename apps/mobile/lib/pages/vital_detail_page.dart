@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
 import '../data/settings_controller.dart';
+import '../models/activity_state.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/friendly_time.dart';
 import '../util/motion.dart';
+import '../widgets/activity_indicator.dart';
 
 /// ADDED (QA): one screen per vital. The Home grid opens this with the current
 /// reading; it shows the typical resting range for the dog (their clinic-set
@@ -131,13 +133,20 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
               'without exercise, which is why it feeds the stress level.',
       };
 
+  ActivityState get _activityState => widget.reading == null
+      ? ActivityState.noSignal
+      : activityStateFrom(
+          posture: widget.reading!.posture,
+          motionActivity: widget.reading!.motionActivity,
+        );
+
   String _currentValue(SettingsController settings) {
     final r = widget.reading;
     return switch (widget.kind) {
       VitalKind.heartRate => r?.heartRateBpm?.toString() ?? '—',
       VitalKind.breathing => r?.respiratoryRateBpm?.toString() ?? '—',
       VitalKind.temperature => settings.formatTemperature(r?.bodyTemperatureC),
-      VitalKind.activity => r?.motionActivity?.toStringAsFixed(1) ?? '—',
+      VitalKind.activity => _activityState.label,
     };
   }
 
@@ -175,28 +184,51 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                     ],
                   ),
                   const SizedBox(height: FurFeelTokens.space3),
-                  Text.rich(
-                    TextSpan(
-                      text: _currentValue(settings),
-                      style: TextStyle(
-                        fontSize: 44,
-                        fontWeight: FontWeight.w700,
-                        color: FurFeelTokens.ink,
-                        height: 1.1,
-                      ),
-                      children: [
-                        if (_unit(settings).isNotEmpty)
-                          TextSpan(
-                            text: ' ${_unit(settings)}',
-                            style: TextStyle(
-                              fontSize: FurFeelTokens.typeBodyMobileSize,
-                              fontWeight: FontWeight.w400,
-                              color: FurFeelTokens.inkMuted,
+                  Row(
+                    children: [
+                      if (widget.kind == VitalKind.activity) ...[
+                        ActivityIndicator(state: _activityState, size: 36),
+                        const SizedBox(width: FurFeelTokens.space3),
+                      ],
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text.rich(
+                            TextSpan(
+                              text: _currentValue(settings),
+                              style: TextStyle(
+                                fontSize: 44,
+                                fontWeight: FontWeight.w700,
+                                color: FurFeelTokens.ink,
+                                height: 1.1,
+                              ),
+                              children: [
+                                if (_unit(settings).isNotEmpty)
+                                  TextSpan(
+                                    text: ' ${_unit(settings)}',
+                                    style: TextStyle(
+                                      fontSize: FurFeelTokens.typeBodyMobileSize,
+                                      fontWeight: FontWeight.w400,
+                                      color: FurFeelTokens.inkMuted,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                      ),
+                    ],
                   ),
+                  if (widget.kind == VitalKind.activity) ...[
+                    const SizedBox(height: FurFeelTokens.space2),
+                    Text(_activityState.description, style: textTheme.bodySmall),
+                    if (reading?.motionActivity != null)
+                      Text(
+                        'Motion index ${reading!.motionActivity!.toStringAsFixed(1)} of 1',
+                        style: textTheme.bodySmall,
+                      ),
+                  ],
                   const SizedBox(height: FurFeelTokens.space2),
                   Text(
                     reading != null
