@@ -11,6 +11,8 @@ import '../widgets/user_avatar.dart';
 import 'account_page.dart';
 import 'device_pairing_page.dart';
 import 'dog_form_page.dart';
+import 'dog_health_page.dart';
+import 'partner_clinics_page.dart';
 import 'settings_page.dart';
 
 /// Profile tab (docs/04 nav): account (→ AccountPage), settings (→
@@ -77,8 +79,7 @@ class ProfileTab extends StatelessWidget {
         vertical: FurFeelTokens.space5,
       ),
       children: [
-        // Identity header: large avatar + name + email, the whole block
-        // tappable like the Apple ID card at the top of iOS Settings.
+        // ── Identity header ────────────────────────────────────────────
         PressScale(
           child: InkWell(
             borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
@@ -123,8 +124,54 @@ class ProfileTab extends StatelessWidget {
             ),
           ),
         ).entrance(context),
+        const SizedBox(height: FurFeelTokens.space4),
+
+        // ── Account Info ───────────────────────────────────────────────
+        SettingsGroup(
+          header: 'ACCOUNT INFO',
+          children: [
+            SettingsRow(
+              icon: Icons.phone_outlined,
+              title: 'Phone Number',
+              // Placeholder — will read profile.phone once wired
+              subtitle: '—',
+              showChevron: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      AccountPage(repository: repository, onSignOut: onSignOut),
+                ),
+              ),
+            ),
+            SettingsRow(
+              icon: Icons.emergency_outlined,
+              iconBackground: FurFeelTokens.warmSoft,
+              iconColor: FurFeelTokens.warm,
+              title: 'Emergency Contact',
+              // Placeholder — will read profile.emergencyContact once wired
+              subtitle: '—',
+              showChevron: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      AccountPage(repository: repository, onSignOut: onSignOut),
+                ),
+              ),
+            ),
+            SettingsRow(
+              icon: Icons.calendar_month_outlined,
+              iconBackground: FurFeelTokens.statusCalmBg,
+              iconColor: FurFeelTokens.statusCalmFg,
+              title: 'Member Since',
+              // Placeholder — will read profile.createdAt once wired
+              subtitle: 'July 2025',
+              showChevron: false,
+            ),
+          ],
+        ).entrance(context, index: 1),
         const SizedBox(height: FurFeelTokens.space5),
 
+        // ── Settings ──────────────────────────────────────────────────
         SettingsGroup(
           children: [
             SettingsRow(
@@ -136,9 +183,10 @@ class ProfileTab extends StatelessWidget {
               ),
             ),
           ],
-        ).entrance(context, index: 1),
+        ).entrance(context, index: 2),
         const SizedBox(height: FurFeelTokens.space5),
 
+        // ── My Dogs ───────────────────────────────────────────────────
         SettingsGroup(
           header: 'MY DOGS',
           headerAction: TextButton.icon(
@@ -165,23 +213,62 @@ class ProfileTab extends StatelessWidget {
                       '${dog.ageYears} ${dog.ageYears == 1 ? 'year' : 'years'} old',
                     dog.clinicId != null ? 'Clinic-monitored' : 'Home only',
                   ].join(' · '),
-                  trailing: IconButton(
-                    tooltip: 'Harness',
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(Icons.sensors, color: FurFeelTokens.inkMuted),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            DevicePairingPage(repository: repository, dog: dog),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Health records button
+                      IconButton(
+                        tooltip: 'Health records',
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(Icons.medical_services_outlined,
+                            color: FurFeelTokens.accent),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => DogHealthPage(dog: dog),
+                          ),
+                        ),
                       ),
-                    ),
+                      // Harness pairing button
+                      IconButton(
+                        tooltip: 'Harness',
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(Icons.sensors, color: FurFeelTokens.inkMuted),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                DevicePairingPage(repository: repository, dog: dog),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   onTap: () => _openForm(context, dog: dog),
                 ),
           ],
-        ).entrance(context, index: 2),
+        ).entrance(context, index: 3),
         const SizedBox(height: FurFeelTokens.space5),
 
+        // ── Partner Clinics ────────────────────────────────────────────
+        SettingsGroup(
+          header: 'VETERINARY',
+          children: [
+            SettingsRow(
+              icon: Icons.local_hospital_outlined,
+              iconBackground: FurFeelTokens.statusCalmBg,
+              iconColor: FurFeelTokens.statusCalmFg,
+              title: 'Partner Clinics',
+              subtitle: '2 clinics in your area',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PartnerClinicsPage(),
+                ),
+              ),
+            ),
+          ],
+        ).entrance(context, index: 4),
+        const SizedBox(height: FurFeelTokens.space5),
+
+        // ── Sign out ───────────────────────────────────────────────────
         SettingsGroup(
           children: [
             SettingsRow(
@@ -192,14 +279,14 @@ class ProfileTab extends StatelessWidget {
               onTap: () => _confirmSignOut(context),
             ),
           ],
-        ).entrance(context, index: 3),
+        ).entrance(context, index: 5),
         const SizedBox(height: FurFeelTokens.space5),
 
         Text(
           'FurFeel is decision support for you and your care team, never a diagnosis.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall,
-        ).entrance(context, index: 4),
+        ).entrance(context, index: 6),
       ],
     );
   }
