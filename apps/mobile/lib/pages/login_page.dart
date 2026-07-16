@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/motion.dart';
 import '../widgets/auth_form.dart';
+import '../widgets/furfeel_logo.dart';
 
 /// Sign-in callback: returns null on success, or a user-facing error message.
 typedef SignIn = Future<String?> Function(String email, String password);
 
-/// Modern-minimal sign-in (docs/19 tokens, docs/04 auth flow): left-aligned
-/// headline, full-width fields, inline error, one primary action. No card
-/// chrome; the screen itself is the surface.
+/// Modern sign-in screen with FurFeel branding header, left-aligned form
+/// fields, inline error, and Google sign-in option.
 class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
@@ -86,7 +86,9 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(),
+      // Transparent app bar — just the back arrow, no title clutter.
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      extendBodyBehindAppBar: true,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -97,19 +99,43 @@ class _LoginPageState extends State<LoginPage> {
                 vertical: FurFeelTokens.space4,
               ),
               children: [
+                // ── Branding header ──────────────────────────────────────
+                const SizedBox(height: FurFeelTokens.space4),
+                const Center(child: FurFeelLogo.auth(size: 48, animate: true)),
+                const SizedBox(height: FurFeelTokens.space5),
+
+                // ── Divider with subtle brand tint ───────────────────────
+                Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        FurFeelTokens.brand.withValues(alpha: 0.20),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: FurFeelTokens.space5),
+
+                // ── Headline ─────────────────────────────────────────────
                 Text(
                   'Welcome back',
-                  style: textTheme.headlineMedium?.copyWith(
+                  style: textTheme.headlineSmall?.copyWith(
                     color: FurFeelTokens.brandInk,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ).entrance(context),
                 const SizedBox(height: FurFeelTokens.space2),
                 Text(
                   'Sign in to see how your dog is doing.',
-                  style: textTheme.bodyMedium?.copyWith(color: FurFeelTokens.inkMuted),
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: FurFeelTokens.inkMuted),
                 ).entrance(context, index: 1),
-                const SizedBox(height: FurFeelTokens.space6),
+                const SizedBox(height: FurFeelTokens.space5),
+
+                // ── Form fields ──────────────────────────────────────────
                 AutofillGroup(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -119,7 +145,10 @@ class _LoginPageState extends State<LoginPage> {
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
-                        decoration: const InputDecoration(labelText: 'Email'),
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.email_outlined),
+                        ),
                       ),
                       const SizedBox(height: FurFeelTokens.space3),
                       TextField(
@@ -130,9 +159,13 @@ class _LoginPageState extends State<LoginPage> {
                         onSubmitted: (_) => _submit(),
                         decoration: InputDecoration(
                           labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
-                            onPressed: () => setState(() => _obscure = !_obscure),
-                            tooltip: _obscure ? 'Show password' : 'Hide password',
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                            tooltip: _obscure
+                                ? 'Show password'
+                                : 'Hide password',
                             icon: Icon(
                               _obscure
                                   ? Icons.visibility_outlined
@@ -145,17 +178,23 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ).entrance(context, index: 2),
+
+                // ── Inline error ─────────────────────────────────────────
                 if (_error != null) ...[
                   const SizedBox(height: FurFeelTokens.space4),
                   InlineFormError(message: _error!),
                 ],
                 const SizedBox(height: FurFeelTokens.space5),
+
+                // ── Primary CTA ──────────────────────────────────────────
                 ElevatedButton(
                   onPressed: _submitting || _googleBusy ? null : _submit,
                   child: _submitting
                       ? const BusyButtonLabel(label: 'Signing in')
                       : const Text('Sign in'),
                 ).entrance(context, index: 3),
+
+                // ── Google sign-in ───────────────────────────────────────
                 if (widget.onGoogleSignIn != null) ...[
                   const SizedBox(height: FurFeelTokens.space4),
                   const OrDivider(),
@@ -165,6 +204,8 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: _submitting ? null : _submitGoogle,
                   ).entrance(context, index: 4),
                 ],
+
+                // ── Create account cross-link ────────────────────────────
                 if (widget.onCreateAccount != null) ...[
                   const SizedBox(height: FurFeelTokens.space3),
                   Row(
