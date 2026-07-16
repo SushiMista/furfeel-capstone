@@ -4,6 +4,7 @@ import '../data/furfeel_repository.dart';
 import '../data/push_registration.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
+import '../widgets/floating_nav_bar.dart';
 import '../widgets/furfeel_logo.dart';
 import '../widgets/skeletons.dart';
 import 'alerts_tab.dart';
@@ -220,36 +221,34 @@ class _RootShellState extends State<RootShell> {
         ],
       ),
       body: _buildBody(dog),
-      bottomNavigationBar: NavigationBar(
+      // Floating pill bar (modern-minimal): Scaffold reserves exactly the
+      // bar's own rendered height (margin + pill), so tab content never
+      // needs manual bottom padding -- the page background simply shows
+      // through the margin around the pill, which is what reads as
+      // "floating" rather than a bar flush with the screen edges.
+      bottomNavigationBar: FloatingNavBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+          const FloatingNavDestination(
+            icon: Icons.home_outlined,
+            selectedIcon: Icons.home,
             label: 'Home',
           ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: openAlerts > 0,
-              label: Text('$openAlerts'),
-              child: const Icon(Icons.notifications_outlined),
-            ),
-            selectedIcon: Badge(
-              isLabelVisible: openAlerts > 0,
-              label: Text('$openAlerts'),
-              child: const Icon(Icons.notifications),
-            ),
+          FloatingNavDestination(
+            icon: Icons.notifications_outlined,
+            selectedIcon: Icons.notifications,
             label: 'Alerts',
+            badgeCount: openAlerts,
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
+          const FloatingNavDestination(
+            icon: Icons.insights_outlined,
+            selectedIcon: Icons.insights,
             label: 'Trends',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
+          const FloatingNavDestination(
+            icon: Icons.person_outline,
+            selectedIcon: Icons.person,
             label: 'Profile',
           ),
         ],
