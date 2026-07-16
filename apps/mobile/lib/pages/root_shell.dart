@@ -314,7 +314,8 @@ class _RootShellState extends State<RootShell> {
   }
 }
 
-/// Header dog switcher (docs/04: "A dog switcher in the header").
+/// Header dog switcher — tapping the chip opens a bottom sheet with avatars,
+/// names, breeds, and a brand checkmark on the active dog.
 class _DogSwitcher extends StatelessWidget {
   const _DogSwitcher({
     required this.dogs,
@@ -328,76 +329,299 @@ class _DogSwitcher extends StatelessWidget {
   final void Function(String dogId) onSelected;
   final VoidCallback onAddDog;
 
-  /// Soft pill chip — readable against the app bar now that the brand logo
-  /// owns the title slot (QA).
-  Widget _chip({required bool caret}) => Container(
+  void _openSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _DogSwitcherSheet(
+        dogs: dogs,
+        selected: selected,
+        onSelected: (id) {
+          Navigator.of(context, rootNavigator: true).pop();
+          onSelected(id);
+        },
+        onAddDog: () {
+          Navigator.of(context, rootNavigator: true).pop();
+          onAddDog();
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasMultiple = dogs.length > 1;
+    return GestureDetector(
+      onTap: hasMultiple ? () => _openSheet(context) : null,
+      child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: FurFeelTokens.space3,
-          vertical: FurFeelTokens.space1,
+          vertical: 6,
         ),
         decoration: BoxDecoration(
-          color: FurFeelTokens.brandSoft,
+          gradient: LinearGradient(
+            colors: [
+              FurFeelTokens.brand.withValues(alpha: 0.12),
+              FurFeelTokens.brand.withValues(alpha: 0.18),
+            ],
+          ),
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+          border: Border.all(
+            color: FurFeelTokens.brand.withValues(alpha: 0.25),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Tiny paw avatar
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: FurFeelTokens.brand.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.pets, size: 13, color: FurFeelTokens.brandStrong),
+            ),
+            const SizedBox(width: 6),
             Text(
               selected.name,
               style: TextStyle(
-                fontSize: FurFeelTokens.typeBodyMobileSize,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: FurFeelTokens.brandStrong,
               ),
             ),
-            if (caret) Icon(Icons.arrow_drop_down, color: FurFeelTokens.brandStrong),
+            if (hasMultiple) ...[
+              const SizedBox(width: 2),
+              Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18, color: FurFeelTokens.brandStrong),
+            ],
           ],
         ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    if (dogs.length == 1) return Center(child: _chip(caret: false));
-    return PopupMenuButton<String>(
-      tooltip: 'Switch dog',
-      onSelected: (value) {
-        if (value == '_add') {
-          onAddDog();
-        } else {
-          onSelected(value);
-        }
-      },
-      itemBuilder: (context) => [
-        for (final dog in dogs)
-          PopupMenuItem(
-            value: dog.id,
-            child: Row(
-              children: [
-                if (dog.id == selected.id)
-                  Icon(Icons.check, size: 18, color: FurFeelTokens.brand)
-                else
-                  const SizedBox(width: 18),
-                const SizedBox(width: FurFeelTokens.space2),
-                Text(dog.name),
-              ],
-            ),
-          ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: '_add',
-          child: Row(
-            children: [
-              Icon(Icons.add, size: 18, color: FurFeelTokens.inkMuted),
-              SizedBox(width: FurFeelTokens.space2),
-              Text('Add a dog…'),
-            ],
-          ),
-        ),
-      ],
-      child: Center(child: _chip(caret: true)),
+      ),
     );
   }
 }
+
+/// The bottom sheet content for switching between dogs.
+class _DogSwitcherSheet extends StatelessWidget {
+  const _DogSwitcherSheet({
+    required this.dogs,
+    required this.selected,
+    required this.onSelected,
+    required this.onAddDog,
+  });
+
+  final List<Dog> dogs;
+  final Dog selected;
+  final void Function(String dogId) onSelected;
+  final VoidCallback onAddDog;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: FurFeelTokens.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(FurFeelTokens.radiusLg),
+        ),
+        boxShadow: FurFeelTokens.shadowCard,
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Drag handle ───────────────────────────────────────────────
+            const SizedBox(height: FurFeelTokens.space3),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: FurFeelTokens.hairline,
+                borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+              ),
+            ),
+            const SizedBox(height: FurFeelTokens.space4),
+
+            // ── Sheet title ───────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: FurFeelTokens.space5),
+              child: Row(
+                children: [
+                  Icon(Icons.pets, size: 18, color: FurFeelTokens.brand),
+                  const SizedBox(width: FurFeelTokens.space2),
+                  Text(
+                    'Your dogs',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: FurFeelTokens.brandInk,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: FurFeelTokens.space3),
+            Divider(color: FurFeelTokens.hairline, height: 1),
+
+            // ── Dog list ─────────────────────────────────────────────────
+            for (final dog in dogs) _DogRow(dog: dog, selected: selected, onTap: onSelected),
+
+            Divider(color: FurFeelTokens.hairline, height: 1),
+
+            // ── Add a dog ─────────────────────────────────────────────────
+            InkWell(
+              onTap: onAddDog,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FurFeelTokens.space5,
+                  vertical: FurFeelTokens.space4,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: FurFeelTokens.surfaceAlt,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: FurFeelTokens.hairline,
+                          width: 1.5,
+                          strokeAlign: BorderSide.strokeAlignOutside,
+                        ),
+                      ),
+                      child: Icon(Icons.add, color: FurFeelTokens.inkMuted, size: 22),
+                    ),
+                    const SizedBox(width: FurFeelTokens.space4),
+                    Text(
+                      'Add another dog',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: FurFeelTokens.inkMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: FurFeelTokens.space2),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A single dog row in the switcher sheet.
+class _DogRow extends StatelessWidget {
+  const _DogRow({
+    required this.dog,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Dog dog;
+  final Dog selected;
+  final void Function(String) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final isActive = dog.id == selected.id;
+
+    return InkWell(
+      onTap: () => onTap(dog.id),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        color: isActive
+            ? FurFeelTokens.brand.withValues(alpha: 0.06)
+            : Colors.transparent,
+        padding: const EdgeInsets.symmetric(
+          horizontal: FurFeelTokens.space5,
+          vertical: FurFeelTokens.space3,
+        ),
+        child: Row(
+          children: [
+            // Avatar circle
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive
+                    ? FurFeelTokens.brand.withValues(alpha: 0.12)
+                    : FurFeelTokens.surfaceAlt,
+                border: isActive
+                    ? Border.all(
+                        color: FurFeelTokens.brand,
+                        width: 2,
+                        strokeAlign: BorderSide.strokeAlignOutside,
+                      )
+                    : null,
+              ),
+              child: Icon(
+                Icons.pets,
+                size: 22,
+                color: isActive ? FurFeelTokens.brand : FurFeelTokens.inkMuted,
+              ),
+            ),
+            const SizedBox(width: FurFeelTokens.space4),
+
+            // Name + breed
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dog.name,
+                    style: textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isActive
+                          ? FurFeelTokens.brandInk
+                          : FurFeelTokens.ink,
+                    ),
+                  ),
+                  if (dog.breed != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      dog.breed!,
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: FurFeelTokens.inkMuted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Active checkmark
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: isActive ? 1 : 0,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: FurFeelTokens.brand,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, size: 14, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 class _EmptyMessage extends StatelessWidget {
   const _EmptyMessage({required this.message, required this.onRefresh});
