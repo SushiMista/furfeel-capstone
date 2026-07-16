@@ -67,7 +67,14 @@ class _FurFeelAppState extends State<FurFeelApp> with WidgetsBindingObserver {
         // back so the freshly signed-in shell is actually visible.
         _navigatorKey.currentState?.popUntil((route) => route.isFirst);
       }
-      if (state.event == AuthChangeEvent.signedOut) _settings.clear();
+      if (state.event == AuthChangeEvent.signedOut) {
+        _settings.clear();
+        // Sign-out can fire while AccountPage (or another screen) is pushed
+        // on top of the home StreamBuilder -- pop back so the freshly
+        // signed-out Welcome screen is actually visible, not a half-cleared
+        // page left stranded on the stack (mirrors the sign-in fix above).
+        _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      }
     });
     _bootstrap();
   }
