@@ -3,15 +3,20 @@ import 'package:flutter/material.dart';
 import '../data/furfeel_repository.dart';
 import '../data/settings_controller.dart';
 import '../insights/biometrics.dart';
+import '../insights/owner_moments.dart';
 import '../models/activity_state.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/friendly_time.dart';
 import '../util/motion.dart';
 import '../widgets/activity_indicator.dart';
+import '../widgets/day_timeline.dart';
 import '../widgets/dog_avatar.dart';
+import '../widgets/setup_checklist_card.dart';
 import '../widgets/stress_pill.dart';
 import '../widgets/vet_note_card.dart';
+import 'device_pairing_page.dart';
+import 'dog_form_page.dart';
 import 'observation_page.dart';
 import 'vet_review_page.dart';
 import 'vital_detail_page.dart';
@@ -57,6 +62,14 @@ class HomeTab extends StatelessWidget {
       clinicId: dog.clinicId,
     );
 
+    // Owner-delight pass: a new owner always sees the next step, never an
+    // unexplained empty screen.
+    final setup = setupProgress(
+      hasDevice: device != null,
+      hasClinic: dog.clinicId != null,
+      hasReading: reading != null,
+    );
+
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
@@ -66,6 +79,28 @@ class HomeTab extends StatelessWidget {
           // ADDED: personalized greeting by name + time of day (docs/04).
           const _Greeting(),
           const SizedBox(height: FurFeelTokens.space3),
+          if (dog.isBirthday(DateTime.now())) ...[
+            _BirthdayBanner(dog: dog).entrance(context),
+            const SizedBox(height: FurFeelTokens.space3),
+          ],
+          if (!setupComplete(setup)) ...[
+            SetupChecklistCard(
+              dogName: dog.name,
+              progress: setup,
+              onPairHarness: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      DevicePairingPage(repository: repository, dog: dog),
+                ),
+              ),
+              onLinkClinic: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => DogFormPage(repository: repository, dog: dog),
+                ),
+              ),
+            ).entrance(context),
+            const SizedBox(height: FurFeelTokens.space3),
+          ],
           _StatusHero(
             repository: repository,
             dog: dog,
@@ -80,6 +115,9 @@ class HomeTab extends StatelessWidget {
               .entrance(context, index: 2),
           const SizedBox(height: FurFeelTokens.space3),
           _TodaySoFar(daily: daily).entrance(context, index: 3),
+          const SizedBox(height: FurFeelTokens.space3),
+          // Owner-delight pass: the day as a banded strip (docs/19 §6).
+          DayTimeline(repository: repository, dog: dog).entrance(context, index: 4),
           if (careGuidance != null) ...[
             const SizedBox(height: FurFeelTokens.space5),
             _CareInsightsCard(guidance: careGuidance).entrance(context, index: 4),
@@ -582,6 +620,52 @@ class _StatusHero extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Birthday moment (owner-delight pass): a warm one-liner on the dog's day.
+/// Purely celebratory — no data claims.
+class _BirthdayBanner extends StatelessWidget {
+  const _BirthdayBanner({required this.dog});
+
+  final Dog dog;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final age = dog.ageYears;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(FurFeelTokens.space4),
+      decoration: BoxDecoration(
+        color: FurFeelTokens.warmSoft,
+        borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+      ),
+      child: Row(
+        children: [
+          const Text('🎂', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: FurFeelTokens.space3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Happy birthday, ${dog.name}!',
+                  style:
+                      textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  age == null
+                      ? 'Extra treats are in order today.'
+                      : '$age today — extra treats are in order.',
+                  style: textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

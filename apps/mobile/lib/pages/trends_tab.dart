@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
 import '../insights/insights.dart';
+import '../insights/owner_moments.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
+import '../util/exports.dart';
+import '../util/save_file.dart';
 import '../widgets/stress_mix_chart.dart';
 import '../widgets/wellness_card.dart';
 import 'detailed_log_page.dart';
@@ -38,6 +41,7 @@ class TrendsTab extends StatefulWidget {
 
 class _TrendsTabState extends State<TrendsTab> {
   int _days = 14;
+  bool _sharing = false;
 
   /// Range-specific summaries; null = use the shell's default 14-day data.
   List<DailyStressSummary>? _rangeDaily;
@@ -73,6 +77,41 @@ class _TrendsTabState extends State<TrendsTab> {
       });
     } catch (_) {
       if (mounted) setState(() => _rangeLoading = false);
+    }
+  }
+
+  /// One-tap weekly PDF report (owner-delight pass): last 7 days, straight to
+  /// the share sheet / browser download. Reuses the detailed-log exporter.
+  Future<void> _shareWeeklyReport() async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    final to = DateTime.now();
+    final from = to.subtract(const Duration(days: 7));
+    try {
+      final results = await Future.wait<Object>([
+        widget.repository.fetchReadingsBetween(widget.dog.id, from, to),
+        widget.repository.fetchClassificationsBetween(widget.dog.id, from, to),
+      ]);
+      final bytes = await buildHealthReportPdf(
+        dog: widget.dog,
+        from: from,
+        to: to,
+        readings: results[0] as List<TelemetryReading>,
+        classifications: results[1] as List<StressClassification>,
+      );
+      final name =
+          widget.dog.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+      await saveOrShareFile(
+          bytes, 'furfeel-$name-weekly.pdf', 'application/pdf');
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Couldn\'t build the report — please try again.'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
     }
   }
 
@@ -124,6 +163,11 @@ class _TrendsTabState extends State<TrendsTab> {
           else ...[
             _CalmWeekHero(dogName: dog.name, week: week),
             const SizedBox(height: FurFeelTokens.space3),
+            // Owner-delight pass: celebrate a run of mostly-calm days.
+            if (calmStreak(widget.daily, now) >= 2) ...[
+              _StreakCard(dogName: dog.name, days: calmStreak(widget.daily, now)),
+              const SizedBox(height: FurFeelTokens.space3),
+            ],
             // QA item 16: today's wellness score + activity/rest balance.
             WellnessCard(repository: repository, dog: dog),
             const SizedBox(height: FurFeelTokens.space5),
@@ -185,22 +229,76 @@ class _TrendsTabState extends State<TrendsTab> {
               for (final insight in insights) _InsightCard(insight: insight),
           ],
           const SizedBox(height: FurFeelTokens.space4),
-          Center(
-            child: TextButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => DetailedLogPage(repository: repository, dog: dog),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        DetailedLogPage(repository: repository, dog: dog),
+                  ),
                 ),
+                icon: const Icon(Icons.list_alt_outlined, size: 18),
+                label: const Text('View detailed log'),
               ),
-              icon: const Icon(Icons.list_alt_outlined, size: 18),
-              label: const Text('View detailed log'),
-            ),
+              const SizedBox(width: FurFeelTokens.space2),
+              TextButton.icon(
+                onPressed: hasData && !_sharing ? _shareWeeklyReport : null,
+                icon: const Icon(Icons.ios_share_outlined, size: 18),
+                label: Text(_sharing ? 'Building…' : 'Share weekly report'),
+              ),
+            ],
           ),
           const SizedBox(height: FurFeelTokens.space2),
           Text(
             'Trends support your care decisions — they are not a diagnosis.',
             textAlign: TextAlign.center,
             style: textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Calm-streak celebration (owner-delight pass). Observational: it counts
+/// mostly-calm days, it doesn't explain them.
+class _StreakCard extends StatelessWidget {
+  const _StreakCard({required this.dogName, required this.days});
+
+  final String dogName;
+  final int days;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(FurFeelTokens.space4),
+      decoration: BoxDecoration(
+        color: FurFeelTokens.warmSoft,
+        borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+      ),
+      child: Row(
+        children: [
+          const Text('✨', style: TextStyle(fontSize: 24)),
+          const SizedBox(width: FurFeelTokens.space3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$days mostly-calm days in a row',
+                  style:
+                      textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  'Whatever you\'re doing, $dogName seems settled — keep it up.',
+                  style: textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
         ],
       ),

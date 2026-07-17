@@ -22,6 +22,10 @@ void main() {
     'lib/pages/multi_dog_home.dart',
     'lib/widgets/wellness_card.dart',
     'lib/util/exports.dart',
+    // Owner-delight pass copy.
+    'lib/insights/owner_moments.dart',
+    'lib/widgets/setup_checklist_card.dart',
+    'lib/widgets/day_timeline.dart',
   ];
 
   // Clinical / causal language that must never appear in owner copy.
