@@ -10,10 +10,14 @@ import 'fakes.dart';
 const _dog = Dog(id: 'dog-1', ownerUserId: 'user-1', name: 'Biscuit');
 
 class FakeHistoryRepository extends FakeRepository {
-  FakeHistoryRepository({this.classifications = const [], this.readings = const []})
-      : super(dogs: const [_dog]);
+  FakeHistoryRepository(
+      {List<StressClassification> classifications = const [],
+      this.readings = const []})
+      : super(dogs: const [_dog]) {
+    // Stored on the base field so fetchClassificationsBetween sees it too.
+    this.classifications = classifications;
+  }
 
-  final List<StressClassification> classifications;
   final List<TelemetryReading> readings;
 
   @override

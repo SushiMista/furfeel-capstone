@@ -102,6 +102,7 @@ class Device {
     this.dogId,
     this.lastSeenAt,
     this.firmwareVersion,
+    this.batteryPercent,
   });
 
   final String id;
@@ -111,7 +112,15 @@ class Device {
   final DateTime? lastSeenAt;
   final String? firmwareVersion;
 
+  /// Latest reported battery 0-100, mirrored from telemetry by the intake
+  /// function; null until the harness first reports it.
+  final int? batteryPercent;
+
   bool get isOnline => status == 'active';
+
+  /// Matches the provisional low-battery alert threshold
+  /// (classifier_config.json device_alerts.low_battery_percent = 15).
+  bool get isBatteryLow => batteryPercent != null && batteryPercent! <= 15;
 
   factory Device.fromMap(Map<String, dynamic> map) => Device(
         id: map['id'] as String,
@@ -122,6 +131,7 @@ class Device {
             ? null
             : DateTime.parse(map['last_seen_at'] as String).toLocal(),
         firmwareVersion: map['firmware_version'] as String?,
+        batteryPercent: _toInt(map['battery_percent']),
       );
 }
 
@@ -181,26 +191,91 @@ class StressLabelEntry {
       );
 }
 
-/// Vet-authored guidance for a stress level (care_guidance). Informational
-/// only — never diagnosis (docs/04 Care Insights).
+/// Vet-authored guidance (care_guidance). Informational only — never
+/// diagnosis (docs/04 Care Insights). Keyed either by [stressLevel] (per-level
+/// default) or by [contextKey] (a COMBINATION of signals, e.g. 'cold_stressed',
+/// 'restless_high_hr'); context rows win when their combination is active.
 class CareGuidance {
   const CareGuidance({
-    required this.stressLevel,
     required this.title,
     required this.body,
+    this.stressLevel,
+    this.contextKey,
     this.clinicId,
   });
 
-  final StressLevel stressLevel;
+  final StressLevel? stressLevel;
+  final String? contextKey;
   final String title;
   final String body;
   final String? clinicId;
 
   factory CareGuidance.fromMap(Map<String, dynamic> map) => CareGuidance(
-        stressLevel: StressLevel.fromName(map['stress_level'] as String),
+        stressLevel: map['stress_level'] == null
+            ? null
+            : StressLevel.fromName(map['stress_level'] as String),
+        contextKey: map['context_key'] as String?,
         title: map['title'] as String,
         body: map['body'] as String,
         clinicId: map['clinic_id'] as String?,
+      );
+}
+
+/// One message in a media-submission conversation (media_messages): the owner
+/// and the clinic replying back and forth under a submitted photo/video.
+class MediaMessage {
+  const MediaMessage({
+    required this.id,
+    required this.mediaSubmissionId,
+    required this.authorUserId,
+    required this.body,
+    required this.createdAt,
+    this.authorName,
+  });
+
+  final String id;
+  final String mediaSubmissionId;
+  final String authorUserId;
+  final String body;
+  final DateTime createdAt;
+  final String? authorName;
+
+  factory MediaMessage.fromMap(Map<String, dynamic> map) => MediaMessage(
+        id: map['id'] as String,
+        mediaSubmissionId: map['media_submission_id'] as String,
+        authorUserId: map['author_user_id'] as String,
+        body: map['body'] as String,
+        createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
+        authorName: (map['author'] as Map<String, dynamic>?)?['name'] as String?,
+      );
+}
+
+/// Daily wellness snapshot (dog_wellness_score RPC). PROVISIONAL engineering
+/// score, not clinical — see docs/08.
+class WellnessSnapshot {
+  const WellnessSnapshot({
+    required this.score,
+    required this.calmPercent,
+    required this.activePercent,
+    required this.restPercent,
+    required this.alertCount,
+    required this.sampleCount,
+  });
+
+  final int score; // 0-100
+  final double calmPercent;
+  final double activePercent;
+  final double restPercent;
+  final int alertCount;
+  final int sampleCount;
+
+  factory WellnessSnapshot.fromMap(Map<String, dynamic> map) => WellnessSnapshot(
+        score: (map['score'] as num).toInt(),
+        calmPercent: _toDouble(map['calm_percent']) ?? 0,
+        activePercent: _toDouble(map['active_percent']) ?? 0,
+        restPercent: _toDouble(map['rest_percent']) ?? 0,
+        alertCount: (map['alert_count'] as num?)?.toInt() ?? 0,
+        sampleCount: (map['sample_count'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -351,6 +426,9 @@ class TelemetryReading {
     this.respiratoryRateBpm,
     this.motionActivity,
     this.posture,
+    this.ambientTemperatureC,
+    this.humidityPercent,
+    this.batteryPercent,
   });
 
   final String id;
@@ -362,6 +440,13 @@ class TelemetryReading {
   final double? motionActivity;
   final String? posture;
 
+  /// Environment context (drives combination care insights: hot/cold + state).
+  final double? ambientTemperatureC;
+  final double? humidityPercent;
+
+  /// Device health only — never a classifier input (docs/07).
+  final int? batteryPercent;
+
   factory TelemetryReading.fromMap(Map<String, dynamic> map) => TelemetryReading(
         id: map['id'] as String,
         dogId: map['dog_id'] as String,
@@ -371,6 +456,9 @@ class TelemetryReading {
         respiratoryRateBpm: _toInt(map['respiratory_rate_bpm']),
         motionActivity: _toDouble(map['motion_activity']),
         posture: map['posture'] as String?,
+        ambientTemperatureC: _toDouble(map['ambient_temperature_c']),
+        humidityPercent: _toDouble(map['humidity_percent']),
+        batteryPercent: _toInt(map['battery_percent']),
       );
 }
 
@@ -382,6 +470,7 @@ class StressClassification {
     required this.createdAt,
     this.score,
     this.modelVersion,
+    this.reasons = const [],
   });
 
   final String id;
@@ -391,6 +480,10 @@ class StressClassification {
   final double? score;
   final String? modelVersion;
 
+  /// Which rules/context fired (stress_classifications.reasons jsonb) — feeds
+  /// the owner-facing "why" and combination care insights.
+  final List<String> reasons;
+
   factory StressClassification.fromMap(Map<String, dynamic> map) => StressClassification(
         id: map['id'] as String,
         dogId: map['dog_id'] as String,
@@ -398,6 +491,7 @@ class StressClassification {
         createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
         score: _toDouble(map['score']),
         modelVersion: map['model_version'] as String?,
+        reasons: (map['reasons'] as List?)?.cast<String>() ?? const [],
       );
 }
 

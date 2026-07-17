@@ -227,6 +227,34 @@ class _PairedCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: FurFeelTokens.space4),
+            // QA item 14: battery health with a clear low-battery state.
+            if (device.batteryPercent != null) ...[
+              Row(
+                children: [
+                  Icon(
+                    device.isBatteryLow
+                        ? Icons.battery_alert
+                        : Icons.battery_full,
+                    size: 18,
+                    color: device.isBatteryLow
+                        ? FurFeelTokens.statusHighOwner
+                        : FurFeelTokens.statusCalmFg,
+                  ),
+                  const SizedBox(width: FurFeelTokens.space1),
+                  Text(
+                    'Battery ${device.batteryPercent}%'
+                    '${device.isBatteryLow ? ' — time for a charge' : ''}',
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: device.isBatteryLow
+                          ? FurFeelTokens.statusHighOwner
+                          : FurFeelTokens.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: FurFeelTokens.space2),
+            ],
             Text(
               device.lastSeenAt != null
                   ? 'Last sync ${friendlyTimestamp(device.lastSeenAt!)}'

@@ -30,11 +30,11 @@ class AlertsTab extends StatefulWidget {
 }
 
 /// Alert `type` groups shown as tabs. Stress covers both alerting levels;
-/// Harness is device connectivity.
+/// Harness is device health (connectivity + battery).
 enum _AlertGroup {
   all('All', null),
   stress('Stress', ['moderate_stress', 'high_stress']),
-  harness('Harness', ['device_offline']);
+  harness('Harness', ['device_offline', 'low_battery']);
 
   const _AlertGroup(this.label, this.types);
 

@@ -8,9 +8,11 @@ import '../widgets/floating_nav_bar.dart';
 import '../widgets/furfeel_logo.dart';
 import '../widgets/skeletons.dart';
 import 'alerts_tab.dart';
+import 'consent_page.dart';
 import 'dog_form_page.dart';
 import 'guided_setup_page.dart';
 import 'home_tab.dart';
+import 'multi_dog_home.dart';
 import 'profile_tab.dart';
 import 'trends_tab.dart';
 
@@ -39,6 +41,10 @@ class _RootShellState extends State<RootShell> {
   String? _selectedDogId;
   int _tab = 0;
 
+  /// Consent gate (docs/12): null = still checking, false = must accept the
+  /// current policy before any monitoring data or media features show.
+  bool? _consented;
+
   TelemetryReading? _latestReading;
   StressClassification? _latestClassification;
   List<Alert> _alerts = [];
@@ -60,7 +66,11 @@ class _RootShellState extends State<RootShell> {
   @override
   void initState() {
     super.initState();
-    _loadDogs();
+    // Consent first (docs/12): dogs, telemetry, and the realtime subscription
+    // only start once the current policy version is confirmed accepted.
+    _checkConsent().then((_) {
+      if (mounted && _consented == true) _loadDogs();
+    });
     // In-app registration path for push (docs/04). No tokenProvider yet: the
     // FCM/APNs credential wiring is a human step — see data/push_registration.dart.
     registerPushTokenIfAvailable(widget.repository);
@@ -70,6 +80,18 @@ class _RootShellState extends State<RootShell> {
   void dispose() {
     _unsubscribe?.call();
     super.dispose();
+  }
+
+  Future<void> _checkConsent() async {
+    try {
+      final accepted =
+          await widget.repository.hasAcceptedConsent(kConsentPolicyVersion);
+      if (mounted) setState(() => _consented = accepted);
+    } catch (_) {
+      // Can't verify (offline?): show the gate — monitoring data must not
+      // render before consent is confirmed (docs/12). Accepting retries.
+      if (mounted) setState(() => _consented = false);
+    }
   }
 
   Future<void> _loadDogs() async {
@@ -198,6 +220,19 @@ class _RootShellState extends State<RootShell> {
     final dogs = _dogs;
     final dog = _selectedDog;
 
+    // Consent gate first: no monitoring data or media until accepted.
+    if (_consented == null) return const Scaffold(body: HomeSkeleton());
+    if (_consented == false) {
+      return ConsentPage(
+        repository: widget.repository,
+        onAccepted: () {
+          setState(() => _consented = true);
+          _loadDogs();
+        },
+        onSignOut: widget.onSignOut,
+      );
+    }
+
     if (dogs != null && dogs.isEmpty) return _buildOnboarding(context);
 
     final openAlerts = _alerts.where((a) => a.isOpen).length;
@@ -266,6 +301,10 @@ class _RootShellState extends State<RootShell> {
     }
 
     return switch (_tab) {
+      // QA item 9: multi-dog accounts get a glanceable card per dog; a
+      // single-dog owner still lands straight on the rich detail.
+      0 when (_dogs?.length ?? 0) > 1 =>
+        MultiDogHomeTab(repository: widget.repository, dogs: _dogs!),
       0 => _error != null
           ? _EmptyMessage(message: _error!, onRefresh: _refresh)
           : HomeTab(
