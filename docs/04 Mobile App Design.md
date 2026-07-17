@@ -18,10 +18,16 @@ Floating bottom tab bar: **Home · Alerts · Trends · Profile**. A dog switcher
 Animated **Splash → Welcome → Onboarding → Guided Setup** (create account or Google sign-in → add your dog → pair a harness → done), warm animated steps, not blank screens.
 
 ### As-built owner screens (beyond the base modules)
-- **Home:** greeting by name/time; big stress status + plain-language "why" (`primary_reason`); a **2×2 grid of tappable vital cards** → each opens a **Vital Detail** page showing the value, the dog's typical resting range (per-dog `dog_baselines` when set, else the classifier's global defaults), and an owner-friendly explanation; an animated **calm-percentage ring**; a one-line "calm today" strip with a "View detailed log" link (raw readings live in the **Detailed Log** page for power users); the latest vet note inline (updates live via Realtime).
-- **Trends tab** (replaces a raw history list): "calm time this week" headline with a week-over-week delta; a **7 / 14 / 30-day stress-mix** chart (100%-stacked bars in the status colors); computed, honesty-guarded **insight cards** (calmest/tensest time of day, activity↔calm association, alert trend) with minimum-sample thresholds and strictly observational wording (no diagnosis, no causal claims).
-- **Device Pairing** can pick from a **Partner Clinics** list to set the dog's clinic.
-- **Alerts:** all/by-type view with a per-type mute switch, persisted to `user_settings.muted_alert_types` (in-app + preference; server-side push suppression is the pending FCM step).
+- **Home (multi-dog):** accounts with 2+ dogs land on a **glanceable card per dog** — photo, name, stress pill, wellness score, one key vital, harness battery, last-updated. Tapping a card opens that dog's **full detail** (the rich single-dog Home below, self-loading + live). Single-dog owners land straight on the rich detail.
+- **Home (single dog / dog detail):** greeting by name/time; big stress status + plain-language "why" (`primary_reason`); a **2×2 grid of tappable vital cards**, each carrying a **plain-language status word** (Low / Normal / Elevated / High, token-colored) derived from the dog's own baseline (`dog_baselines`, else the provisional global range) → each opens a **Vital Detail** page with the value, a status sentence ("Heart rate 92 bpm — Normal for Biscuit"), the typical resting range, and an owner-friendly explanation; an animated **calm-percentage ring**; the latest vet note inline (live via Realtime); harness status chip includes **battery %** with a low-battery state.
+- **Care Insights (combination-aware):** the tip is keyed off the **combination** of signals + environment when one applies (`cold_stressed`, `hot_stressed`, `panting_hot`, `restless_high_hr`, `cold_calm`, `hot_calm` — see `08`), falling back to the per-level guidance. Vet-editable via `care_guidance.context_key`.
+- **Trends tab:** "calm time this week" headline with a week-over-week delta; a **daily wellness score card** (0–100 provisional engineering score + active/rest/calm balance bar, labeled "not a medical score"); a **7 / 14 / 30-day stress-mix** chart (100%-stacked bars in the status colors); computed, honesty-guarded **insight cards** with minimum-sample thresholds and strictly observational wording (no diagnosis, no causal claims).
+- **Detailed Log (redesigned):** friendly **per-vital mini-dashboards** (fl_chart line + min/avg/max chips) over a selectable range (24h / 7d / 30d / custom date range), with **downloadable exports** — CSV of the raw readings always, plus a shareable **PDF health report** (share sheet on mobile, plain browser download on web). Both carry the decision-support disclaimer.
+- **Observation Assessment → conversations:** every past submission opens a **threaded conversation** (media up top, the owner's note, the clinic's review, then `media_messages` replies back and forth like an email chain, with a composer).
+- **Device Pairing** can pick from a **Partner Clinics** list to set the dog's clinic; shows **battery health** (% + "time for a charge" low state) alongside connectivity.
+- **Alerts:** all/by-type view with a per-type mute switch, persisted to `user_settings.muted_alert_types` (in-app + preference; server-side push suppression is the pending FCM step). The Harness group covers `device_offline` + `low_battery`. All alert copy is warm and observational, names the dog and the sensed reason (see `11`).
+- **Consent gate (docs/12):** after sign-in, monitoring data and media features stay locked until the current data-collection policy version is accepted; the realtime subscription doesn't start before that. Policy bump = re-consent.
+- **Theme:** new installs open in **light** mode (`user_settings.theme` default `'light'`); Light / Dark / System remain selectable, System demoted to last.
 
 ## Modules (manuscript)
 
@@ -54,7 +60,7 @@ Automated, plain-language guidance for the current stress state.
 ### 5. Vet Review (owner side)
 Owner reads clinician output and follows up.
 - Displays vet recommendations/notes for the dog (`vet_notes`) and any confirmed stress assessments.
-- Simple threaded follow-up message back to the clinic (optional MVP: read-only first).
+- Threaded follow-up: **built** for media submissions (`media_messages` — see Observation conversations above); vet notes remain read-only.
 
 ### 6. Device Pairing & Setup
 - Pair a device by entering/scanning its `device_code`; show connectivity, `last_seen_at`, offline and low-battery states.
@@ -65,7 +71,7 @@ The app should feel personal and complete, not a demo.
 - **Personalized greeting:** Home greets the owner by name + time of day ("Good morning, Joshua 👋") with the dog front and center.
 - **Onboarding / sign-up:** a real first-run flow — welcome, create account (Supabase Auth), then a friendly guided setup (add your dog → pair a device → done). Warm empty states, not blank screens.
 - **Profile / Account:** name, email, profile photo (`users.avatar_path` → Storage), change password, sign out, delete account.
-- **Settings** (backed by `user_settings`): theme (system/light/dark), temperature unit (°C/°F), notification toggles + quiet hours, plus About, Privacy, and "How FurFeel works" (reinforce decision-support-not-diagnosis).
+- **Settings** (backed by `user_settings`): theme (light default; light/dark/system), temperature unit (°C/°F), notification toggles + quiet hours, plus About, Privacy, and "How FurFeel works" (reinforce decision-support-not-diagnosis).
 - Live under the **More** tab (Profile, Settings, plus the occasional modules).
 
 ## Notifications

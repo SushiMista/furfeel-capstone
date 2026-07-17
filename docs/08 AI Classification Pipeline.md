@@ -73,6 +73,7 @@ Each rule emits a stable `code` plus the raw detail. Classifications also expose
 | reason code | owner-facing phrase |
 |---|---|
 | `environmental_heat` | "Feeling the heat — it's warm and humid" |
+| `environmental_cold` | "It's chilly out — worth a warm spot" (context only, see below) |
 | `heart_rate_elevated` | "Heart rate is higher than usual" |
 | `respiratory_elevated` | "Breathing fast / panting" |
 | `body_temperature` | "Body temperature is up" |
@@ -81,6 +82,26 @@ Each rule emits a stable `code` plus the raw detail. Classifications also expose
 | (none — calm) | "Relaxed and comfortable" |
 
 Keep the phrase table in config alongside the thresholds so it's tunable and translatable. Care Insights should key its tip off the same `primary_reason` (e.g. heat → "move to a cooler, shaded spot and offer water").
+
+### Context rules (no score impact)
+`classifier_config.json` has a `context_rules` section for signals that inform the owner and Care Insights but **never change the stress score**. Implemented: `environmental_cold` — ambient below **8 °C (provisional, vet-tunable)** appends the `environmental_cold` reason code. Cold is deliberately not scored (this table scores heat only); revisit with veterinary input if cold stress should ever contribute points.
+
+### Care Insights combinations
+The owner app derives a *combination context* from the latest reading + classification and prefers a matching `care_guidance.context_key` row over the per-level default: `cold_stressed`, `hot_stressed`, `panting_hot`, `restless_high_hr`, `cold_calm`, `hot_calm`. Hot/cold use the environmental amplifier + cold-context thresholds; "restless" = motion ≥ 0.6; "high HR / panting" use the biometric status bands below. Seeded copy is provisional and clinic-overridable — **a vet should review it**.
+
+### Biometric status bands (owner-facing, provisional)
+Each vital shows a plain status word (Low / Normal / Elevated / High) relative to the dog's baseline (`dog_baselines`, else the global defaults). Bands align with the rule tiers: HR ratio <0.7 Low · <1.15 Normal · <1.35 Elevated · else High; RR ratio <0.5 / <1.3 / <1.8; temperature <37.5 / <39.2 / <39.7 °C. These live in `apps/mobile/lib/insights/biometrics.dart` mirroring `classifier_config.json` (no Dart codegen yet — keep in sync by hand). Strictly observational wording.
+
+## Daily Wellness Score (provisional engineering metric)
+`dog_wellness_score(dog_id, day)` (SECURITY INVOKER RPC) returns a 0–100 daily score — **an engineering composite, not a clinical measure**, and labeled as such in the app:
+
+```
+calm_component    = 60 × (calm classifications / all classifications that day)
+balance_component = 40 × (1 − |active_share − 0.30|)   # active = motion ≥ 0.4; 0.30 = provisional healthy activity share
+alert_penalty     = 10 per alert that day, capped at 30
+score             = clamp(round(calm + balance − penalty), 0, 100)
+```
+Returns no row when the day has no classifications. Every constant here is vet-tunable in the migration; log changes as ADRs.
 
 ## Worked Example
 Baseline HR 90, RR 24. Reading: HR 150 (`hr_ratio`=1.67 → +3), RR 46 (`rr_ratio`=1.92 → +2), temp 39.4 (+1), motion 0.7 (+1) → score 7 → **high**. Reasons: `["hr_ratio>1.6","rr panting","temp 39.2-39.7","motion 0.6-0.8"]`.
