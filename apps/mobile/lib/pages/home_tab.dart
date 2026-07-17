@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
 import '../data/settings_controller.dart';
+import '../insights/biometrics.dart';
 import '../models/activity_state.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
@@ -46,8 +47,15 @@ class HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final level = classification?.stressLevel;
-    final careGuidance =
-        level == null ? null : selectCareGuidance(guidance, level, dog.clinicId);
+    // Combination-aware tip (QA item 11): cold+stressed, hot+stressed,
+    // restless+high HR... each gets tailored advice; falls back to the
+    // per-level guidance when no combination applies.
+    final careGuidance = selectGuidance(
+      guidance,
+      level: level,
+      contextKey: careContextKey(level: level, reading: reading),
+      clinicId: dog.clinicId,
+    );
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -147,12 +155,33 @@ class _Greeting extends StatelessWidget {
 
 /// QA: the four vitals as tappable squares. Each opens a detail screen with
 /// the current value, the dog's typical range, and owner-friendly info.
-class _VitalGrid extends StatelessWidget {
+/// Stateful only to fetch the dog's baseline once so each number carries a
+/// plain-language status (Low/Normal/Elevated/High) relative to *this* dog.
+class _VitalGrid extends StatefulWidget {
   const _VitalGrid({required this.repository, required this.dog, this.reading});
 
   final FurFeelRepository repository;
   final Dog dog;
   final TelemetryReading? reading;
+
+  @override
+  State<_VitalGrid> createState() => _VitalGridState();
+}
+
+class _VitalGridState extends State<_VitalGrid> {
+  DogBaseline? _baseline;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.repository.fetchBaseline(widget.dog.id).then((b) {
+      if (mounted) setState(() => _baseline = b);
+    }).catchError((_) {});
+  }
+
+  FurFeelRepository get repository => widget.repository;
+  Dog get dog => widget.dog;
+  TelemetryReading? get reading => widget.reading;
 
   @override
   Widget build(BuildContext context) {
@@ -179,19 +208,31 @@ class _VitalGrid extends StatelessWidget {
           VitalKind.activity => (activityState.label, ''),
         };
 
+    // QA item 10: a status word next to the number, from the dog's own
+    // baseline when the clinic set one (else the provisional global range).
+    VitalStatus? status(VitalKind kind) => switch (kind) {
+          VitalKind.heartRate => heartRateStatus(reading?.heartRateBpm, _baseline),
+          VitalKind.breathing =>
+            respiratoryStatus(reading?.respiratoryRateBpm, _baseline),
+          VitalKind.temperature => temperatureStatus(reading?.bodyTemperatureC),
+          VitalKind.activity => null, // activity already reads as a word
+        };
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: FurFeelTokens.space3,
       crossAxisSpacing: FurFeelTokens.space3,
-      childAspectRatio: 1.55,
+      // Slightly taller squares: value + status word need the room.
+      childAspectRatio: 1.35,
       children: [
         for (final kind in VitalKind.values)
           _VitalSquare(
             kind: kind,
             value: valueAndUnit(kind).$1,
             unit: valueAndUnit(kind).$2,
+            status: status(kind),
             activityState: kind == VitalKind.activity ? activityState : null,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -215,6 +256,7 @@ class _VitalSquare extends StatelessWidget {
     required this.value,
     required this.unit,
     required this.onTap,
+    this.status,
     this.activityState,
   });
 
@@ -222,6 +264,10 @@ class _VitalSquare extends StatelessWidget {
   final String value;
   final String unit;
   final VoidCallback onTap;
+
+  /// Plain-language status (Low/Normal/Elevated/High) for this dog; null when
+  /// there's no reading or the vital doesn't use one (activity).
+  final VitalStatus? status;
 
   /// Set only on the Activity square: swaps the numeric value for an
   /// animated state indicator + state word.
@@ -316,6 +362,28 @@ class _VitalSquare extends StatelessWidget {
                           ),
                         ),
                 ),
+                if (status != null)
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: vitalStatusColor(status!),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: FurFeelTokens.space1),
+                      Text(
+                        status!.label,
+                        style: TextStyle(
+                          fontSize: FurFeelTokens.typeCaptionSize,
+                          fontWeight: FontWeight.w600,
+                          color: vitalStatusColor(status!),
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -519,7 +587,8 @@ class _StatusHero extends StatelessWidget {
   }
 }
 
-/// Small connectivity chip (docs/04 module 6: show connectivity states).
+/// Small connectivity chip (docs/04 module 6: show connectivity states) plus
+/// harness battery (QA item 14) with a low-battery state.
 class _DeviceChip extends StatelessWidget {
   const _DeviceChip({required this.device});
 
@@ -533,6 +602,9 @@ class _DeviceChip extends StatelessWidget {
         : offline
             ? FurFeelTokens.statusHighOwner
             : FurFeelTokens.inkMuted;
+    final battery = device.batteryPercent;
+    final batteryColor =
+        device.isBatteryLow ? FurFeelTokens.statusHighOwner : FurFeelTokens.inkMuted;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -546,6 +618,22 @@ class _DeviceChip extends StatelessWidget {
             color: color,
           ),
         ),
+        if (battery != null) ...[
+          const SizedBox(width: FurFeelTokens.space2),
+          Icon(
+            device.isBatteryLow ? Icons.battery_alert : Icons.battery_full,
+            size: 14,
+            color: batteryColor,
+          ),
+          Text(
+            '$battery%',
+            style: TextStyle(
+              fontSize: FurFeelTokens.typeCaptionSize,
+              fontWeight: FontWeight.w600,
+              color: batteryColor,
+            ),
+          ),
+        ],
       ],
     );
   }

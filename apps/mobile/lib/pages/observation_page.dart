@@ -5,6 +5,7 @@ import '../data/furfeel_repository.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/friendly_time.dart';
+import 'media_thread_page.dart';
 
 /// Observation Assessment (docs/04 module 3): the owner shares notes, photos,
 /// and short videos with the clinic. Supplementary material only — every view
@@ -242,7 +243,22 @@ class _ObservationPageState extends State<ObservationPage> {
                         children: [
                           for (final (i, s) in _submissions.indexed) ...[
                             if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
-                            _SubmissionTile(submission: s),
+                            // QA item 12: each submission opens its own
+                            // conversation with the clinic.
+                            InkWell(
+                              onTap: () => Navigator.of(context)
+                                  .push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => MediaThreadPage(
+                                        repository: widget.repository,
+                                        dog: widget.dog,
+                                        submission: s,
+                                      ),
+                                    ),
+                                  )
+                                  .then((_) => _load()),
+                              child: _SubmissionTile(submission: s),
+                            ),
                           ],
                         ],
                       ),

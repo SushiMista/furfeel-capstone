@@ -44,7 +44,24 @@ abstract class FurFeelRepository {
   Future<TelemetryReading?> fetchLatestReading(String dogId);
   Future<StressClassification?> fetchLatestClassification(String dogId);
   Future<List<TelemetryReading>> fetchRecentReadings(String dogId, {int limit = 20});
+
+  /// Readings inside a date range, oldest-first, for the detailed log charts
+  /// and exports. Capped at [limit] most-recent rows in the range.
+  Future<List<TelemetryReading>> fetchReadingsBetween(
+    String dogId,
+    DateTime from,
+    DateTime to, {
+    int limit = 1000,
+  });
   Future<List<StressClassification>> fetchRecentClassifications(String dogId, {int limit = 50});
+
+  /// Classifications inside a date range, oldest-first (detailed log + report).
+  Future<List<StressClassification>> fetchClassificationsBetween(
+    String dogId,
+    DateTime from,
+    DateTime to, {
+    int limit = 2000,
+  });
   Future<List<Alert>> fetchAlerts(String dogId, {int limit = 20});
 
   /// Server-aggregated stress mix per local day (stress_daily_summary RPC) —
@@ -79,6 +96,21 @@ abstract class FurFeelRepository {
   /// Guidance rows visible to this owner: global defaults plus any clinic
   /// overrides RLS lets them see (docs/04 Care Insights).
   Future<List<CareGuidance>> fetchCareGuidance();
+
+  /// Daily wellness snapshot (dog_wellness_score RPC) — provisional
+  /// engineering score, null when the day has no classifications.
+  Future<WellnessSnapshot?> fetchWellness(String dogId, DateTime day);
+
+  /// Everything the multi-dog Home card needs for one dog, in one call.
+  Future<DogOverview> fetchDogOverview(Dog dog);
+
+  // ---- Media conversation (docs/04 module 5: threaded follow-up) ----
+  Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId);
+  Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body);
+
+  // ---- Data-collection consent (docs/12) ----
+  Future<bool> hasAcceptedConsent(String policyVersion);
+  Future<void> acceptConsent(String policyVersion);
 
   // ---- Observation assessment (docs/04 module 3). Supplementary only. ----
   Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50});
@@ -125,21 +157,21 @@ abstract class FurFeelRepository {
   });
 }
 
-/// Picks the guidance to show for [level]: a clinic-specific row wins over the
-/// global default (docs/09 care_guidance: clinic_id null = global). Pure so it
-/// stays unit-testable.
-CareGuidance? selectCareGuidance(
-  List<CareGuidance> rows,
-  StressLevel level,
-  String? clinicId,
-) {
-  CareGuidance? global;
-  for (final row in rows) {
-    if (row.stressLevel != level) continue;
-    if (clinicId != null && row.clinicId == clinicId) return row;
-    if (row.clinicId == null) global = row;
-  }
-  return global;
+/// Per-dog snapshot for the multi-dog Home cards (photo/name come from [dog]).
+class DogOverview {
+  const DogOverview({
+    required this.dog,
+    this.reading,
+    this.classification,
+    this.device,
+    this.wellness,
+  });
+
+  final Dog dog;
+  final TelemetryReading? reading;
+  final StressClassification? classification;
+  final Device? device;
+  final WellnessSnapshot? wellness;
 }
 
 class SupabaseFurFeelRepository implements FurFeelRepository {
@@ -149,9 +181,10 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
 
   static const _readingColumns =
       'id, dog_id, captured_at, heart_rate_bpm, body_temperature_c, '
-      'respiratory_rate_bpm, motion_activity, posture';
+      'respiratory_rate_bpm, motion_activity, posture, '
+      'ambient_temperature_c, humidity_percent, battery_percent';
   static const _classificationColumns =
-      'id, dog_id, stress_level, score, model_version, created_at';
+      'id, dog_id, stress_level, score, model_version, reasons, created_at';
   static const _alertColumns =
       'id, dog_id, severity, type, message, status, acknowledged_by, acknowledged_at, created_at';
 
@@ -272,6 +305,24 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   }
 
   @override
+  Future<List<TelemetryReading>> fetchReadingsBetween(
+    String dogId,
+    DateTime from,
+    DateTime to, {
+    int limit = 1000,
+  }) async {
+    final rows = await _client
+        .from('telemetry_readings')
+        .select(_readingColumns)
+        .eq('dog_id', dogId)
+        .gte('captured_at', from.toUtc().toIso8601String())
+        .lte('captured_at', to.toUtc().toIso8601String())
+        .order('captured_at', ascending: false)
+        .limit(limit);
+    return rows.map(TelemetryReading.fromMap).toList().reversed.toList();
+  }
+
+  @override
   Future<List<StressClassification>> fetchRecentClassifications(String dogId,
       {int limit = 50}) async {
     final rows = await _client
@@ -281,6 +332,24 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
         .order('created_at', ascending: false)
         .limit(limit);
     return rows.map(StressClassification.fromMap).toList();
+  }
+
+  @override
+  Future<List<StressClassification>> fetchClassificationsBetween(
+    String dogId,
+    DateTime from,
+    DateTime to, {
+    int limit = 2000,
+  }) async {
+    final rows = await _client
+        .from('stress_classifications')
+        .select(_classificationColumns)
+        .eq('dog_id', dogId)
+        .gte('created_at', from.toUtc().toIso8601String())
+        .lte('created_at', to.toUtc().toIso8601String())
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return rows.map(StressClassification.fromMap).toList().reversed.toList();
   }
 
   @override
@@ -344,7 +413,7 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   }
 
   static const _deviceColumns =
-      'id, dog_id, device_code, status, last_seen_at, firmware_version';
+      'id, dog_id, device_code, status, last_seen_at, firmware_version, battery_percent';
 
   @override
   Future<Device?> fetchDeviceForDog(String dogId) async {
@@ -437,9 +506,89 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   @override
   Future<List<CareGuidance>> fetchCareGuidance() async {
     // RLS already limits rows to global defaults + clinics this owner can see.
-    final rows =
-        await _client.from('care_guidance').select('stress_level, clinic_id, title, body');
+    final rows = await _client
+        .from('care_guidance')
+        .select('stress_level, context_key, clinic_id, title, body');
     return rows.map(CareGuidance.fromMap).toList();
+  }
+
+  @override
+  Future<WellnessSnapshot?> fetchWellness(String dogId, DateTime day) async {
+    final rows = await _client.rpc(
+      'dog_wellness_score',
+      params: {
+        'p_dog_id': dogId,
+        'p_day':
+            '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+      },
+    ) as List;
+    if (rows.isEmpty) return null;
+    return WellnessSnapshot.fromMap(Map<String, dynamic>.from(rows.first as Map));
+  }
+
+  @override
+  Future<DogOverview> fetchDogOverview(Dog dog) async {
+    final results = await Future.wait<Object?>([
+      fetchLatestReading(dog.id),
+      fetchLatestClassification(dog.id),
+      fetchDeviceForDog(dog.id),
+      // Wellness is a nicety on the card — never let it fail the overview.
+      fetchWellness(dog.id, DateTime.now()).catchError((_) => null),
+    ]);
+    return DogOverview(
+      dog: dog,
+      reading: results[0] as TelemetryReading?,
+      classification: results[1] as StressClassification?,
+      device: results[2] as Device?,
+      wellness: results[3] as WellnessSnapshot?,
+    );
+  }
+
+  static const _mediaMessageColumns =
+      'id, media_submission_id, author_user_id, body, created_at';
+
+  @override
+  Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId) async {
+    final rows = await _client
+        .from('media_messages')
+        .select(_mediaMessageColumns)
+        .eq('media_submission_id', mediaSubmissionId)
+        .order('created_at', ascending: true);
+    return rows.map(MediaMessage.fromMap).toList();
+  }
+
+  @override
+  Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body) async {
+    final row = await _client
+        .from('media_messages')
+        .insert({
+          'media_submission_id': mediaSubmissionId,
+          'author_user_id': _requiredUserId,
+          'body': body.trim(),
+        })
+        .select(_mediaMessageColumns)
+        .single();
+    return MediaMessage.fromMap(row);
+  }
+
+  @override
+  Future<bool> hasAcceptedConsent(String policyVersion) async {
+    final rows = await _client
+        .from('consents')
+        .select('id')
+        .eq('user_id', _requiredUserId)
+        .eq('policy_version', policyVersion)
+        .limit(1);
+    return rows.isNotEmpty;
+  }
+
+  @override
+  Future<void> acceptConsent(String policyVersion) async {
+    await _client.from('consents').upsert(
+      {'user_id': _requiredUserId, 'policy_version': policyVersion},
+      onConflict: 'user_id,policy_version',
+      ignoreDuplicates: true,
+    );
   }
 
   static const _mediaColumns =
