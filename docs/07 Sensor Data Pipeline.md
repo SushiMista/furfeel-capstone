@@ -43,10 +43,13 @@ tags: [furfeel, telemetry, data]
   "motion_activity": 0.62,
   "posture": "standing",
   "ambient_temperature_c": 29.1,
-  "humidity_percent": 68
+  "humidity_percent": 68,
+  "battery_percent": 87
 }
 ```
 `dog_id`/`device_id` are resolved server-side from `device_code` — the device does not need to know them. `posture` ∈ `standing|sitting|lying|moving|unknown`.
+
+`battery_percent` (0–100, optional) is **device health only — never a classifier input**. The intake function stores it on the reading, mirrors the latest value onto `devices.battery_percent` for the apps, and drives the low-battery alert (see `11 Alerts and Notifications`). The simulator emits a slowly draining battery; `--low-battery` pins it near-empty.
 
 ## Validation Ranges (reject or flag `is_valid=false`)
 | Field | Accept if | Else |
@@ -57,6 +60,7 @@ tags: [furfeel, telemetry, data]
 | motion_activity | 0.0–1.0 | clamp/flag |
 | ambient_temperature_c | -10–60 | flag |
 | humidity_percent | 0–100 | flag |
+| battery_percent | 0–100 | flag |
 | captured_at | within ±1 h of server time | flag |
 
 ## Rules

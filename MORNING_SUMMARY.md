@@ -1,103 +1,69 @@
-# Morning Summary — FurFeel full-app build (phases 7 → 9 + owner-first polish), 2026-07-12
+# Morning Summary — Owner-app QA + enhancement pass, 2026-07-17
 
-All three build-order phases are **finished and committed on `main`**: the blue+white design-guide re-theme (7), the dashboard Vet Review + Admin modules (8), and all six mobile modules incl. multi-dog + pairing + push registration (9) — plus an **owner-first polish round** that replaces the raw-history UX with trends and computed insights. Every suite is green at HEAD: **dashboard tsc + 30 tests + vite build · mobile `flutter analyze` clean + 46 tests · edge 67 deno tests**. Nothing was deployed — **two** new migrations and the seed delta need your hands (below).
+All four phases are **finished and committed on `main`**. Every suite is green at HEAD:
+**mobile `flutter analyze` clean + 103 tests · edge 76 deno tests + `deno check` · dashboard tsc + 32 vitest · simulator tsc**.
+Nothing was deployed — the migrations and edge redeploy need your hands (below).
 
 ## Commits (oldest first)
+- `f3a0b5f` — Phase 1: light-mode default + both crash fixes (+ test repairs)
+- `1526bb1` — Phase 2: battery / consents / media threads / care combos / wellness (schema + backend)
+- `95f63e8` — Phase 3: all owner-app features
+- (this commit) — Phase 4: docs 04/07/08/09/11/12 updated + this summary
 
-| Commit | What |
-|---|---|
-| `dc9505e` | Phase 7 dashboard: tokens rewritten to docs/19 blue+white, Tailwind + owned shadcn-style primitives + Tremor charts, sidebar shell, Overview page |
-| `386e291` | Phase 7 mobile: Material 3 blue re-theme, Inter, fl_chart vitals trend |
-| `40df340` | Phase 8/9 migration: `stress_labels`, `care_guidance` (+4 global rows), pairing RPCs, media bucket + policies, `push_tokens`, admin user-update policy, Realtime adds; seed gets Mochi + an unassigned device |
-| `f05da8f` | Phase 8 dashboard: Vet Review (media review + confirm/override → `stress_labels`) + Admin (users/clinics/devices) |
-| `306edd3` | Phase 9 mobile: tab shell + dog switcher, Pet Creation, Device Pairing, owner Vet Review, Care Insights, Observation Assessment, push-token path |
-| `41095f9` | Test-fixture fix for the new `dogs.photo_path` |
-| `(latest)` | Owner-first polish: mobile Trends tab (calm-week stat hero, 14-day stress-mix chart, computed insight cards), Home simplified, raw log demoted, dashboard stress-mix chart, `stress_daily_summary`/`stress_hourly_pattern` RPCs |
+## What shipped
 
-## Owner-first polish round (after phase 9)
+### Phase 1 — defaults & crashes
+- **Light by default:** `user_settings.theme` default → `'light'` (migration `20260717090000`), app model/fallback → light, unknown values fall back to light (never the OS), Settings order Light / Dark / System. Existing users' saved choice untouched.
+- **DropdownButton assert (dropdown.dart:1852)** — reproduced in a widget test: editing a dog whose `clinic_id` wasn't yet in the still-loading clinic items. Fixed by keeping the selected value present exactly once (a "Your current clinic" placeholder while loading **and** when the clinic is missing from the partner list — so we never silently unlink a clinic) + deduping clinics by id. 3 regression tests.
+- **TextPainter assert (text_painter.dart:1351, `debugSize == size`)** — root-caused to two contributors: (a) google_fonts loading Inter *after* first layout, so a paint-only (color) text change re-laid-out with different metrics (flutter#79084); (b) the header dog-name chip Text was unconstrained in the AppBar actions row and overflowed with long names. Fixed by **preloading all four Inter weights before `runApp`** and capping/ellipsizing the chip (long-name regression test). The exact assert isn't reproducible under the deterministic test font — the overflow half is test-covered, the font-race half is eliminated by construction.
+- Also repaired 4 pre-existing test failures (offscreen taps on the grown login page; dog-switcher tooltip restored — also an a11y win) and the one pre-existing analyze info.
 
-Product problem addressed: owners weren't reading raw history — they want **actionable graphs and "what's helping"**.
+### Phase 2 — schema & backend (migration `20260717100000`, additive, full RLS)
+- **Battery:** `telemetry_readings.battery_percent` + `devices.battery_percent` (0–100 checks); intake validates, stores, mirrors latest to the device row; **`low_battery` alert** at ≤15% (provisional, `classifier_config.json → device_alerts`), deduped while open, **auto-resolves on recharge**. Simulator emits a draining battery + `--low-battery` flag.
+- **`consents`** table (user_id, policy_version, accepted_at; unique pair; own-row select/insert RLS, append-only).
+- **`media_messages`** table (thread under a media submission; RLS = dog's owner + clinic staff via the parent submission; realtime-enabled).
+- **Care combinations:** `care_guidance.context_key` (stress_level now nullable, keyed-check constraint) + 6 provisional global seeds: `cold_stressed`, `hot_stressed`, `panting_hot`, `restless_high_hr`, `cold_calm`, `hot_calm`.
+- **`environmental_cold`** context rule in `classifier_config.json` (ambient < 8 °C): emits a reason code, **never changes the score** (docs/08 scores heat only).
+- **`dog_wellness_score(dog_id, day)`** SECURITY INVOKER RPC — 0–100: `60×calm_share + 40×(1−|active_share−0.30|) − min(10×alerts, 30)`, no row when the day has no classifications. Documented in docs/08 as provisional engineering, not clinical.
+- **Friendly alert copy** now generated server-side: names the dog + the sensed reason ("Biscuit seems quite stressed right now — they're breathing fast. Please check on them soon.").
 
-- **New migration `20260712100000_stress_summaries.sql`** (needs push): `stress_daily_summary` + `stress_hourly_pattern` SQL functions — SECURITY INVOKER so the caller's RLS applies unchanged; tz-offset-aware; aggregate server-side so 14 days of trends never ship raw rows to a phone.
-- **Mobile History tab → Trends tab**: "Calm time this week" stat hero with week-over-week delta → 100%-stacked daily stress-mix chart (status colors + word legend, composition not volume) → **insight cards**: weekly trend, calmest/tensest time of day, activity↔calm association (median split, minimum-sample guards so nothing is claimed without data), alert trend, data-coverage caveat. Engine is pure (`lib/insights/insights.dart`), 9 unit tests including a **no-diagnosis-language test**; all copy is observational ("tends to", "worth a look").
-- **Home simplified**: the 20-row raw readings list is gone; a one-line "Calm N% of today so far (+Δ vs yesterday)" strip replaced it. Raw vitals chart/timeline/readings live behind **"View detailed log"** on Trends.
-- **Dashboard dog detail** gains the matching "Stress mix — last 14 days" Tremor stacked chart from the same RPC.
-- Followed the dataviz skill's method: stat-tile-over-chart for headlines, composition normalized to 100%, status palette used only for statuses, legend + words so meaning never rides on color alone, no dual axes, no chartjunk.
+### Phase 3 — owner-app features
+- **Multi-dog Home:** card per dog (photo, stress pill, wellness score, key vital, battery w/ low state, last-updated) → tap opens a self-loading, realtime **dog detail** page reusing the rich Home. Single-dog owners land straight on rich detail.
+- **Biometric insights:** every vital shows Low / Normal / Elevated / High from the dog's own baseline (`dog_baselines`, else global), token colors; the vital detail page says e.g. "Heart rate 92 bpm — Normal for Biscuit". Logic in `lib/insights/biometrics.dart`.
+- **Combination Care Insights:** context key derived from level + reading (heat/cold/panting/restless×HR); context row > level row, clinic > global.
+- **Media conversations:** every observation opens a thread — media, owner note, clinic review, `media_messages` replies + composer.
+- **Detailed Log redesign:** per-vital fl_chart mini-dashboards (min/avg/max), 24h/7d/30d + custom range picker, **CSV export** + **PDF health report** (`pdf` + `share_plus`; share sheet on mobile, browser download on web via `package:web`).
+- **Battery surfaced** on Home cards, the status-hero device chip, and Device Pairing ("Battery 12% — time for a charge"); `low_battery` joined the Alerts "Harness" group + per-type mute.
+- **Wellness card** (score ring + active/rest/calm balance bar, "engineering estimate, not a medical score") on Trends.
+- **Consent gate:** RootShell checks `consents` before *anything* loads — no dog fetch, no realtime subscription, no telemetry UI until the current policy version (`2026-07-17.v1`) is accepted. Accepting records the version; bumping the constant forces re-consent.
 
-## Phase 7 — re-theme (docs/19, blue + white)
+### Phase 4 — docs + tests
+- Updated `docs/04, 07, 08, 09, 11, 12` to match everything above (vet-tunable items called out in each).
+- New tests: crash regressions ×4, biometric statuses, combination selection, guidance precedence, consent gating (incl. **no subscription before consent** — this test caught a real gap and the fix is in), media threads, multi-dog cards, CSV/PDF builders, and a **no-diagnosis/no-causal-language scan** over every new copy source (migration seeds, edge alert copy, app screens).
 
-- `packages/shared/design_tokens.json` rewritten verbatim to the updated docs/19: brand `#2563EB`, cool neutrals, canonical stress ramp, owner-warmth layer (`warm`/`warm-soft`), softened owner-app high (`#E5533D`), Inter, per-platform radius sets, 7-step spacing, new card shadow, 150/250ms motion.
-- Generator now emits **three** files: `tokens.css` (CSS vars), **`apps/dashboard/tailwind.tokens.js`** (Tailwind theme incl. computed 50–950 shade scales so Tremor's dynamic `stroke-brand-500`-style classes stay token-driven), and `furfeel_tokens.dart`. Rerun `node packages/shared/scripts/generate_design_tokens.mjs` after editing the JSON.
-- **Dashboard** now runs Tailwind 3 + owned shadcn-style primitives (`src/components/ui/`: button, card, badge, input/select/textarea, table, dialog, toast, skeleton, empty-state) + **Tremor `LineChart`** for telemetry (replacing the hand-rolled SVG). Left sidebar per docs/19 §7 (Overview · Board · Alerts · Reports · Admin-when-admin). Inter via Google Fonts. No hardcoded hex in components; Tremor's theme block in `tailwind.config.js` is wired to the generated token values.
-- **Mobile** re-themed: Inter, blue seed, hairline card borders, `NavigationBar` theme; owner `high` uses the softened coral per the docs note.
+## ASSUMPTIONS (all reversible; flag anything wrong)
+1. **Cold threshold 8.0 °C** — provisional, vet-tunable; cold is context-only and never scores (docs/08 scores heat only).
+2. **Low battery ≤ 15%** — provisional; `classifier_config.json → device_alerts.low_battery_percent`.
+3. **Wellness formula** (60/40 weights, active = motion ≥ 0.4, rest < 0.15, target active share 0.30, 10 pts/alert capped at 30) — engineering defaults; constants sit in the migration SQL for tuning.
+4. **Biometric status bands** (HR 0.7/1.15/1.35 ratios, RR 0.5/1.3/1.8, temp 37.5/39.2/39.7 °C) mirror `classifier_config.json` **by hand** — no Dart codegen yet, so they can drift; noted in docs/08.
+5. **Combination-tip copy is my draft**, seeded as "vet-authored defaults, clearly provisional" — a vet must review wording (it passes the no-diagnosis scan, but tone/accuracy is theirs to call).
+6. **Consent is client-side gating only.** Device ingest keeps flowing server-side (the harness has no user identity). Server-side enforcement is logged as an open question in docs/12.
+7. If the consent check itself fails (offline), the app shows the gate rather than risking un-consented data display.
+8. Editing a dog whose clinic vanished from the partner list keeps the linkage via a "Your current clinic" placeholder instead of silently clearing `clinic_id`.
+9. Multi-dog cards load on open + pull-to-refresh (no per-card realtime); the opened detail page and the selected dog do subscribe live.
+10. In media threads, messages not authored by the dog's owner display as "Your care team" (owners may not be able to read clinic users' names under users RLS; the real name shows when RLS allows it).
+11. CSV keeps temperature in °C (a raw data export shouldn't depend on a display preference); the PDF is the friendly artifact. Range fetches cap at the 1000 (readings) / 2000 (classifications) most recent rows in range.
+12. Old alert rows keep their old server-generated copy; only new alerts get the friendly wording.
+13. Dashboard: only its test fixtures changed (`battery_percent: null` on the reading fixture); no dashboard feature work was in scope.
 
-## Phase 8 — dashboard modules (docs/05)
+## Needs your hands
+1. **`supabase db push`** — two new migrations: `20260717090000_theme_default_light.sql`, `20260717100000_battery_consents_media_threads_care_combos.sql` (remote push is permission-blocked for me).
+2. **Redeploy edge functions** — `supabase functions deploy telemetry-intake` (battery + friendly copy + low-battery alert path).
+3. **Verify RLS live** (no local Docker here, so `consents` / `media_messages` policies got SQL review + app-level tests only): as owner A try reading owner B's consents/messages; as clinic staff read/reply on a linked dog's thread.
+4. **FCM/APNs** — unchanged pending step; push will pick up the friendly copy automatically once wired (`lib/data/push_registration.dart`).
+5. **Real battery sensor wiring** in the ESP32 firmware — only the simulator emits `battery_percent` today.
+6. **Vet review** of: combination-tip copy, cold/low-battery thresholds, wellness formula, biometric bands (all marked provisional).
+7. Smoke the deployed stack with the simulator: `npm start -- --low-battery --max-ticks=3` → low_battery alert appears; a normal run afterwards resolves it.
 
-- **Vet Review** (`/dogs/:id/review`, linked from dog detail): confirm/override control preselects the model's level so confirming is one click; saving writes a `stress_labels` ground-truth row with `agreed_with_model` computed in the pure, unit-tested `buildStressLabelInsert`. Past assessments list with confirmed/override badges. Owner-media panel: signed-URL previews from the private bucket, mark-reviewed + annotation (`review_note`), and explicit "not used by the stress classifier" copy.
-- **Admin** (`/admin`, shown to admins; RLS is the real gate): users role+clinic inline editing, clinic create/list, device register/assign/status, plus a dog↔clinic assignment table (docs/04 says Admin can reassign a dog's clinic).
-
-## Phase 9 — mobile modules (docs/04)
-
-- **Shell**: bottom tabs Home · Alerts · History · Profile, **dog switcher in the header** (multi-dog), open-alert badge on the Alerts tab, first-run onboarding for zero-dog accounts. One Realtime subscription per selected dog feeds all tabs.
-- **Pet Creation** (Profile → Add/edit): name, breed, birthdate picker (→ computed age), sex, weight, notes, photo (→ `media` bucket + `dogs.photo_path`), and **clinic linkage** — picking a clinic sets `dogs.clinic_id`, which puts the dog on that clinic's live board (the board also reloads on unknown-dog Realtime events so newly linked dogs appear without refresh). Deleting a dog with monitoring history is refused with a friendly explanation (ADR-003 — telemetry is never deleted).
-- **Device Pairing**: pair by `device_code` via the `pair_device` RPC (friendly errors for not-found / already-paired), connectivity + last-sync + offline guidance, unpair with confirmation.
-- **Vet Review (owner)**: confirmed stress assessments (`stress_labels`) + clinic notes, read-only; threaded follow-up deferred (docs/04 marks it optional).
-- **Care Insights**: warm-tinted card on Home showing `care_guidance` for the current stress level; clinic rows override globals via pure `selectCareGuidance`; "not a diagnosis" on-screen.
-- **Observation Assessment**: photo / ≤30s video + note → Storage + `media_submissions`; "Supplementary — not used by the stress classifier" is rendered on the submit card; past submissions show review status + the clinic's annotation.
-- **Push**: `push_tokens` table + `registerPushToken` upsert + `registerPushTokenIfAvailable()` hook called at shell startup. It's a structured no-op until FCM/APNs is wired (see "needs your hands").
-
-## Migration `20260711170000_full_app_modules.sql` (NOT yet pushed)
-
-`stress_labels` (+ indexes, clinic-staff insert/select, owner select), `care_guidance` (+ 4 global default rows so Care Insights works out of the box), `media_submissions.review_note`, `dogs.photo_path`, `push_tokens` (own-rows RLS), `users_update_admin` policy, `pair_device`/`unpair_device` security-definer RPCs (ingest hash never exposed), private `media` storage bucket + owner-upload/owner-update/clinic-read object policies, Realtime publication + replica identity for `dogs`/`devices`/`vet_notes`/`media_submissions`/`stress_labels`.
-
-## Every ASSUMPTION
-
-1. **Owners can SELECT their own dog's `stress_labels`.** docs/09 says clinic-staff-only, but docs/04 module 5 requires owners to see "confirmed stress assessments". Additive owner-read policy; staff scoping and writes unchanged. Flagged in the migration comment.
-2. **Admin user management edits role/clinic of existing accounts only** — creating auth users needs the service role, which never ships in a client. New staff sign up in an app, then an admin promotes them.
-3. **Device pairing via RPCs** instead of widening `devices` RLS (devices stay admin-managed per docs/03). Pairing normalizes the code to uppercase. Unpairing sets the device `inactive`.
-4. **Dog deletion** is allowed only for dogs with no dependent rows (FKs enforce it); the app explains history is preserved. docs/04's "archive" alternative would need a schema column — not added.
-5. **`care_guidance` global defaults' wording** is mine (plain-language, no diagnosis/treatment claims) — a vet should review the copy.
-6. **Media path convention** `dogs/<dog_id>/…` in one private `media` bucket; storage policies key off that layout.
-7. **Overview page content** (KPIs, needs-attention, latest alerts) is my interpretation — docs list "Overview" in the nav but never specify it.
-8. **QR scanning** for pairing deferred (docs allow "entering/scanning"); code entry avoids a camera dependency.
-9. **Vet Review lives per-dog** (`/dogs/:id/review`) rather than as a 6th sidebar item, because docs/19 + docs/05 both fix the sidebar at five items.
-10. **Replica identity full** on dogs/devices/media_submissions so filtered UPDATE subscriptions work; slightly larger WAL, fine at this scale.
-
-## ADDED features (beyond the docs, marked `// ADDED:` where in code)
-
-Dashboard: Overview page; board search + needs-attention filter; toast system; loading skeletons everywhere; confirm dialog primitive; device online-dot component; board self-heals when an unknown dog's telemetry arrives (new clinic linkage appears live).
-Mobile: fl_chart vitals trend on History; device connectivity chip in the status hero; quick-link tiles on Home; first-run onboarding; open-alert badge on the Alerts tab; live "Add <name>" CTA on the pet form; friendly pairing error messages.
-
-## What needs your hands
-
-1. **Push the migrations** (remote ops are permission-blocked for me): `supabase db push --linked` — applies `20260711150000_device_offline_alerts.sql` (if still pending), `20260711170000_full_app_modules.sql`, **and `20260712100000_stress_summaries.sql`** (the Trends tab shows its empty state until this one lands). All non-destructive.
-2. **Still pending from last session** (if not done): `supabase functions deploy telemetry-intake --use-api` for offline-recovery.
-3. **Seed delta** — the updated `supabase/seed/seed.sql` only runs on `db reset` (destructive on the shared project). To prove the multi-dog board + pairing without a reset, run this in the SQL editor:
-   ```sql
-   insert into public.dogs (id, owner_user_id, clinic_id, name, breed, birthdate, sex, weight_kg, notes)
-   values ('00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000001','Mochi','Shiba Inu','2023-08-02','female',9.80,'Independent; dislikes thunderstorms.');
-   insert into public.devices (id, dog_id, device_code, status, firmware_version)
-   values ('00000000-0000-0000-0000-000000000007', null, 'FURFEEL-DEV-0002', 'inactive', '0.1.0');
-   insert into public.dog_baselines (dog_id, resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c)
-   values ('00000000-0000-0000-0000-000000000006', 100, 24, 38.6);
-   ```
-4. **FCM/APNs wiring** (the one deliberately-human piece of push): add `firebase_messaging` + platform config (google-services.json / GoogleService-Info.plist), then pass the token into `registerPushTokenIfAvailable(repository, tokenProvider: ...)` in `lib/pages/root_shell.dart`. Server-side delivery (an Edge Function reading `push_tokens` on alert insert) is also future work.
-5. **Browser check**: `cd apps/dashboard && npm run dev` → `vet@example.com` / `password123`. Look at: blue+white theme everywhere, Overview, board filter/search, dog detail → **Vet review** (confirm/override + media), `/alerts`, `/reports`. For Admin, promote a user to `admin` first (SQL editor) and check `/admin`.
-6. **Emulator check**: `cd apps/mobile && flutter run --dart-define-from-file=env.json` → `owner@example.com` / `password123`. Try: dog switcher (after seeding Mochi), Profile → add/edit dog with clinic linkage (watch it appear on the dashboard board live), pair `FURFEEL-DEV-0002`, share an observation (then review it on the dashboard), Care Insights card, Vet review after confirming a level on the dashboard.
-7. **Uncommitted files I left alone** (yours, pre-existing): `CLAUDE.md`, four `docs/*.md`, `firmware/simulator/package.json`. Commit them when ready — the code now matches the updated docs. Note: `apps/mobile/macos|web` platform scaffolding got committed with phase 9 (needed to run on those targets); the stale `flutter create` template test was deleted.
-
-## Exact next prompt to continue
-
-```
-Read MORNING_SUMMARY.md. I've run `supabase db push --linked` and the seed delta.
-Verify end to end with the simulator + both apps: (1) confirm/override on the
-dashboard writes stress_labels and shows up in the mobile Vet Review; (2) an
-observation uploaded from mobile appears in the dashboard Vet Review with a
-signed preview and mark-reviewed round-trips; (3) creating a dog with a clinic
-on mobile appears live on the dashboard board. Fix anything that doesn't hold.
-Then continue polish: FCM server-side delivery Edge Function reading
-push_tokens on alert insert (leave credential wiring to me), QR scan pairing,
-and dashboard code-splitting (vite chunk warning). Same rules: docs are law,
-tokens/types in packages/shared, never weaken RLS, never delete raw telemetry,
-ASSUMPTION notes for gaps, commit per step, rewrite MORNING_SUMMARY.md.
-```
+## Exact resume prompt
+> FurFeel owner-app pass continuation. The 2026-07-17 QA/enhancement pass (MORNING_SUMMARY.md) is committed on main; migrations `20260717090000` + `20260717100000` are pushed and telemetry-intake is redeployed [adjust if not]. Next: [pick one] (a) server-side consent enforcement in telemetry-intake per the docs/12 open question, (b) apply vet feedback to care-combination copy/thresholds in classifier_config.json + the care_guidance seeds, (c) dashboard-side media_messages thread UI so clinic staff can reply from the Vet Review screen, (d) FCM wiring. Keep flutter analyze + flutter test + deno test + tsc green; guardrails as in CLAUDE.md (no diagnosis language, never weaken RLS, colors from tokens only, media never a classifier input).
