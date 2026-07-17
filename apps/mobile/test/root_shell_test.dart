@@ -57,6 +57,8 @@ void main() {
         createdAt: DateTime.now(),
       ),
       recentReadings: [reading()],
+      // Paired + reporting: the setup checklist stays hidden for this fixture.
+      device: const Device(id: 'device-1', deviceCode: 'FF-1', status: 'active'),
     );
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
@@ -187,7 +189,11 @@ void main() {
 
   testWidgets('vital square opens the detail screen with a typical range',
       (tester) async {
-    final repo = FakeRepository(dogs: const [_dog], latestReading: reading());
+    final repo = FakeRepository(
+      dogs: const [_dog],
+      latestReading: reading(),
+      device: const Device(id: 'device-1', deviceCode: 'FF-1', status: 'active'),
+    );
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
