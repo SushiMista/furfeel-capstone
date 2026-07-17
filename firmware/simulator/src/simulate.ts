@@ -11,6 +11,7 @@ interface SimulatorConfig {
   sweep: boolean;
   sweepTicks: number;
   maxTicks: number | null;
+  lowBattery: boolean;
 }
 
 const DEFAULT_INTERVAL_MS = 10_000;
@@ -29,6 +30,7 @@ function printUsageAndExit(message?: string): never {
       "  --interval-ms=<n>      Ms between payloads (default 10000, docs/07 default)",
       "  --sweep                Ramp readings from calm to high over --sweep-ticks, then hold high",
       "  --sweep-ticks=<n>      Ticks to reach 'high' when sweeping (default 18)",
+      "  --low-battery          Report a nearly-empty battery (~12%) to exercise low-battery alerts",
       "  --max-ticks=<n>        Stop automatically after n payloads (default: run forever)",
       "  --help                 Show this message",
     ].join("\n"),
@@ -41,6 +43,7 @@ function parseArgs(argv: string[]): Record<string, string | boolean> {
   for (const arg of argv) {
     if (arg === "--help" || arg === "-h") out.help = true;
     else if (arg === "--sweep") out.sweep = true;
+    else if (arg === "--low-battery") out["low-battery"] = true;
     else if (arg.startsWith("--")) {
       const eq = arg.indexOf("=");
       if (eq === -1) out[arg.slice(2)] = true;
@@ -70,6 +73,7 @@ function readConfig(): SimulatorConfig {
     sweep: Boolean(args.sweep),
     sweepTicks: Number(args["sweep-ticks"] ?? DEFAULT_SWEEP_TICKS),
     maxTicks: args["max-ticks"] !== undefined ? Number(args["max-ticks"]) : null,
+    lowBattery: Boolean(args["low-battery"]),
   };
 }
 
@@ -105,6 +109,12 @@ function buildPayload(config: SimulatorConfig, tick: number): TelemetryPayload {
   );
   const posture: Posture = motion_activity > 0.6 ? "moving" : t > 0.3 ? "standing" : "lying";
 
+  // Battery: starts near-full and drains slowly (~0.05%/tick); --low-battery
+  // pins it near-empty to exercise the low_battery alert path.
+  const battery_percent = config.lowBattery
+    ? 12
+    : Math.max(5, Math.round(96 - tick * 0.05));
+
   return {
     device_code: config.deviceCode,
     captured_at: new Date().toISOString(),
@@ -115,6 +125,7 @@ function buildPayload(config: SimulatorConfig, tick: number): TelemetryPayload {
     posture,
     ambient_temperature_c: Number(jitter(24, 1).toFixed(1)),
     humidity_percent: Number(jitter(55, 3).toFixed(1)),
+    battery_percent,
   };
 }
 
@@ -157,6 +168,7 @@ async function main() {
       console.log(
         `[tick ${tick}] hr=${payload.heart_rate_bpm} rr=${payload.respiratory_rate_bpm} ` +
           `temp=${payload.body_temperature_c} motion=${payload.motion_activity} posture=${payload.posture} ` +
+          `battery=${payload.battery_percent}% ` +
           `-> ${status} ${JSON.stringify(body)}`,
       );
     } catch (err) {

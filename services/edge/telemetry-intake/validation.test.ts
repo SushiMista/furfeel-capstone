@@ -271,3 +271,25 @@ Deno.test("parseTelemetryRequestBody: non-object body -> not ok", () => {
   assertEqual(parseTelemetryRequestBody("a string").ok, false);
   assertEqual(parseTelemetryRequestBody(42).ok, false);
 });
+
+// ---------------------------------------------------------------------------
+// battery_percent (QA pass: device health telemetry, docs/07)
+
+Deno.test("sanitizeTelemetry: valid battery_percent is kept and rounded", () => {
+  const result = sanitizeTelemetry(minimalBody({ battery_percent: 86.6 }), NOW);
+  assertEqual(result.battery_percent, 87);
+  assertEqual(result.is_valid, true);
+});
+
+Deno.test("sanitizeTelemetry: missing battery_percent -> null, still valid", () => {
+  const result = sanitizeTelemetry(minimalBody(), NOW);
+  assertEqual(result.battery_percent, null);
+  assertEqual(result.is_valid, true);
+});
+
+Deno.test("sanitizeTelemetry: out-of-range battery_percent -> nulled and flagged", () => {
+  const result = sanitizeTelemetry(minimalBody({ battery_percent: 130 }), NOW);
+  assertEqual(result.battery_percent, null);
+  assertEqual(result.is_valid, false);
+  assertEqual(result.invalid_fields.includes("battery_percent"), true);
+});
