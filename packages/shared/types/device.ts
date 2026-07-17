@@ -10,5 +10,7 @@ export interface Device {
   status: DeviceStatus;
   last_seen_at: string | null;
   firmware_version: string | null;
+  /** Latest reported battery 0-100, mirrored from telemetry; null until first report. */
+  battery_percent: number | null;
   created_at: string;
 }

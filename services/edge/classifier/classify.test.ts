@@ -210,3 +210,32 @@ Deno.test("per-dog baselines change the ratio, not the raw thresholds", () => {
   assertEqual(result.score, 1);
   assertArrayEqual(result.reasons, ["hr_ratio 1.15-1.35"]);
 });
+
+Deno.test("environmental_cold is context only: reason logged, score unchanged", () => {
+  const result = classifyStress(reading({ ambient_temperature_c: 4.0 }), GLOBAL_BASELINES);
+  assertEqual(result.score, 0);
+  assertEqual(result.stress_level, "calm");
+  assertArrayEqual(result.reasons, ["environmental_cold"]);
+});
+
+Deno.test("environmental_cold does not fire at or above the threshold", () => {
+  const result = classifyStress(reading({ ambient_temperature_c: 8.0 }), GLOBAL_BASELINES);
+  assertEqual(result.reasons.includes("environmental_cold"), false);
+});
+
+Deno.test("cold + stressed: cold reason rides along without inflating the score", () => {
+  // Worked-example vitals (score 7 -> high) in cold weather: same level, plus context.
+  const result = classifyStress(
+    reading({
+      heart_rate_bpm: 150,
+      respiratory_rate_bpm: 46,
+      body_temperature_c: 39.4,
+      motion_activity: 0.7,
+      ambient_temperature_c: 3.0,
+    }),
+    GLOBAL_BASELINES,
+  );
+  assertEqual(result.score, 7);
+  assertEqual(result.stress_level, "high");
+  assertEqual(result.reasons.includes("environmental_cold"), true);
+});

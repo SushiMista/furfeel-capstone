@@ -1,7 +1,7 @@
 import { createServiceRoleClient } from "../_shared/supabase-client.ts";
 import { verifyDeviceKey } from "../_shared/device-auth.ts";
-import { classifyStress } from "../classifier/index.ts";
-import { alertTypeForStressLevel, decideAlert } from "../alerts/index.ts";
+import { classifyStress, defaultConfig } from "../classifier/index.ts";
+import { alertTypeForStressLevel, decideAlert, decideBatteryAlert } from "../alerts/index.ts";
 import { parseTelemetryRequestBody, sanitizeTelemetry } from "./validation.ts";
 import { resolveBaselines } from "./baselines.ts";
 import type { DogBaselinesRow } from "./baselines.ts";
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
   try {
     const { data: device, error: deviceError } = await supabase
       .from("devices")
-      .select("id, dog_id, ingest_key_hash, status")
+      .select("id, dog_id, ingest_key_hash, status, dogs(name)")
       .eq("device_code", body.device_code)
       .maybeSingle();
 
@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
         posture: sanitized.posture_db,
         ambient_temperature_c: sanitized.features.ambient_temperature_c,
         humidity_percent: sanitized.features.humidity_percent,
+        battery_percent: sanitized.battery_percent,
         is_valid: sanitized.is_valid,
         raw_payload: rawBody,
       })
@@ -158,6 +159,9 @@ Deno.serve(async (req) => {
 
     // Alert evaluation (docs/11): dedup against an already-open alert of the same type so a
     // dog stuck at one elevated level doesn't get a new alert every ~10-second telemetry tick.
+    // Friendly copy names the dog (QA pass: warm, observational notification language).
+    const dogName =
+      (device as { dogs?: { name?: string } | null }).dogs?.name ?? "Your dog";
     let alertCreated = false;
     const alertType = alertTypeForStressLevel(classification.stress_level);
     if (alertType) {
@@ -175,6 +179,8 @@ Deno.serve(async (req) => {
         const decision = decideAlert(
           classification.stress_level,
           (openAlerts ?? []).length > 0,
+          dogName,
+          classification.reasons,
         );
         if (decision) {
           const { error: alertInsertError } = await supabase.from("alerts").insert({
@@ -204,6 +210,11 @@ Deno.serve(async (req) => {
       .update({
         last_seen_at: new Date().toISOString(),
         ...(wasOffline ? { status: "active" } : {}),
+        // Mirror the latest battery reading so clients can show it without
+        // scanning telemetry (docs/04 pairing screen, Home battery chip).
+        ...(sanitized.battery_percent !== null
+          ? { battery_percent: sanitized.battery_percent }
+          : {}),
       })
       .eq("id", device.id);
 
@@ -220,6 +231,51 @@ Deno.serve(async (req) => {
         .eq("status", "open");
       if (resolveError) {
         console.error("device_offline alert resolve failed", resolveError);
+      }
+    }
+
+    // Low-battery alert (docs/11): raise once under the provisional threshold
+    // (classifier_config.json device_alerts), resolve automatically once charged.
+    // Never fails the request — battery alerting is best-effort like liveness.
+    if (sanitized.battery_percent !== null) {
+      const { data: openBattery, error: openBatteryError } = await supabase
+        .from("alerts")
+        .select("id")
+        .eq("dog_id", device.dog_id)
+        .eq("type", "low_battery")
+        .eq("status", "open")
+        .limit(1);
+
+      if (openBatteryError) {
+        console.error("open low_battery alert lookup failed", openBatteryError);
+      } else {
+        const batteryDecision = decideBatteryAlert(
+          sanitized.battery_percent,
+          defaultConfig.device_alerts.low_battery_percent,
+          (openBattery ?? []).length > 0,
+          dogName,
+        );
+        if (batteryDecision === "resolve") {
+          const { error: resolveBatteryError } = await supabase
+            .from("alerts")
+            .update({ status: "resolved" })
+            .eq("dog_id", device.dog_id)
+            .eq("type", "low_battery")
+            .eq("status", "open");
+          if (resolveBatteryError) {
+            console.error("low_battery alert resolve failed", resolveBatteryError);
+          }
+        } else if (batteryDecision) {
+          const { error: batteryInsertError } = await supabase.from("alerts").insert({
+            dog_id: device.dog_id,
+            severity: batteryDecision.severity,
+            type: batteryDecision.type,
+            message: batteryDecision.message,
+          });
+          if (batteryInsertError) {
+            console.error("low_battery alert insert failed", batteryInsertError);
+          }
+        }
       }
     }
 

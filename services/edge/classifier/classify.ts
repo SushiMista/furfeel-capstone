@@ -120,6 +120,16 @@ export function classifyStress(
     reasons.push(trendRule.reason);
   }
 
+  // Context-only: cold never changes the score (docs/08 scores heat, not cold)
+  // but the reason code drives Care Insights combinations and the owner "why".
+  const coldRule = config.context_rules.environmental_cold;
+  if (
+    reading.ambient_temperature_c !== null &&
+    reading.ambient_temperature_c < coldRule.ambient_temperature_c_below
+  ) {
+    reasons.push(coldRule.reason);
+  }
+
   return {
     stress_level: scoreToLevel(score, config.level_thresholds),
     score,
