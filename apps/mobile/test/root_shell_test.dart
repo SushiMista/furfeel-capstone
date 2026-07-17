@@ -247,6 +247,9 @@ void main() {
 
     expect(find.textContaining('owner@example.com'), findsWidgets); // account card
     expect(find.text('Settings'), findsOneWidget);
+    // The dog list sits below the fold of the lazy ListView — scroll to it.
+    await tester.scrollUntilVisible(find.textContaining('Home only'), 200,
+        scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('Clinic-monitored'), findsOneWidget); // Biscuit
     expect(find.textContaining('Home only'), findsOneWidget); // Mochi
   });

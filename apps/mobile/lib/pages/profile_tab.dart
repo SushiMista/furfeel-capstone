@@ -9,6 +9,7 @@ import '../widgets/dog_avatar.dart';
 import '../widgets/settings_group.dart';
 import '../widgets/user_avatar.dart';
 import 'account_page.dart';
+import 'care_tips_page.dart';
 import 'device_pairing_page.dart';
 import 'dog_form_page.dart';
 import 'dog_health_page.dart';
@@ -180,6 +181,18 @@ class ProfileTab extends StatelessWidget {
               subtitle: 'Theme, units, notifications',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
+              ),
+            ),
+            SettingsRow(
+              icon: Icons.tips_and_updates_outlined,
+              iconBackground: FurFeelTokens.warmSoft,
+              iconColor: FurFeelTokens.warm,
+              title: 'Care tips',
+              subtitle: 'Guidance for everyday situations',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CareTipsPage(repository: repository),
+                ),
               ),
             ),
           ],
