@@ -40,11 +40,12 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// True when the app should render dark, given the OS brightness for 'system'.
+  /// True when the app should render dark. 'system' follows the OS; anything
+  /// unexpected falls back to light (QA: light is the default experience).
   bool resolveDark(Brightness platformBrightness) => switch (settings.theme) {
         'dark' => true,
-        'light' => false,
-        _ => platformBrightness == Brightness.dark,
+        'system' => platformBrightness == Brightness.dark,
+        _ => false,
       };
 
   Future<void> update(UserSettings next) async {

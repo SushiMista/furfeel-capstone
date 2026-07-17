@@ -52,7 +52,11 @@ class _DogFormPageState extends State<DogFormPage> {
     // The save button says "Add <name>" — keep it live as the owner types.
     _name.addListener(() => setState(() {}));
     widget.repository.fetchClinics().then((clinics) {
-      if (mounted) setState(() => _clinics = clinics);
+      // Dedupe by id — duplicate DropdownMenuItem values trip the framework's
+      // "exactly one item with value" assert (dropdown.dart:1852).
+      final seen = <String>{};
+      final unique = clinics.where((c) => seen.add(c.id)).toList();
+      if (mounted) setState(() => _clinics = unique);
     }).catchError((_) {});
   }
 
@@ -278,6 +282,16 @@ class _DogFormPageState extends State<DogFormPage> {
                   value: null,
                   child: Text('Home monitoring only'),
                 ),
+                // While clinics load (or if the dog's clinic isn't in the
+                // partner list) the selected value must still exist exactly
+                // once in items, or the dropdown asserts and the edit form
+                // flashes an error frame. Keeping a placeholder also avoids
+                // silently unlinking the dog's clinic.
+                if (_clinicId != null && !_clinics.any((c) => c.id == _clinicId))
+                  DropdownMenuItem<String?>(
+                    value: _clinicId,
+                    child: const Text('Your current clinic'),
+                  ),
                 for (final clinic in _clinics)
                   DropdownMenuItem<String?>(value: clinic.id, child: Text(clinic.name)),
               ],

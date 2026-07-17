@@ -355,7 +355,13 @@ class _DogSwitcher extends StatelessWidget {
     final hasMultiple = dogs.length > 1;
     return GestureDetector(
       onTap: hasMultiple ? () => _openSheet(context) : null,
-      child: Container(
+      // AppBar actions get unbounded width, so a long dog name pushed this
+      // Row past the app bar (RenderFlex overflow + the TextPainter paint
+      // assert). Cap the chip; the name ellipsizes inside it.
+      child: Tooltip(
+        message: hasMultiple ? 'Switch dog' : selected.name,
+        child: Container(
+        constraints: const BoxConstraints(maxWidth: 190),
         padding: const EdgeInsets.symmetric(
           horizontal: FurFeelTokens.space3,
           vertical: 6,
@@ -387,12 +393,19 @@ class _DogSwitcher extends StatelessWidget {
               child: Icon(Icons.pets, size: 13, color: FurFeelTokens.brandStrong),
             ),
             const SizedBox(width: 6),
-            Text(
-              selected.name,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: FurFeelTokens.brandStrong,
+            // Flexible + ellipsis: a long dog name must never push this Row
+            // past the app-bar width (unconstrained Text here overflowed and
+            // fed the TextPainter paint-time size assert).
+            Flexible(
+              child: Text(
+                selected.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: FurFeelTokens.brandStrong,
+                ),
               ),
             ),
             if (hasMultiple) ...[
@@ -401,6 +414,7 @@ class _DogSwitcher extends StatelessWidget {
                   size: 18, color: FurFeelTokens.brandStrong),
             ],
           ],
+        ),
         ),
       ),
     );

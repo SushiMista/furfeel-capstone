@@ -46,11 +46,25 @@ Per-user preferences (a "full app" needs these; sync across devices). One row pe
 | theme | text | check in ('system','light','dark'), default 'system' |
 | temperature_unit | text | check in ('c','f'), default 'c' |
 | notifications_enabled | boolean | not null, default true |
+| muted_alert_types | text[] | not null, default `'{}'` (per-type push mute, e.g. `{high_stress,device_offline}`) |
 | quiet_hours_start | time | null (mute non-critical push) |
 | quiet_hours_end | time | null |
 | updated_at | timestamptz | not null, default now() |
 
 RLS: a user reads/writes only their own row (`user_id = auth.uid()`).
+
+### push_tokens
+Registered device push tokens (FCM/APNs) per user; the notification dispatcher reads these.
+| column | type | constraints |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | not null, FK → users(id) on delete cascade |
+| platform | text | not null, check in ('ios','android','web') |
+| token | text | not null, unique |
+| created_at | timestamptz | not null, default now() |
+| updated_at | timestamptz | not null, default now() |
+
+RLS: a user reads/writes only their own tokens (`user_id = auth.uid()`).
 
 ### clinics
 | column | type | constraints |
@@ -200,6 +214,7 @@ Supplementary only. **Not** a classifier input (ADR-010).
 | note | text | null |
 | reviewed_by_user_id | uuid | null, FK → users(id) |
 | reviewed_at | timestamptz | null |
+| review_note | text | null (clinician's note when reviewing owner media) |
 | created_at | timestamptz | not null, default now() |
 
 ## Row Level Security (RLS)

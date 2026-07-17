@@ -10,7 +10,7 @@ tags: [furfeel, api, backend]
 # API and Backend Services
 
 ## Backend Platform
-Supabase is the backend platform: Auth, PostgreSQL, Realtime, Storage, and Edge Functions. Most app reads/writes go through the **Supabase client + RLS** rather than a custom REST layer. Only three things need server-side (Edge Function) logic: **telemetry intake**, **stress classification**, and **alert evaluation**. The endpoints below describe the intended contract; RLS-backed client queries satisfy most of them.
+Supabase is the backend platform: Auth, PostgreSQL, Realtime, Storage, and Edge Functions. Most app reads/writes go through the **Supabase client + RLS** rather than a custom REST layer. Edge Functions cover the jobs that need server-side logic: **`telemetry-intake`** (validate → store → classify → alert → offline-recovery) and **`delete-account`** (deletes the caller's own account; refuses if monitoring history exists, per ADR-003). Aggregations and privileged writes are Postgres RPCs (see below). The endpoints below describe the intended contract; RLS-backed client queries satisfy most of them.
 
 ## Conventions
 - Auth: end-user calls carry the Supabase JWT (`Authorization: Bearer <token>`). Device telemetry carries a device ingest secret, not a user JWT.
@@ -23,7 +23,16 @@ Authenticate users · manage dogs/clinics/users/devices · receive + validate te
 ## Endpoints
 
 ### Auth (Supabase Auth)
-Handled by Supabase Auth SDK (`signUp`, `signInWithPassword`, `signOut`). No custom endpoints needed. On sign-up, a trigger inserts the matching `users` row with default role `owner`.
+Handled by Supabase Auth SDK (`signUp`, `signInWithPassword`, `signInWithOAuth`, `signOut`). No custom endpoints needed. On sign-up, the `handle_new_user` trigger inserts the matching `users` row (default role `owner`) and a default `user_settings` row.
+- **Email/password** and **Google sign-in (OAuth)** are both supported (ADR-011). Because Google returns the display name under `full_name` while email signup sends `name`, the trigger resolves the display name as `name → full_name → email prefix`, so no provider path leaves a user without a name.
+
+### Server-side RPCs (Postgres functions, `authenticated`-only)
+Called via `supabase.rpc(...)`; each runs under the caller's RLS or is `security definer` with an internal permission check. Execute is revoked from `anon`.
+- `stress_daily_summary(dog_id, days, tz_offset)` — 100%-stacked daily stress mix for Trends/reports (SECURITY INVOKER; caller RLS applies).
+- `stress_hourly_pattern(dog_id, days, tz_offset)` — calmest/tensest hour-of-day pattern (SECURITY INVOKER).
+- `vet_note_feed(dog_id)` — vet notes joined with author name + avatar for the owner-facing Vet Review (owner-scoped).
+- `set_dog_photo(dog_id, photo_path)` — sets a dog's profile photo (SECURITY DEFINER; owner-or-clinic check) so `dogs` UPDATE stays locked down.
+- `pair_device(device_code, dog_id)` / `unpair_device(dog_id)` — device pairing without granting broad `devices` UPDATE.
 
 ### Devices
 - `POST /devices/register` → body `{ device_code, dog_id }`; returns `{ id, device_code, ingest_key }` (ingest_key shown once, stored hashed).

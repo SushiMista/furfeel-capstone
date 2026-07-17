@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -20,6 +21,17 @@ const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load Inter (every weight the theme uses) BEFORE the first frame. A late
+  // font swap makes TextPainter's deferred paint-time relayout disagree with
+  // the cached layout size — the text_painter.dart `debugSize == size` assert
+  // (flutter#79084). Preloading removes the race entirely.
+  await GoogleFonts.pendingFonts([
+    GoogleFonts.inter(),
+    GoogleFonts.inter(fontWeight: FontWeight.w500),
+    GoogleFonts.inter(fontWeight: FontWeight.w600),
+    GoogleFonts.inter(fontWeight: FontWeight.w700),
+  ]);
 
   if (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty) {
     runApp(const _MissingConfigApp());

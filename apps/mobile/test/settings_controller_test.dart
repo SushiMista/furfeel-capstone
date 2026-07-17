@@ -18,15 +18,22 @@ void main() {
     expect(controller.formatTemperature(null), '—');
   });
 
-  test('theme resolves against the OS brightness only for system', () {
+  test('theme defaults to light and only system follows the OS', () {
     final controller = SettingsController(FakeRepository());
-    expect(controller.resolveDark(Brightness.dark), isTrue); // system default
+    // QA: new installs open in light regardless of OS brightness.
+    expect(controller.settings.theme, 'light');
+    expect(controller.resolveDark(Brightness.dark), isFalse);
     expect(controller.resolveDark(Brightness.light), isFalse);
 
     controller.settings = const UserSettings(theme: 'dark');
     expect(controller.resolveDark(Brightness.light), isTrue);
 
-    controller.settings = const UserSettings(theme: 'light');
+    controller.settings = const UserSettings(theme: 'system');
+    expect(controller.resolveDark(Brightness.dark), isTrue);
+    expect(controller.resolveDark(Brightness.light), isFalse);
+
+    // Unknown values fall back to light, never to the OS.
+    controller.settings = UserSettings.fromMap(const {'theme': 'sepia'});
     expect(controller.resolveDark(Brightness.dark), isFalse);
   });
 
