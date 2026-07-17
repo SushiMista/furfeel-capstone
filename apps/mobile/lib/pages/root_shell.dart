@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
 import '../data/push_registration.dart';
+import '../data/settings_controller.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../widgets/floating_nav_bar.dart';
@@ -174,6 +175,7 @@ class _RootShellState extends State<RootShell> {
         onAlert: (alert) {
           if (!mounted) return;
           setState(() => _alerts = [alert, ..._alerts]);
+          _showAlertBanner(alert);
         },
         // QA: a fresh clinician note pops onto Home live (the realtime row has
         // no author identity, so refetch the enriched feed).
@@ -192,6 +194,31 @@ class _RootShellState extends State<RootShell> {
         _error = 'Something went wrong loading your dog. Pull to retry.';
       });
     }
+  }
+
+  /// Owner-delight pass: a live alert lands as a gentle in-app banner while
+  /// the app is open (push covers the closed-app case once FCM is wired).
+  /// Honors the same preferences push will: master toggle + per-type mutes.
+  void _showAlertBanner(Alert alert) {
+    final settings = SettingsScope.of(context).settings;
+    if (!settings.notificationsEnabled ||
+        settings.mutedAlertTypes.contains(alert.type)) {
+      return;
+    }
+    if (_tab == 1) return; // already looking at Alerts
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(alert.message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: () {
+            if (mounted) setState(() => _tab = 1);
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _refresh() async {
