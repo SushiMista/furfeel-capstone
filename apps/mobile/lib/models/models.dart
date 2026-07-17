@@ -64,6 +64,16 @@ class Dog {
         photoPath: map['photo_path'] as String?,
       );
 
+  /// True on the dog's birthday (month + day match); false without a
+  /// parsable birthdate. Drives the Home birthday moment.
+  bool isBirthday(DateTime now) {
+    final raw = birthdate;
+    if (raw == null) return false;
+    final born = DateTime.tryParse(raw);
+    if (born == null) return false;
+    return born.month == now.month && born.day == now.day;
+  }
+
   /// Age in whole years derived from [birthdate] (docs/09 prefers birthdate
   /// over free-text age); null when the birthdate is unknown or unparsable.
   int? get ageYears {

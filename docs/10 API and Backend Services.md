@@ -33,6 +33,7 @@ Called via `supabase.rpc(...)`; each runs under the caller's RLS or is `security
 - `vet_note_feed(dog_id)` — vet notes joined with author name + avatar for the owner-facing Vet Review (owner-scoped).
 - `set_dog_photo(dog_id, photo_path)` — sets a dog's profile photo (SECURITY DEFINER; owner-or-clinic check) so `dogs` UPDATE stays locked down.
 - `pair_device(device_code, dog_id)` / `unpair_device(dog_id)` — device pairing without granting broad `devices` UPDATE.
+- `dog_wellness_score(dog_id, day)` — optional 0–100 daily wellness score (calm-time %, activity/rest, alerts); SECURITY INVOKER, provisional/engineering (not clinical).
 
 ### Devices
 - `POST /devices/register` → body `{ device_code, dog_id }`; returns `{ id, device_code, ingest_key }` (ingest_key shown once, stored hashed).
@@ -52,10 +53,11 @@ Called via `supabase.rpc(...)`; each runs under the caller's RLS or is `security
     "motion_activity": 0.62,
     "posture": "standing",
     "ambient_temperature_c": 29.1,
-    "humidity_percent": 68
+    "humidity_percent": 68,
+    "battery_percent": 87
   }
   ```
-  Behavior: resolve `device_code` → device + dog; validate ranges (`07 Sensor Data Pipeline`); store raw in `telemetry_readings` (`is_valid` set accordingly); run classifier; write `stress_classifications`; evaluate alerts; update `devices.last_seen_at`.
+  Behavior: resolve `device_code` → device + dog; validate ranges (`07 Sensor Data Pipeline`); store raw in `telemetry_readings` (`is_valid` set accordingly); run classifier; write `stress_classifications`; evaluate alerts (incl. low-battery); update `devices.last_seen_at` + `devices.battery_percent`. `battery_percent` is device health only, never a classifier input.
   Response `202`:
   ```json
   { "reading_id": "uuid", "stress_level": "mild", "alert_created": false }
