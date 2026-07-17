@@ -76,6 +76,28 @@ class _AlertCardState extends State<AlertCard> {
                 color: FurFeelTokens.inkMuted,
               ),
             ),
+            // Owner-delight pass: a simple "what you can do" per alert type,
+            // right where the worry is. Observational + practical only.
+            if (alert.isOpen && _tipFor(alert.type) != null) ...[
+              const SizedBox(height: FurFeelTokens.space2),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.tips_and_updates_outlined,
+                      size: 16, color: FurFeelTokens.warm),
+                  const SizedBox(width: FurFeelTokens.space2),
+                  Expanded(
+                    child: Text(
+                      _tipFor(alert.type)!,
+                      style: TextStyle(
+                        fontSize: FurFeelTokens.typeCaptionSize,
+                        color: FurFeelTokens.ink,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (alert.isOpen && widget.onAcknowledge != null) ...[
               const SizedBox(height: FurFeelTokens.space3),
               Align(
@@ -100,6 +122,17 @@ class _AlertCardState extends State<AlertCard> {
     );
   }
 }
+
+/// Practical next step per alert type; null = the message says it all.
+String? _tipFor(String type) => switch (type) {
+      'moderate_stress' || 'high_stress' =>
+        'A quiet, familiar spot and your company usually help — the Care '
+            'Insights card on Home has a tip for right now.',
+      'device_offline' =>
+        'Check the strap and Wi-Fi range, then give it a minute to reconnect.',
+      'low_battery' => 'Pop the harness on the charger when you get a chance.',
+      _ => null,
+    };
 
 String _friendlyTime(DateTime time) {
   final now = DateTime.now();

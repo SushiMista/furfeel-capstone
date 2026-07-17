@@ -611,6 +611,32 @@ class _StatusHero extends StatelessWidget {
               ),
             // QA: vitals moved out of the hero into their own 2x2 grid below —
             // this card stays a calm, uncluttered status statement.
+            // Owner-delight pass: the environment around the dog, since heat/
+            // cold often IS the story the classifier tells.
+            if (reading?.ambientTemperatureC != null ||
+                reading?.humidityPercent != null) ...[
+              const SizedBox(height: FurFeelTokens.space3),
+              Row(
+                children: [
+                  Icon(Icons.thermostat_outlined,
+                      size: 16, color: FurFeelTokens.inkMuted),
+                  const SizedBox(width: FurFeelTokens.space1),
+                  Expanded(
+                    child: Text(
+                      [
+                        if (reading!.ambientTemperatureC != null)
+                          'Around ${dog.name}: '
+                              '${SettingsScope.of(context).formatTemperature(reading!.ambientTemperatureC)}'
+                              '${SettingsScope.of(context).temperatureUnitLabel}',
+                        if (reading!.humidityPercent != null)
+                          '${reading!.humidityPercent!.round()}% humidity',
+                      ].join(' · '),
+                      style: textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: FurFeelTokens.space3),
             Text(
               reading != null
