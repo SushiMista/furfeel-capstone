@@ -29,6 +29,17 @@ Animated **Splash → Welcome → Onboarding → Guided Setup** (create account 
 - **Consent gate (docs/12):** after sign-in, monitoring data and media features stay locked until the current data-collection policy version is accepted; the realtime subscription doesn't start before that. Policy bump = re-consent.
 - **Theme:** new installs open in **light** mode (`user_settings.theme` default `'light'`); Light / Dark / System remain selectable, System demoted to last.
 
+### Owner-delight layer (2026-07-18 pass)
+- **Guided setup checklist** on Home until the harness is paired and the first reading lands (clinic step optional, never blocks); steps deep-link to pairing / the dog form.
+- **"Today, hour by hour"** banded stress strip (docs/19 §6) with a word legend; dominant level per hour, ties break toward the more elevated level.
+- **Calm-streak card** on Trends (≥2 mostly-calm days; 70% share threshold — provisional, product-tunable) and a **birthday moment** on Home from `dogs.birthdate`. Celebration copy is observational only.
+- **One-tap "Share weekly report"** on Trends (last 7 days → the PDF exporter).
+- **Alert action tips:** every open alert carries a practical "what you can do" line per type; gone once acknowledged.
+- **Ambient context** on the status hero (ambient temp in the preferred unit + humidity) — the environment is often the classifier's story.
+- **"Last 3 hours" sparkline** on each vital detail screen.
+- **Live in-app alert banner** while the app is open (floating snackbar with the friendly message + View → Alerts); honors the master notification toggle and per-type mutes — the same rules push will follow.
+- **Care tips library** under Profile: all vet-editable guidance browsable by stress level and by situation.
+
 ## Modules (manuscript)
 
 ### 1. User Dashboard (Home)
