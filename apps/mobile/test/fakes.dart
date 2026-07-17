@@ -341,6 +341,10 @@ class FakeRepository implements FurFeelRepository {
     accountDeleted = true;
   }
 
+  /// Captured realtime callbacks so tests can simulate live events.
+  void Function(Alert alert)? lastOnAlert;
+  void Function(TelemetryReading reading)? lastOnReading;
+
   @override
   Unsubscribe subscribeToDog(
     String dogId, {
@@ -350,6 +354,8 @@ class FakeRepository implements FurFeelRepository {
     void Function()? onVetNote,
   }) {
     subscribeCalls++;
+    lastOnAlert = onAlert;
+    lastOnReading = onReading;
     return () async {};
   }
 }
