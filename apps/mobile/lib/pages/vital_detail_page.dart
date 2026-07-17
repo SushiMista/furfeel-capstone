@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
@@ -53,6 +54,7 @@ class VitalDetailPage extends StatefulWidget {
 
 class _VitalDetailPageState extends State<VitalDetailPage> {
   DogBaseline? _baseline;
+  List<TelemetryReading> _recent = const [];
 
   @override
   void initState() {
@@ -60,7 +62,25 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
     widget.repository.fetchBaseline(widget.dog.id).then((b) {
       if (mounted) setState(() => _baseline = b);
     }).catchError((_) {});
+    // Owner-delight pass: a small "last few hours" trend of just this vital.
+    final now = DateTime.now();
+    widget.repository
+        .fetchReadingsBetween(widget.dog.id,
+            now.subtract(const Duration(hours: 3)), now, limit: 400)
+        .then((rows) {
+      if (mounted) setState(() => _recent = rows);
+    }).catchError((_) {});
   }
+
+  double? _pick(TelemetryReading r, SettingsController settings) =>
+      switch (widget.kind) {
+        VitalKind.heartRate => r.heartRateBpm?.toDouble(),
+        VitalKind.breathing => r.respiratoryRateBpm?.toDouble(),
+        VitalKind.temperature => r.bodyTemperatureC == null
+            ? null
+            : double.parse(settings.formatTemperature(r.bodyTemperatureC)),
+        VitalKind.activity => r.motionActivity,
+      };
 
   // Owner-friendly reference ranges. Baseline (clinic-set) wins; the general
   // range matches the classifier's provisional global defaults (docs/08 /
@@ -150,6 +170,15 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
           posture: widget.reading!.posture,
           motionActivity: widget.reading!.motionActivity,
         );
+
+  List<FlSpot> _recentSpots(SettingsController settings) {
+    final spots = <FlSpot>[];
+    for (final (i, r) in _recent.indexed) {
+      final v = _pick(r, settings);
+      if (v != null) spots.add(FlSpot(i.toDouble(), v));
+    }
+    return spots;
+  }
 
   String _currentValue(SettingsController settings) {
     final r = widget.reading;
@@ -285,6 +314,65 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
               ),
             ),
           ).entrance(context),
+          if (_recentSpots(settings).length >= 2) ...[
+            const SizedBox(height: FurFeelTokens.space3),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(FurFeelTokens.space5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('LAST 3 HOURS', style: textTheme.labelSmall),
+                    const SizedBox(height: FurFeelTokens.space3),
+                    SizedBox(
+                      height: 100,
+                      child: LineChart(
+                        LineChartData(
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: _recentSpots(settings),
+                              color: FurFeelTokens.brand,
+                              barWidth: 2,
+                              isCurved: true,
+                              preventCurveOverShooting: true,
+                              isStrokeCapRound: true,
+                              dotData: const FlDotData(show: false),
+                            ),
+                          ],
+                          gridData: FlGridData(
+                            drawVerticalLine: false,
+                            getDrawingHorizontalLine: (value) => FlLine(
+                                color: FurFeelTokens.hairline, strokeWidth: 1),
+                          ),
+                          titlesData: FlTitlesData(
+                            topTitles: const AxisTitles(),
+                            rightTitles: const AxisTitles(),
+                            bottomTitles: const AxisTitles(),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 34,
+                                getTitlesWidget: (value, meta) => Text(
+                                  meta.formattedValue,
+                                  style: TextStyle(
+                                    fontSize: FurFeelTokens.typeCaptionSize,
+                                    color: FurFeelTokens.inkMuted,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          borderData: FlBorderData(show: false),
+                          lineTouchData: const LineTouchData(enabled: false),
+                        ),
+                        duration: FurFeelTokens.motionSlow,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ).entrance(context, index: 1),
+          ],
           const SizedBox(height: FurFeelTokens.space3),
           Card(
             child: Padding(
