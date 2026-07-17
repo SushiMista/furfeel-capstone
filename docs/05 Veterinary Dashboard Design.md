@@ -22,7 +22,8 @@ Left sidebar: **Overview · Monitoring Board · Alerts · Reports · Admin** (Ad
 - Vet **account menu + settings** (theme, profile photo via `users.avatar_path`, sign out) so the dashboard is a real signed-in product too.
 - Columns: dog, device status (online dot), current stress pill, HR, RR, temp, motion, last reading, open-alert count.
 - Live via Realtime. Filter: all / needs attention.
-- **Dog detail:** header + current stress pill, vital cards, vitals trend chart (Tremor), stress classification timeline, open alerts, vet-notes panel.
+- **Dog detail:** header + current stress pill, vital cards, vitals trend chart (Tremor), stress classification timeline, a **14-day stress-mix chart** (same 100%-stacked composition as the owner app, via `stress_daily_summary`), open alerts, vet-notes panel.
+- **Overview page:** greets the vet, a **"Calm today" KPI**, and a **clinic-wide 14-day stress-mix** chart aggregated across the clinic's dogs.
 
 ### 2. Vet Review Module
 - Review biometrics + stress history + **owner-submitted media** (`media_submissions`): view, mark reviewed, annotate.

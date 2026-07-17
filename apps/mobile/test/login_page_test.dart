@@ -109,6 +109,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Create account'));
+    await tester.pump();
     await tester.tap(find.text('Create account'));
     expect(linked, isTrue);
   });
@@ -137,6 +139,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('Continue with Google'), 100,
+        scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('Continue with Google'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -158,6 +162,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('Continue with Google'), 100,
+        scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('Continue with Google'));
     // Fixed pumps: the inline error's entrance animation schedules delayed
     // timers that pumpAndSettle trips over at teardown.
@@ -165,6 +171,10 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Could not start Google sign-in.'), findsOneWidget);
+    // The inline error pushes the button further down the lazy ListView —
+    // scroll it back into build range before asserting it re-enabled.
+    await tester.scrollUntilVisible(find.text('Continue with Google'), 100,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('Continue with Google'), findsOneWidget);
   });
 

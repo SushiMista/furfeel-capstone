@@ -11,8 +11,17 @@ tags: [furfeel, mobile, ux]
 
 Full owner-app spec covering **all six manuscript modules**. Style: follow [[19 Design System]] (blue brand, warm/approachable owner layer, Material 3 + fl_chart). Anon key only; every query RLS-scoped to the signed-in owner (`owner_user_id = auth.uid()`). Media is supplementary and **never** a classifier input. No diagnosis language.
 
-## Navigation (simplified for owners)
-Bottom tab bar: **Home · History · More** (3 tabs only — keep it glanceable). A dog switcher in the header for multi-dog accounts. Alerts surface as a **banner on Home + a bell icon**, not a primary tab. **More** holds the occasional actions: add/switch pets (Pet Creation), Device Pairing, Vet Review (owner), Observation Assessment, notification settings, sign out. The daily experience is: open app → see how the dog is.
+## Navigation (as built)
+Floating bottom tab bar: **Home · Alerts · Trends · Profile**. A dog switcher + logo in the header (multi-dog accounts). The occasional actions live under **Profile**: Account, Settings, Pet Creation, Device Pairing, Vet Review (owner), Observation Assessment, About/How-it-works, Partner Clinics, sign out. Daily experience: open app → see how the dog is.
+
+### First-run onboarding
+Animated **Splash → Welcome → Onboarding → Guided Setup** (create account or Google sign-in → add your dog → pair a harness → done), warm animated steps, not blank screens.
+
+### As-built owner screens (beyond the base modules)
+- **Home:** greeting by name/time; big stress status + plain-language "why" (`primary_reason`); a **2×2 grid of tappable vital cards** → each opens a **Vital Detail** page showing the value, the dog's typical resting range (per-dog `dog_baselines` when set, else the classifier's global defaults), and an owner-friendly explanation; an animated **calm-percentage ring**; a one-line "calm today" strip with a "View detailed log" link (raw readings live in the **Detailed Log** page for power users); the latest vet note inline (updates live via Realtime).
+- **Trends tab** (replaces a raw history list): "calm time this week" headline with a week-over-week delta; a **7 / 14 / 30-day stress-mix** chart (100%-stacked bars in the status colors); computed, honesty-guarded **insight cards** (calmest/tensest time of day, activity↔calm association, alert trend) with minimum-sample thresholds and strictly observational wording (no diagnosis, no causal claims).
+- **Device Pairing** can pick from a **Partner Clinics** list to set the dog's clinic.
+- **Alerts:** all/by-type view with a per-type mute switch, persisted to `user_settings.muted_alert_types` (in-app + preference; server-side push suppression is the pending FCM step).
 
 ## Modules (manuscript)
 

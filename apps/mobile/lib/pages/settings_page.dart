@@ -75,8 +75,7 @@ class _SettingsPageState extends State<SettingsPage> {
         : s.copyWith(quietHoursEnd: _encodeTime(picked)));
   }
 
-  Future<void> _editField(
-      BuildContext context, String label, String hint) async {
+  Future<void> _editField(String label, String hint) async {
     final ctrl = TextEditingController();
     await showDialog<void>(
       context: context,
@@ -149,7 +148,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: 'Phone Number',
                 subtitle: 'Not set',
                 onTap: () =>
-                    _editField(context, 'Phone Number', '+63 9XX XXX XXXX'),
+                    _editField('Phone Number', '+63 9XX XXX XXXX'),
               ),
               SettingsRow(
                 icon: Icons.emergency_outlined,
@@ -158,7 +157,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: 'Emergency Contact',
                 subtitle: 'Not set',
                 onTap: () =>
-                    _editField(context, 'Emergency Contact', 'Name and number'),
+                    _editField('Emergency Contact', 'Name and number'),
               ),
             ],
           ).entrance(context, index: 1),
@@ -196,12 +195,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(height: FurFeelTokens.space3),
                     SegmentedButton<String>(
+                      // Light leads and is the default; System is kept but
+                      // demoted to last (QA: new installs open in light).
                       segments: const [
-                        ButtonSegment(
-                          value: 'system',
-                          label: Text('System'),
-                          icon: Icon(Icons.brightness_auto_outlined),
-                        ),
                         ButtonSegment(
                           value: 'light',
                           label: Text('Light'),
@@ -211,6 +207,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           value: 'dark',
                           label: Text('Dark'),
                           icon: Icon(Icons.dark_mode_outlined),
+                        ),
+                        ButtonSegment(
+                          value: 'system',
+                          label: Text('System'),
+                          icon: Icon(Icons.brightness_auto_outlined),
                         ),
                       ],
                       selected: {s.theme},

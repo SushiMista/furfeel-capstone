@@ -472,7 +472,7 @@ class UserProfile {
 /// created by the signup trigger, so fetch can assume it exists.
 class UserSettings {
   const UserSettings({
-    this.theme = 'system',
+    this.theme = 'light',
     this.temperatureUnit = 'c',
     this.notificationsEnabled = true,
     this.quietHoursStart,
@@ -495,7 +495,7 @@ class UserSettings {
   final List<String> mutedAlertTypes;
 
   factory UserSettings.fromMap(Map<String, dynamic> map) => UserSettings(
-        theme: map['theme'] as String? ?? 'system',
+        theme: map['theme'] as String? ?? 'light',
         temperatureUnit: map['temperature_unit'] as String? ?? 'c',
         notificationsEnabled: map['notifications_enabled'] as bool? ?? true,
         quietHoursStart: map['quiet_hours_start'] as String?,
