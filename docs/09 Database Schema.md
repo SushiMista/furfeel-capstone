@@ -36,6 +36,8 @@ Mirrors `auth.users` (Supabase Auth owns credentials; do **not** store `password
 | role | user_role | not null, default `'owner'` |
 | clinic_id | uuid | null, FK → clinics(id) — set for vet_staff/veterinarian |
 | avatar_path | text | null (Supabase Storage — user profile photo) |
+| phone | text | null (owner contact; clinic staff can read via existing select policies) |
+| emergency_contact | text | null (free text "name and number") |
 | created_at | timestamptz | not null, default now() |
 
 ### user_settings

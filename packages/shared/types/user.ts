@@ -9,6 +9,9 @@ export interface User {
   clinic_id: string | null;
   /** Path in the private `avatars` bucket (resolved via signed URL). */
   avatar_path: string | null;
+  phone: string | null;
+  /** Free text ("name and number") — who the clinic should reach if the owner can't be. */
+  emergency_contact: string | null;
   created_at: string;
 }
 

@@ -13,6 +13,10 @@ class SettingsController extends ChangeNotifier {
 
   final FurFeelRepository _repository;
 
+  /// Exposed for screens that reach settings via the scope but also need to
+  /// persist profile fields (e.g. the contact-field editors).
+  FurFeelRepository get repository => _repository;
+
   UserProfile? profile;
   UserSettings settings = const UserSettings();
   bool loaded = false;

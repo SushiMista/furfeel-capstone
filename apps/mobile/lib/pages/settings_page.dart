@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../data/settings_controller.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/motion.dart';
+import '../widgets/contact_field_editor.dart';
 import '../widgets/settings_group.dart';
 import 'about_pages.dart';
 
@@ -75,39 +76,6 @@ class _SettingsPageState extends State<SettingsPage> {
         : s.copyWith(quietHoursEnd: _encodeTime(picked)));
   }
 
-  Future<void> _editField(String label, String hint) async {
-    final ctrl = TextEditingController();
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(label),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(hintText: hint),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label saved (database wiring coming soon)'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
@@ -146,18 +114,29 @@ class _SettingsPageState extends State<SettingsPage> {
               SettingsRow(
                 icon: Icons.phone_outlined,
                 title: 'Phone Number',
-                subtitle: 'Not set',
-                onTap: () =>
-                    _editField('Phone Number', '+63 9XX XXX XXXX'),
+                subtitle: ctrl.profile?.phone ?? 'Not set',
+                onTap: () => editContactField(
+                  context,
+                  title: 'Phone Number',
+                  hint: '+63 9XX XXX XXXX',
+                  keyboardType: TextInputType.phone,
+                  current: ctrl.profile?.phone,
+                  save: ctrl.repository.updateMyPhone,
+                ),
               ),
               SettingsRow(
                 icon: Icons.emergency_outlined,
                 iconBackground: FurFeelTokens.warmSoft,
                 iconColor: FurFeelTokens.warm,
                 title: 'Emergency Contact',
-                subtitle: 'Not set',
-                onTap: () =>
-                    _editField('Emergency Contact', 'Name and number'),
+                subtitle: ctrl.profile?.emergencyContact ?? 'Not set',
+                onTap: () => editContactField(
+                  context,
+                  title: 'Emergency Contact',
+                  hint: 'Name and number',
+                  current: ctrl.profile?.emergencyContact,
+                  save: ctrl.repository.updateMyEmergencyContact,
+                ),
               ),
             ],
           ).entrance(context, index: 1),
