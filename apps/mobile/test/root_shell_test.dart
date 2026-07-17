@@ -163,7 +163,8 @@ void main() {
     // Muting the harness type persists to user_settings.
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
-    expect(repo.userSettings.mutedAlertTypes, ['device_offline']);
+    // The Harness group now covers connectivity + battery health.
+    expect(repo.userSettings.mutedAlertTypes, ['device_offline', 'low_battery']);
   });
 
   testWidgets('dog switcher swaps the selected dog and reloads its data', (tester) async {
@@ -175,7 +176,9 @@ void main() {
 
     await tester.tap(find.byTooltip('Switch dog'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Mochi'));
+    // 'Mochi' also sits on a multi-dog Home card behind the sheet — tap the
+    // sheet's row (rendered last).
+    await tester.tap(find.text('Mochi').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Mochi'), findsWidgets);

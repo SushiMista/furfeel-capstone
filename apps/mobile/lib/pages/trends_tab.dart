@@ -5,6 +5,7 @@ import '../insights/insights.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../widgets/stress_mix_chart.dart';
+import '../widgets/wellness_card.dart';
 import 'detailed_log_page.dart';
 
 /// Trends tab: the owner's "is it getting better, and what helps?" screen.
@@ -122,6 +123,9 @@ class _TrendsTabState extends State<TrendsTab> {
             )
           else ...[
             _CalmWeekHero(dogName: dog.name, week: week),
+            const SizedBox(height: FurFeelTokens.space3),
+            // QA item 16: today's wellness score + activity/rest balance.
+            WellnessCard(repository: repository, dog: dog),
             const SizedBox(height: FurFeelTokens.space5),
             Row(
               children: [

@@ -42,6 +42,9 @@ dependencies:
   flutter_animate: ^4.5.2
   # ADDED: persists the "onboarding seen" flag so the intro only runs once.
   shared_preferences: ^2.5.3
+  pdf: ^3.13.0
+  share_plus: ^13.2.1
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

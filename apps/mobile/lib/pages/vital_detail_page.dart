@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
 import '../data/settings_controller.dart';
+import '../insights/biometrics.dart';
 import '../models/activity_state.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
@@ -133,6 +134,16 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
               'without exercise, which is why it feeds the stress level.',
       };
 
+  VitalStatus? get _status => switch (widget.kind) {
+        VitalKind.heartRate =>
+          heartRateStatus(widget.reading?.heartRateBpm, _baseline),
+        VitalKind.breathing =>
+          respiratoryStatus(widget.reading?.respiratoryRateBpm, _baseline),
+        VitalKind.temperature =>
+          temperatureStatus(widget.reading?.bodyTemperatureC),
+        VitalKind.activity => null,
+      };
+
   ActivityState get _activityState => widget.reading == null
       ? ActivityState.noSignal
       : activityStateFrom(
@@ -220,6 +231,40 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                       ),
                     ],
                   ),
+                  // QA item 10: plain-language status relative to this dog's
+                  // baseline (clinic-set when available), e.g.
+                  // "Heart rate 92 bpm — Normal for Biscuit".
+                  if (_status != null) ...[
+                    const SizedBox(height: FurFeelTokens.space2),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: vitalStatusColor(_status!),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: FurFeelTokens.space2),
+                        Expanded(
+                          child: Text(
+                            vitalStatusPhrase(
+                              widget.kind.label,
+                              '${_currentValue(settings)}'
+                              '${_unit(settings).isEmpty ? '' : ' ${_unit(settings)}'}',
+                              _status!,
+                              widget.dog.name,
+                            ),
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: vitalStatusColor(_status!),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (widget.kind == VitalKind.activity) ...[
                     const SizedBox(height: FurFeelTokens.space2),
                     Text(_activityState.description, style: textTheme.bodySmall),

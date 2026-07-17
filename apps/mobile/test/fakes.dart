@@ -116,9 +116,34 @@ class FakeRepository implements FurFeelRepository {
       recentReadings;
 
   @override
+  Future<List<TelemetryReading>> fetchReadingsBetween(
+    String dogId,
+    DateTime from,
+    DateTime to, {
+    int limit = 1000,
+  }) async =>
+      recentReadings
+          .where((r) => !r.capturedAt.isBefore(from) && !r.capturedAt.isAfter(to))
+          .toList()
+        ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+
+  @override
   Future<List<StressClassification>> fetchRecentClassifications(String dogId,
           {int limit = 50}) async =>
       const [];
+
+  List<StressClassification> classifications = const [];
+
+  @override
+  Future<List<StressClassification>> fetchClassificationsBetween(
+    String dogId,
+    DateTime from,
+    DateTime to, {
+    int limit = 2000,
+  }) async =>
+      classifications
+          .where((c) => !c.createdAt.isBefore(from) && !c.createdAt.isAfter(to))
+          .toList();
 
   @override
   Future<List<Alert>> fetchAlerts(String dogId, {int limit = 20}) async => alerts;
@@ -189,6 +214,53 @@ class FakeRepository implements FurFeelRepository {
 
   @override
   Future<List<CareGuidance>> fetchCareGuidance() async => guidance;
+
+  WellnessSnapshot? wellness;
+  List<MediaMessage> mediaMessages = const [];
+  final sentMediaMessages = <(String, String)>[]; // (submissionId, body)
+  bool consentAccepted = true; // most tests start past the gate
+  final acceptedConsentVersions = <String>[];
+
+  @override
+  Future<WellnessSnapshot?> fetchWellness(String dogId, DateTime day) async => wellness;
+
+  @override
+  Future<DogOverview> fetchDogOverview(Dog dog) async => DogOverview(
+        dog: dog,
+        reading: latestReading,
+        classification: latestClassification,
+        device: device,
+        wellness: wellness,
+      );
+
+  @override
+  Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId) async =>
+      mediaMessages
+          .where((m) => m.mediaSubmissionId == mediaSubmissionId)
+          .toList();
+
+  @override
+  Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body) async {
+    sentMediaMessages.add((mediaSubmissionId, body));
+    final message = MediaMessage(
+      id: 'msg-${mediaMessages.length + 1}',
+      mediaSubmissionId: mediaSubmissionId,
+      authorUserId: 'user-1',
+      body: body,
+      createdAt: DateTime.now(),
+    );
+    mediaMessages = [...mediaMessages, message];
+    return message;
+  }
+
+  @override
+  Future<bool> hasAcceptedConsent(String policyVersion) async => consentAccepted;
+
+  @override
+  Future<void> acceptConsent(String policyVersion) async {
+    acceptedConsentVersions.add(policyVersion);
+    consentAccepted = true;
+  }
 
   @override
   Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50}) async =>
