@@ -130,6 +130,10 @@ abstract class FurFeelRepository {
   Future<UserProfile> fetchMyProfile();
   Future<UserProfile> updateMyName(String name);
 
+  /// Contact fields (docs/04 Profile). Blank saves as null ("Not set").
+  Future<UserProfile> updateMyPhone(String? phone);
+  Future<UserProfile> updateMyEmergencyContact(String? contact);
+
   /// Uploads a profile photo to the private avatars bucket and stores its path.
   Future<UserProfile> setMyAvatar(Uint8List bytes, String fileExtension);
 
@@ -646,7 +650,8 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
     );
   }
 
-  static const _profileColumns = 'id, name, email, avatar_path';
+  static const _profileColumns =
+      'id, name, email, avatar_path, phone, emergency_contact';
 
   String get _requiredUserId {
     final userId = _client.auth.currentUser?.id;
@@ -674,6 +679,24 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
         .single();
     return UserProfile.fromMap(row);
   }
+
+  Future<UserProfile> _updateMyField(String column, String? value) async {
+    final trimmed = value?.trim();
+    final row = await _client
+        .from('users')
+        .update({column: (trimmed == null || trimmed.isEmpty) ? null : trimmed})
+        .eq('id', _requiredUserId)
+        .select(_profileColumns)
+        .single();
+    return UserProfile.fromMap(row);
+  }
+
+  @override
+  Future<UserProfile> updateMyPhone(String? phone) => _updateMyField('phone', phone);
+
+  @override
+  Future<UserProfile> updateMyEmergencyContact(String? contact) =>
+      _updateMyField('emergency_contact', contact);
 
   @override
   Future<UserProfile> setMyAvatar(Uint8List bytes, String fileExtension) async {

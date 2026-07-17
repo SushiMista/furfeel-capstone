@@ -5,6 +5,7 @@ import '../data/settings_controller.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/motion.dart';
+import '../widgets/contact_field_editor.dart';
 import '../widgets/dog_avatar.dart';
 import '../widgets/settings_group.dart';
 import '../widgets/user_avatar.dart';
@@ -134,14 +135,15 @@ class ProfileTab extends StatelessWidget {
             SettingsRow(
               icon: Icons.phone_outlined,
               title: 'Phone Number',
-              // Placeholder — will read profile.phone once wired
-              subtitle: '—',
+              subtitle: profile?.phone ?? 'Not set',
               showChevron: true,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      AccountPage(repository: repository, onSignOut: onSignOut),
-                ),
+              onTap: () => editContactField(
+                context,
+                title: 'Phone Number',
+                hint: '+63 9XX XXX XXXX',
+                keyboardType: TextInputType.phone,
+                current: profile?.phone,
+                save: repository.updateMyPhone,
               ),
             ),
             SettingsRow(
@@ -149,14 +151,14 @@ class ProfileTab extends StatelessWidget {
               iconBackground: FurFeelTokens.warmSoft,
               iconColor: FurFeelTokens.warm,
               title: 'Emergency Contact',
-              // Placeholder — will read profile.emergencyContact once wired
-              subtitle: '—',
+              subtitle: profile?.emergencyContact ?? 'Not set',
               showChevron: true,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      AccountPage(repository: repository, onSignOut: onSignOut),
-                ),
+              onTap: () => editContactField(
+                context,
+                title: 'Emergency Contact',
+                hint: 'Name and number',
+                current: profile?.emergencyContact,
+                save: repository.updateMyEmergencyContact,
               ),
             ),
             SettingsRow(

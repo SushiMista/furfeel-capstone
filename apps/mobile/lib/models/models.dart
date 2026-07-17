@@ -552,6 +552,8 @@ class UserProfile {
     required this.name,
     required this.email,
     this.avatarPath,
+    this.phone,
+    this.emergencyContact,
   });
 
   final String id;
@@ -561,11 +563,18 @@ class UserProfile {
   /// Path in the private `avatars` bucket (resolved via signed URL).
   final String? avatarPath;
 
+  final String? phone;
+
+  /// Free text ("name and number") — who the clinic reaches if the owner can't be.
+  final String? emergencyContact;
+
   factory UserProfile.fromMap(Map<String, dynamic> map) => UserProfile(
         id: map['id'] as String,
         name: map['name'] as String,
         email: map['email'] as String,
         avatarPath: map['avatar_path'] as String?,
+        phone: map['phone'] as String?,
+        emergencyContact: map['emergency_contact'] as String?,
       );
 
   /// First name for greetings ("Good morning, Joshua").

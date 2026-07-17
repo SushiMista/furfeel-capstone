@@ -305,7 +305,41 @@ class FakeRepository implements FurFeelRepository {
   @override
   Future<UserProfile> updateMyName(String name) async {
     profile = UserProfile(
-        id: profile.id, name: name, email: profile.email, avatarPath: profile.avatarPath);
+        id: profile.id,
+        name: name,
+        email: profile.email,
+        avatarPath: profile.avatarPath,
+        phone: profile.phone,
+        emergencyContact: profile.emergencyContact);
+    return profile;
+  }
+
+  UserProfile _withContact({String? phone, String? emergencyContact}) => UserProfile(
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        avatarPath: profile.avatarPath,
+        phone: phone,
+        emergencyContact: emergencyContact,
+      );
+
+  @override
+  Future<UserProfile> updateMyPhone(String? phone) async {
+    final trimmed = phone?.trim();
+    profile = _withContact(
+      phone: (trimmed == null || trimmed.isEmpty) ? null : trimmed,
+      emergencyContact: profile.emergencyContact,
+    );
+    return profile;
+  }
+
+  @override
+  Future<UserProfile> updateMyEmergencyContact(String? contact) async {
+    final trimmed = contact?.trim();
+    profile = _withContact(
+      phone: profile.phone,
+      emergencyContact: (trimmed == null || trimmed.isEmpty) ? null : trimmed,
+    );
     return profile;
   }
 
