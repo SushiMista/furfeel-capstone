@@ -66,6 +66,12 @@ export interface TrendRule {
   reason: string;
 }
 
+/** Context-only rule: contributes a reason code but never any points. */
+export interface ColdContextRule {
+  ambient_temperature_c_below: number;
+  reason: string;
+}
+
 export interface LevelThreshold {
   min: number;
   max: number | null;
@@ -93,6 +99,12 @@ export interface ClassifierConfig {
     environmental_amplifier: EnvironmentalRule;
     rising_trend: TrendRule;
   };
+  context_rules: {
+    environmental_cold: ColdContextRule;
+  };
+  device_alerts: {
+    low_battery_percent: number;
+  };
   level_thresholds: {
     calm: LevelThreshold;
     mild: LevelThreshold;
@@ -106,6 +118,7 @@ export interface ClassifierConfig {
     motion_activity: ValidationRange;
     ambient_temperature_c: ValidationRange;
     humidity_percent: ValidationRange;
+    battery_percent: ValidationRange;
     captured_at_max_skew_hours: number;
   };
 }

@@ -70,6 +70,19 @@
     }
   },
 
+  "context_rules": {
+    "_comment": "Context-only reason codes: they NEVER change the stress score (docs/08 scores heat but not cold), but they feed the owner-facing 'why' and Care Insights combinations (e.g. cold + stressed -> warm bed tip). Thresholds are provisional and vet-tunable like everything else here.",
+    "environmental_cold": {
+      "ambient_temperature_c_below": 8.0,
+      "reason": "environmental_cold"
+    }
+  },
+
+  "device_alerts": {
+    "_comment": "Device-health alert thresholds (docs/11 'Battery is low'). Provisional; ops/vet tunable.",
+    "low_battery_percent": 15
+  },
+
   "level_thresholds": {
     "_comment": "docs/08 Score -> level mapping. Evaluated as [min, max] inclusive; high has no upper bound.",
     "calm": { "min": 0, "max": 1 },
@@ -86,6 +99,7 @@
     "motion_activity": { "min": 0.0, "max": 1.0 },
     "ambient_temperature_c": { "min": -10, "max": 60 },
     "humidity_percent": { "min": 0, "max": 100 },
+    "battery_percent": { "min": 0, "max": 100 },
     "captured_at_max_skew_hours": 1
   }
 }

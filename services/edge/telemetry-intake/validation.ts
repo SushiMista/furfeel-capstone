@@ -103,6 +103,8 @@ export function checkCapturedAtSkew(
 export interface SanitizedTelemetry {
   features: TelemetryFeatures;
   posture_db: Posture;
+  /** 0-100, validated; not a classifier input — device health only (docs/07). */
+  battery_percent: number | null;
   is_valid: boolean;
   invalid_fields: string[];
   captured_at: string;
@@ -134,6 +136,9 @@ export function sanitizeTelemetry(
   const humidity = sanitizeNumericField(body.humidity_percent, ranges.humidity_percent);
   if (humidity.invalid) invalidFields.push("humidity_percent");
 
+  const battery = sanitizeNumericField(body.battery_percent, ranges.battery_percent);
+  if (battery.invalid) invalidFields.push("battery_percent");
+
   const posture = sanitizePosture(body.posture);
   if (posture.invalid) invalidFields.push("posture");
 
@@ -155,6 +160,8 @@ export function sanitizeTelemetry(
       humidity_percent: humidity.value,
     },
     posture_db: posture.dbValue,
+    // Batteries report whole percents; keep fractional values but round for storage.
+    battery_percent: battery.value === null ? null : Math.round(battery.value),
     is_valid: invalidFields.length === 0,
     invalid_fields: invalidFields,
     captured_at: body.captured_at,

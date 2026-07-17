@@ -1,4 +1,9 @@
-import { alertTypeForStressLevel, decideAlert } from "./rules.ts";
+import {
+  alertTypeForStressLevel,
+  decideAlert,
+  decideBatteryAlert,
+  friendlyReasonPhrase,
+} from "./rules.ts";
 
 function assertEqual<T>(actual: T, expected: T, msg?: string) {
   if (actual !== expected) {
@@ -49,4 +54,33 @@ Deno.test("decideAlert: dedup is per-type — caller must check the type-specifi
   // specifically (the caller is responsible for querying by the mapped type).
   const result = decideAlert("high", false);
   assertEqual(result?.type, "high_stress");
+});
+
+Deno.test("decideAlert: message is friendly, names the dog, and stays observational", () => {
+  const result = decideAlert("high", false, "Biscuit", ["rr panting", "environmental heat stress context"]);
+  assertEqual(result?.message.includes("Biscuit"), true);
+  assertEqual(result?.message.includes("it's warm and humid"), true);
+  // No-diagnosis guardrail: alert copy never uses clinical/causal language.
+  for (const banned of ["diagnos", "disease", "condition", "caused by", "because of"]) {
+    assertEqual(result?.message.toLowerCase().includes(banned), false, `contains "${banned}"`);
+  }
+});
+
+Deno.test("friendlyReasonPhrase: maps the strongest logged reason, null when none", () => {
+  assertEqual(friendlyReasonPhrase(["hr_ratio>1.6"]), "their heart rate is up");
+  assertEqual(friendlyReasonPhrase(["motion>0.8"]), "they're restless and moving a lot");
+  assertEqual(friendlyReasonPhrase([]), null);
+});
+
+Deno.test("decideBatteryAlert: low battery -> warning once, deduped while open, resolves on recovery", () => {
+  const low = decideBatteryAlert(12, 15, false, "Biscuit");
+  if (low === null || low === "resolve") throw new Error("expected an alert decision");
+  assertEqual(low.type, "low_battery");
+  assertEqual(low.severity, "warning");
+  assertEqual(low.message.includes("12%"), true);
+
+  assertEqual(decideBatteryAlert(12, 15, true), null); // deduped
+  assertEqual(decideBatteryAlert(80, 15, true), "resolve"); // charged back up
+  assertEqual(decideBatteryAlert(80, 15, false), null); // nothing to do
+  assertEqual(decideBatteryAlert(null, 15, false), null); // no battery telemetry
 });
