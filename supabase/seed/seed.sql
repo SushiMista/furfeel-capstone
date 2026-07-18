@@ -81,6 +81,46 @@ update public.users
 set role = 'veterinarian', clinic_id = '00000000-0000-0000-0000-000000000001'
 where email = 'vet@example.com';
 
+-- Admin account so the dashboard's Admin module (docs/05 §4) is reachable in
+-- dev. Same insert pattern as above; promoted to 'admin' after the trigger
+-- creates its public.users row. Credentials: admin@example.com / password123.
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password,
+  email_confirmed_at, invited_at, confirmation_token, confirmation_sent_at,
+  recovery_token, recovery_sent_at, email_change_token_new, email_change,
+  email_change_sent_at, email_change_token_current, email_change_confirm_status,
+  phone_change, phone_change_token, reauthentication_token,
+  raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, created_at, updated_at
+) values (
+  '00000000-0000-0000-0000-000000000008',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated',
+  'admin@example.com',
+  crypt('password123', gen_salt('bf')),
+  now(), null, '', null,
+  '', null, '', '',
+  null, '', 0,
+  '', '', '',
+  '{"provider":"email","providers":["email"]}',
+  '{"name":"FurFeel Admin"}',
+  false, now(), now()
+);
+
+insert into auth.identities (
+  id, provider_id, user_id, identity_data, provider,
+  last_sign_in_at, created_at, updated_at
+) values (
+  gen_random_uuid(),
+  '00000000-0000-0000-0000-000000000008',
+  '00000000-0000-0000-0000-000000000008',
+  '{"sub":"00000000-0000-0000-0000-000000000008","email":"admin@example.com","email_verified":true,"phone_verified":false}',
+  'email',
+  now(), now(), now()
+);
+
+update public.users set role = 'admin' where email = 'admin@example.com';
+
 -- Two dogs on the same clinic proves the multi-dog monitoring board (docs/05).
 insert into public.dogs (id, owner_user_id, clinic_id, name, breed, birthdate, sex, weight_kg, notes)
 values
@@ -135,5 +175,6 @@ values
 insert into public.user_settings (user_id)
 values
 ('00000000-0000-0000-0000-000000000002'),
-('00000000-0000-0000-0000-000000000005')
+('00000000-0000-0000-0000-000000000005'),
+('00000000-0000-0000-0000-000000000008')
 on conflict (user_id) do nothing;
