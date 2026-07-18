@@ -66,8 +66,17 @@ void main() {
     expect(find.text('Biscuit'), findsWidgets); // header switcher chip
     expect(find.text('Calm'), findsOneWidget);
     expect(find.text('Biscuit is calm right now'), findsOneWidget);
-    expect(find.textContaining('92 bpm', findRichText: true), findsOneWidget);
     expect(find.textContaining('Last updated'), findsOneWidget);
+    
+    // Scroll to vitals so 92 bpm is built/rendered in the lazy ListView
+    await tester.scrollUntilVisible(
+      find.textContaining('92 bpm', findRichText: true),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('92 bpm', findRichText: true), findsOneWidget);
     expect(repo.subscribeCalls, 1); // realtime subscription established once
   });
 
@@ -87,6 +96,16 @@ void main() {
       ],
     );
     await tester.pumpWidget(app(repo));
+    await tester.pumpAndSettle();
+
+    // Scroll to the Care Team tab and tap it
+    await tester.scrollUntilVisible(
+      find.text('Care Team'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Care Team'));
     await tester.pumpAndSettle();
 
     // The card sits below the vital grid — scroll it into view, then let the
@@ -176,10 +195,14 @@ void main() {
 
     expect(find.text('Biscuit'), findsWidgets);
 
+    // Owner feedback: the switcher chip is hidden on the multi-dog Home (the
+    // cards are the dog list) but still lives on the other tabs.
+    expect(find.byTooltip('Switch dog'), findsNothing);
+    await tester.tap(find.text('Alerts'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byTooltip('Switch dog'));
     await tester.pumpAndSettle();
-    // 'Mochi' also sits on a multi-dog Home card behind the sheet — tap the
-    // sheet's row (rendered last).
     await tester.tap(find.text('Mochi').last);
     await tester.pumpAndSettle();
 
@@ -195,6 +218,14 @@ void main() {
       device: const Device(id: 'device-1', deviceCode: 'FF-1', status: 'active'),
     );
     await tester.pumpWidget(app(repo));
+    await tester.pumpAndSettle();
+
+    // Scroll to the Heart rate vital square in the lazy ListView before tapping
+    await tester.scrollUntilVisible(
+      find.text('Heart rate'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Heart rate'));
@@ -216,6 +247,16 @@ void main() {
       ),
     ];
     await tester.pumpWidget(app(repo));
+    await tester.pumpAndSettle();
+
+    // Scroll to the Care Team tab and tap it
+    await tester.scrollUntilVisible(
+      find.text('Care Team'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Care Team'));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.text('Dr. Alex Kim'), 200,
