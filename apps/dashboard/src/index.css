@@ -36,6 +36,25 @@
   body {
     background: var(--ff-surface);
   }
+
+  /* Health Record (docs/05 §3): print as a clean document — no card chrome,
+     sections kept whole across page breaks. */
+  @page {
+    margin: 1.6cm;
+  }
+
+  .print-plain {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+
+  main {
+    padding: 0 !important;
+  }
 }
 
 /* ADDED: motion primitives (docs/19 §5 — calm and quick, ease-out). The

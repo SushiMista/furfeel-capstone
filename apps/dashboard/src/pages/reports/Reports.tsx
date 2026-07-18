@@ -1,21 +1,33 @@
 import { useCallback, useEffect, useState } from "react";
-import { Printer } from "lucide-react";
+import { PawPrint, Printer } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   fetchAlertsSince,
   fetchClassificationsSince,
   fetchDogs,
   fetchTelemetrySince,
+  getMediaSignedUrl,
 } from "../../lib/queries.ts";
-import { buildDogReport, type DogReport, type VitalSummary } from "../../lib/report.ts";
+import { fetchClinics } from "../../lib/adminQueries.ts";
+import {
+  buildDogReport,
+  buildHighlights,
+  type DogReport,
+  type VitalSummary,
+} from "../../lib/report.ts";
 import { StressLevelBadge, stressLevelColor } from "../../components/StressLevelBadge.tsx";
+import { TelemetryChart } from "../../components/TelemetryChart.tsx";
 import { Card, CardContent } from "../../components/ui/card.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Label, Select } from "../../components/ui/input.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
-import type { Dog, StressLevel } from "../../../../../packages/shared/types/index.ts";
+import type {
+  Dog,
+  StressLevel,
+  TelemetryReading,
+} from "../../../../../packages/shared/types/index.ts";
 
 const PERIODS = [
   { label: "Last 24 hours", hours: 24 },
@@ -37,13 +49,28 @@ function VitalRow({ label, unit, summary }: { label: string; unit: string; summa
   );
 }
 
-/** Reports (docs/05): per-dog period summary for clinic review and printing.
- * Decision support, not diagnosis. */
+/** Uppercase section rule (docs/19 typography) so the record reads as a
+ * structured document, on screen and on paper. */
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="mb-3 mt-6 border-b-2 border-brand pb-1 text-xs font-bold uppercase tracking-widest text-brand-ink">
+      {children}
+    </h3>
+  );
+}
+
+/** Reports (docs/05 §3): the FurFeel Health Record — a per-dog period summary
+ * formatted as a document a clinic can print and file. Decision support, not
+ * diagnosis. */
 export function Reports() {
   const [dogs, setDogs] = useState<Dog[]>([]);
+  const [clinicNames, setClinicNames] = useState<Map<string, string>>(new Map());
   const [dogId, setDogId] = useState<string>("");
   const [hours, setHours] = useState(24);
   const [report, setReport] = useState<DogReport | null>(null);
+  const [readings, setReadings] = useState<TelemetryReading[]>([]);
+  const [period, setPeriod] = useState<{ from: Date; to: Date } | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,20 +81,43 @@ export function Reports() {
         if (rows.length > 0) setDogId((prev) => prev || rows[0].id);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dogs"));
+    // clinics_select_authenticated: any signed-in staff member can resolve names.
+    fetchClinics(supabase)
+      .then((rows) => setClinicNames(new Map(rows.map((c) => [c.id, c.name]))))
+      .catch(() => {});
   }, []);
+
+  const dog = dogs.find((d) => d.id === dogId) ?? null;
+
+  useEffect(() => {
+    setPhotoUrl(null);
+    if (!dog?.photo_path) return;
+    let cancelled = false;
+    getMediaSignedUrl(supabase, dog.photo_path)
+      .then((url) => {
+        if (!cancelled) setPhotoUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [dog?.photo_path]);
 
   const generate = useCallback(async () => {
     if (!dogId) return;
     setLoading(true);
     setError(null);
     try {
-      const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-      const [readings, classifications, alerts] = await Promise.all([
-        fetchTelemetrySince(supabase, dogId, since),
-        fetchClassificationsSince(supabase, dogId, since),
-        fetchAlertsSince(supabase, dogId, since),
+      const to = new Date();
+      const from = new Date(to.getTime() - hours * 3600 * 1000);
+      const [periodReadings, classifications, alerts] = await Promise.all([
+        fetchTelemetrySince(supabase, dogId, from.toISOString()),
+        fetchClassificationsSince(supabase, dogId, from.toISOString()),
+        fetchAlertsSince(supabase, dogId, from.toISOString()),
       ]);
-      setReport(buildDogReport(readings, classifications, alerts));
+      setReport(buildDogReport(periodReadings, classifications, alerts));
+      setReadings(periodReadings);
+      setPeriod({ from, to });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to build report");
     } finally {
@@ -79,14 +129,23 @@ export function Reports() {
     generate();
   }, [generate]);
 
-  const dog = dogs.find((d) => d.id === dogId) ?? null;
+  const clinicName = dog?.clinic_id ? clinicNames.get(dog.clinic_id) : null;
+  const highlights = report && dog ? buildHighlights(report, dog.name) : [];
+  const fmtDate = (d: Date) =>
+    d.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 print-hidden">
         <h1 className="m-0 text-2xl font-bold text-ink">Reports</h1>
-        <Button variant="secondary" className="print-hidden" onClick={() => window.print()}>
-          <Printer size={14} /> Print
+        <Button variant="secondary" onClick={() => window.print()}>
+          <Printer size={14} /> Print / save PDF
         </Button>
       </div>
 
@@ -126,22 +185,49 @@ export function Reports() {
       )}
       {loading && <CardSkeleton lines={5} />}
 
-      {!loading && report && dog && (
-        <Card>
-          <CardContent className="p-5">
-            <p className="m-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-              {PERIODS.find((p) => p.hours === hours)?.label} · generated{" "}
-              {new Date().toLocaleString()}
-            </p>
-            <h2 className="m-0 mb-4 flex items-center gap-3 text-xl font-semibold text-ink">
-              {dog.name} {report.dominantLevel && <StressLevelBadge level={report.dominantLevel} />}
-            </h2>
+      {!loading && report && dog && period && (
+        <Card className="print-plain">
+          <CardContent className="p-6">
+            {/* ── Record masthead ──────────────────────────────────────── */}
+            <div className="flex flex-wrap items-start justify-between gap-4 rounded-md bg-brand-soft p-4 print-avoid-break">
+              <div className="flex items-center gap-4">
+                <span className="block h-14 w-14 flex-shrink-0 overflow-hidden rounded-pill bg-surface ring-2 ring-brand">
+                  {photoUrl ? (
+                    <img src={photoUrl} alt={dog.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-brand">
+                      <PawPrint size={24} />
+                    </span>
+                  )}
+                </span>
+                <div>
+                  <p className="m-0 text-xs font-bold uppercase tracking-widest text-brand">
+                    FurFeel Health Record
+                  </p>
+                  <h2 className="m-0 flex items-center gap-2 text-xl font-bold text-ink">
+                    {dog.name}
+                    {report.dominantLevel && <StressLevelBadge level={report.dominantLevel} />}
+                  </h2>
+                  <p className="m-0 text-sm text-ink-muted">{dog.breed ?? "Breed not recorded"}</p>
+                </div>
+              </div>
+              <div className="text-right text-xs text-ink-muted">
+                <p className="m-0 font-semibold text-ink">
+                  {clinicName ?? "Home monitoring — no clinic linked"}
+                </p>
+                <p className="m-0">
+                  Period: {fmtDate(period.from)} — {fmtDate(period.to)}
+                </p>
+                <p className="m-0">Generated {fmtDate(new Date())}</p>
+              </div>
+            </div>
 
             {report.readingCount === 0 ? (
               <EmptyState>No readings in this period — nothing to summarize yet 🐾</EmptyState>
             ) : (
               <>
-                <p className="text-sm text-ink">
+                <SectionTitle>Monitoring summary</SectionTitle>
+                <p className="m-0 text-sm text-ink">
                   {report.readingCount} readings
                   {report.invalidReadingCount > 0 &&
                     ` (${report.invalidReadingCount} flagged invalid)`}
@@ -149,10 +235,8 @@ export function Reports() {
                   {report.openAlertCount} still open).
                 </p>
 
-                <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                  Vitals
-                </h3>
-                <div className="max-w-lg">
+                <SectionTitle>Vitals</SectionTitle>
+                <div className="max-w-lg print-avoid-break">
                   <Table>
                     <THead>
                       <Tr className="border-t-0">
@@ -169,10 +253,13 @@ export function Reports() {
                   </Table>
                 </div>
 
-                <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                  Stress levels
-                </h3>
-                <div className="flex max-w-lg flex-col gap-2">
+                <SectionTitle>Vitals trend</SectionTitle>
+                <div className="print-avoid-break">
+                  <TelemetryChart readings={readings} />
+                </div>
+
+                <SectionTitle>Stress distribution</SectionTitle>
+                <div className="flex max-w-lg flex-col gap-2 print-avoid-break">
                   {LEVELS.map((level) => {
                     const count = report.stressBreakdown[level];
                     const pct =
@@ -198,12 +285,27 @@ export function Reports() {
                     );
                   })}
                 </div>
+
+                <SectionTitle>Abnormal-pattern highlights</SectionTitle>
+                {highlights.length === 0 ? (
+                  <p className="m-0 text-sm text-ink">
+                    Nothing flagged in this period — readings, classifications, and alerts all
+                    look routine.
+                  </p>
+                ) : (
+                  <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-sm text-ink">
+                    {highlights.map((h) => (
+                      <li key={h}>{h}</li>
+                    ))}
+                  </ul>
+                )}
               </>
             )}
 
-            <p className="mb-0 mt-5 text-xs text-ink-muted">
-              FurFeel reports summarize wearable telemetry as decision support for veterinary
-              review — they are not a diagnosis.
+            <p className="mb-0 mt-6 border-t border-hairline pt-3 text-xs text-ink-muted">
+              Decision support — not a diagnosis. FurFeel reports summarize wearable telemetry
+              to support veterinary review and can be shared with other clinics as part of the
+              dog&apos;s record.
             </p>
           </CardContent>
         </Card>

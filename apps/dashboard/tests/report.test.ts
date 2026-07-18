@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDogReport } from "../src/lib/report.ts";
+import { buildDogReport, buildHighlights } from "../src/lib/report.ts";
 import type {
   Alert,
   StressClassification,
@@ -100,5 +100,39 @@ describe("buildDogReport", () => {
     expect(report.alertCount).toBe(3);
     expect(report.openAlertCount).toBe(2);
     expect(report.alertsBySeverity).toEqual({ critical: 2, warning: 1 });
+  });
+});
+
+describe("buildHighlights (docs/05 abnormal-pattern highlights)", () => {
+  it("flags elevated stress share, open alerts, and invalid readings — observationally", () => {
+    const report = buildDogReport(
+      [reading({ is_valid: false }), reading({})],
+      [classification("calm"), classification("moderate"), classification("high")],
+      [alert("open", "critical"), alert("acknowledged", "warning")],
+    );
+    const highlights = buildHighlights(report, "Biscuit");
+    expect(highlights).toHaveLength(3);
+    expect(highlights[0]).toContain("Biscuit");
+    expect(highlights[0]).toContain("2 of 3 classifications (67%)");
+    expect(highlights[1]).toContain("1 of 2 alerts");
+    expect(highlights[2]).toContain("1 readings were flagged invalid");
+    // No diagnosis language anywhere (CLAUDE.md guardrail).
+    for (const h of highlights) expect(h.toLowerCase()).not.toMatch(/diagnos/);
+  });
+
+  it("returns nothing to flag for an all-calm, all-clear period", () => {
+    const report = buildDogReport(
+      [reading({})],
+      [classification("calm")],
+      [alert("acknowledged", "info")],
+    );
+    expect(buildHighlights(report, "Biscuit")).toEqual([]);
+  });
+
+  it("flags readings without classifications", () => {
+    const report = buildDogReport([reading({})], [], []);
+    expect(buildHighlights(report, "Biscuit")).toEqual([
+      "Readings arrived in this period but no stress classifications were recorded.",
+    ]);
   });
 });
