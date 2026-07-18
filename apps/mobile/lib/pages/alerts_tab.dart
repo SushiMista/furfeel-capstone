@@ -44,6 +44,20 @@ enum _AlertGroup {
   bool matches(Alert alert) => types == null || types!.contains(alert.type);
 }
 
+bool _sameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+String _dayLabel(DateTime t) {
+  final now = DateTime.now();
+  if (_sameDay(t, now)) return 'TODAY';
+  if (_sameDay(t, now.subtract(const Duration(days: 1)))) return 'YESTERDAY';
+  const months = [
+    'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+    'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+  ];
+  return '${months[t.month - 1]} ${t.day}, ${t.year}';
+}
+
 class _AlertsTabState extends State<AlertsTab> {
   _AlertGroup _group = _AlertGroup.all;
 
@@ -140,9 +154,24 @@ class _AlertsTabState extends State<AlertsTab> {
               ),
             ).entrance(context, index: 1)
           else
-            for (final (i, alert) in visible.indexed)
+            // "When did this happen?" first: alerts grouped under a date
+            // header (Today / Yesterday / full date), newest group on top.
+            for (final (i, alert) in visible.indexed) ...[
+              if (i == 0 ||
+                  !_sameDay(alert.createdAt, visible[i - 1].createdAt))
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: i == 0 ? 0 : FurFeelTokens.space3,
+                    bottom: FurFeelTokens.space2,
+                  ),
+                  child: Text(
+                    _dayLabel(alert.createdAt),
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
               AlertCard(alert: alert, onAcknowledge: widget.onAcknowledge)
                   .entrance(context, index: 1 + i),
+            ],
         ],
       ),
     );
