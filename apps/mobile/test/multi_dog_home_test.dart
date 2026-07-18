@@ -60,10 +60,10 @@ void main() {
     expect(find.text('Biscuit'), findsOneWidget);
     expect(find.text('Mochi'), findsOneWidget);
     expect(find.text('Calm'), findsWidgets); // stress pill
-    expect(find.text('82'), findsWidgets); // wellness score
-    expect(find.text('92 bpm'), findsWidgets); // key vital
-    expect(find.text('12%'), findsWidgets); // low battery surfaced
-    expect(find.byIcon(Icons.battery_alert), findsWidgets);
+    // Wellness and battery are removed from the minimalist glance card
+    expect(find.text('82'), findsNothing);
+    expect(find.text('12%'), findsNothing);
+    expect(find.byIcon(Icons.battery_alert), findsNothing);
   });
 
   testWidgets('a card opens the full dog detail', (tester) async {
