@@ -91,13 +91,24 @@ class _TrendsTabState extends State<TrendsTab> {
       final results = await Future.wait<Object>([
         widget.repository.fetchReadingsBetween(widget.dog.id, from, to),
         widget.repository.fetchClassificationsBetween(widget.dog.id, from, to),
+        // Owner + clinic details make the PDF a transferable record
+        // (owner feedback): another clinic can file it as-is.
+        widget.repository.fetchMyProfile(),
+        widget.repository.fetchClinics(),
       ]);
+      Clinic? clinic;
+      for (final c in results[3] as List<Clinic>) {
+        if (c.id == widget.dog.clinicId) clinic = c;
+      }
       final bytes = await buildHealthReportPdf(
         dog: widget.dog,
         from: from,
         to: to,
         readings: results[0] as List<TelemetryReading>,
         classifications: results[1] as List<StressClassification>,
+        owner: results[2] as UserProfile,
+        clinic: clinic,
+        alerts: widget.alerts,
       );
       final name =
           widget.dog.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
