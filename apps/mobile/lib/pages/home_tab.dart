@@ -7,6 +7,7 @@ import '../insights/owner_moments.dart';
 import '../models/activity_state.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
+import '../util/battery.dart';
 import '../util/friendly_time.dart';
 import '../util/motion.dart';
 import '../widgets/activity_indicator.dart';
@@ -25,7 +26,7 @@ import 'vital_detail_page.dart';
 /// do?" — status hero, today-so-far calm stat, care insights for the current
 /// stress level, and quick links. Raw readings live in the detailed log; a
 /// glance here should answer the question without scrolling a sensor feed.
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   const HomeTab({
     super.key,
     required this.repository,
@@ -50,28 +51,35 @@ class HomeTab extends StatelessWidget {
   final Future<void> Function() onRefresh;
 
   @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  int _selectedTabIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
-    final level = classification?.stressLevel;
+    final level = widget.classification?.stressLevel;
     // Combination-aware tip (QA item 11): cold+stressed, hot+stressed,
     // restless+high HR... each gets tailored advice; falls back to the
     // per-level guidance when no combination applies.
     final careGuidance = selectGuidance(
-      guidance,
+      widget.guidance,
       level: level,
-      contextKey: careContextKey(level: level, reading: reading),
-      clinicId: dog.clinicId,
+      contextKey: careContextKey(level: level, reading: widget.reading),
+      clinicId: widget.dog.clinicId,
     );
 
     // Owner-delight pass: a new owner always sees the next step, never an
     // unexplained empty screen.
     final setup = setupProgress(
-      hasDevice: device != null,
-      hasClinic: dog.clinicId != null,
-      hasReading: reading != null,
+      hasDevice: widget.device != null,
+      hasClinic: widget.dog.clinicId != null,
+      hasReading: widget.reading != null,
     );
 
     return RefreshIndicator(
-      onRefresh: onRefresh,
+      onRefresh: widget.onRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(FurFeelTokens.space4),
@@ -79,90 +87,127 @@ class HomeTab extends StatelessWidget {
           // ADDED: personalized greeting by name + time of day (docs/04).
           const _Greeting(),
           const SizedBox(height: FurFeelTokens.space3),
-          if (dog.isBirthday(DateTime.now())) ...[
-            _BirthdayBanner(dog: dog).entrance(context),
+          if (widget.dog.isBirthday(DateTime.now())) ...[
+            _BirthdayBanner(dog: widget.dog).entrance(context),
             const SizedBox(height: FurFeelTokens.space3),
           ],
           if (!setupComplete(setup)) ...[
             SetupChecklistCard(
-              dogName: dog.name,
+              dogName: widget.dog.name,
               progress: setup,
               onPairHarness: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) =>
-                      DevicePairingPage(repository: repository, dog: dog),
+                      DevicePairingPage(repository: widget.repository, dog: widget.dog),
                 ),
               ),
               onLinkClinic: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => DogFormPage(repository: repository, dog: dog),
+                  builder: (_) => DogFormPage(repository: widget.repository, dog: widget.dog),
                 ),
               ),
             ).entrance(context),
             const SizedBox(height: FurFeelTokens.space3),
           ],
           _StatusHero(
-            repository: repository,
-            dog: dog,
-            reading: reading,
-            classification: classification,
-            device: device,
+            repository: widget.repository,
+            dog: widget.dog,
+            reading: widget.reading,
+            classification: widget.classification,
+            device: widget.device,
           ).entrance(context, index: 1),
           const SizedBox(height: FurFeelTokens.space3),
-          // QA: vitals as four tappable squares; each opens a detail screen
-          // with the dog's typical range + owner-friendly info.
-          _VitalGrid(repository: repository, dog: dog, reading: reading)
-              .entrance(context, index: 2),
+
+          // Custom horizontal tab selector
+          _HomeTabBar(
+            selectedIndex: _selectedTabIndex,
+            onTabSelected: (index) {
+              setState(() {
+                _selectedTabIndex = index;
+              });
+            },
+          ).entrance(context, index: 2),
           const SizedBox(height: FurFeelTokens.space3),
-          _TodaySoFar(daily: daily).entrance(context, index: 3),
-          const SizedBox(height: FurFeelTokens.space3),
-          // Owner-delight pass: the day as a banded strip (docs/19 §6).
-          DayTimeline(repository: repository, dog: dog).entrance(context, index: 4),
-          if (careGuidance != null) ...[
-            const SizedBox(height: FurFeelTokens.space5),
-            _CareInsightsCard(guidance: careGuidance).entrance(context, index: 4),
-          ],
-          // QA: clinician comments surface right here — no navigation needed.
-          if (vetNotes.isNotEmpty) ...[
-            const SizedBox(height: FurFeelTokens.space5),
-            Text('FROM YOUR CARE TEAM',
-                style: Theme.of(context).textTheme.labelSmall),
-            const SizedBox(height: FurFeelTokens.space2),
-            for (final (i, note) in vetNotes.take(2).indexed)
-              Padding(
-                padding: EdgeInsets.only(top: i > 0 ? FurFeelTokens.space3 : 0),
-                child: VetNoteCard(repository: repository, note: note)
-                    .entrance(context, index: 5 + i),
-              ),
-          ],
-          const SizedBox(height: FurFeelTokens.space5),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickLink(
-                  icon: Icons.medical_information_outlined,
-                  label: 'Vet review',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => VetReviewPage(repository: repository, dog: dog),
-                    ),
+
+          // Tab content based on index
+          if (_selectedTabIndex == 0) ...[
+            // Tab 0: Vitals
+            if (widget.device != null) ...[
+              _BatteryHealthCard(
+                device: widget.device!,
+                dogName: widget.dog.name,
+                onManage: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        DevicePairingPage(repository: widget.repository, dog: widget.dog),
                   ),
                 ),
-              ),
-              const SizedBox(width: FurFeelTokens.space3),
-              Expanded(
-                child: _QuickLink(
-                  icon: Icons.photo_camera_outlined,
-                  label: 'Share an observation',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => ObservationPage(repository: repository, dog: dog),
-                    ),
-                  ),
-                ),
-              ),
+              ).entrance(context, index: 3),
+              const SizedBox(height: FurFeelTokens.space3),
             ],
-          ),
+            // QA: vitals as four tappable squares; each opens a detail screen
+            // with the dog's typical range + owner-friendly info.
+            _VitalGrid(
+              repository: widget.repository,
+              dog: widget.dog,
+              reading: widget.reading,
+            ).entrance(context, index: 4),
+          ] else if (_selectedTabIndex == 1) ...[
+            // Tab 1: Activity
+            _TodaySoFar(daily: widget.daily).entrance(context, index: 3),
+            const SizedBox(height: FurFeelTokens.space3),
+            // Owner-delight pass: the day as a banded strip (docs/19 §6).
+            DayTimeline(
+              repository: widget.repository,
+              dog: widget.dog,
+            ).entrance(context, index: 4),
+          ] else ...[
+            // Tab 2: Care Team
+            if (careGuidance != null) ...[
+              _CareInsightsCard(guidance: careGuidance).entrance(context, index: 3),
+              const SizedBox(height: FurFeelTokens.space4),
+            ],
+            // QA: clinician comments surface right here — no navigation needed.
+            if (widget.vetNotes.isNotEmpty) ...[
+              Text('FROM YOUR CARE TEAM',
+                  style: Theme.of(context).textTheme.labelSmall),
+              const SizedBox(height: FurFeelTokens.space2),
+              for (final (i, note) in widget.vetNotes.take(2).indexed)
+                Padding(
+                  padding: EdgeInsets.only(top: i > 0 ? FurFeelTokens.space3 : 0),
+                  child: VetNoteCard(repository: widget.repository, note: note)
+                      .entrance(context, index: 4 + i),
+                ),
+              const SizedBox(height: FurFeelTokens.space4),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickLink(
+                    icon: Icons.medical_information_outlined,
+                    label: 'Vet review',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => VetReviewPage(repository: widget.repository, dog: widget.dog),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: FurFeelTokens.space3),
+                Expanded(
+                  child: _QuickLink(
+                    icon: Icons.photo_camera_outlined,
+                    label: 'Share an observation',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ObservationPage(repository: widget.repository, dog: widget.dog),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ).entrance(context, index: 6),
+          ],
         ],
       ),
     );
@@ -715,6 +760,7 @@ class _DeviceChip extends StatelessWidget {
     final battery = device.batteryPercent;
     final batteryColor =
         device.isBatteryLow ? FurFeelTokens.statusHighOwner : FurFeelTokens.inkMuted;
+    final batteryIcon = battery == null ? null : batteryIconFor(battery);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -730,11 +776,7 @@ class _DeviceChip extends StatelessWidget {
         ),
         if (battery != null) ...[
           const SizedBox(width: FurFeelTokens.space2),
-          Icon(
-            device.isBatteryLow ? Icons.battery_alert : Icons.battery_full,
-            size: 14,
-            color: batteryColor,
-          ),
+          Icon(batteryIcon, size: 14, color: batteryColor),
           Text(
             '$battery%',
             style: TextStyle(
@@ -825,6 +867,240 @@ class _QuickLink extends StatelessWidget {
                   fontSize: FurFeelTokens.typeLabelSize,
                   fontWeight: FontWeight.w600,
                   color: FurFeelTokens.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A premium, tactile card displaying battery health, connectivity status,
+/// and friendly contextual alerts for the paired dog harness (QA item 14).
+class _BatteryHealthCard extends StatelessWidget {
+  const _BatteryHealthCard({
+    required this.device,
+    required this.dogName,
+    required this.onManage,
+  });
+
+  final Device device;
+  final String dogName;
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final battery = device.batteryPercent ?? 100;
+    final isLow = device.isBatteryLow;
+    final batteryColor = batteryColorFor(battery);
+    final batteryIcon = batteryIconFor(battery);
+
+    // Status description text based on battery health
+    final String statusText;
+    final String descriptionText;
+    if (isLow) {
+      statusText = 'Critical';
+      descriptionText =
+          'The harness battery is getting low ($battery%). Charge it soon so $dogName\'s monitoring doesn\'t pause.';
+    } else if (battery <= 30) {
+      statusText = 'Low';
+      descriptionText =
+          'The battery is low ($battery%). We recommend charging the harness soon.';
+    } else {
+      statusText = 'Healthy';
+      descriptionText =
+          'The battery is healthy ($battery%). $dogName\'s harness is actively monitoring.';
+    }
+
+    return Card(
+      child: InkWell(
+        onTap: onManage,
+        borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+        child: Padding(
+          padding: const EdgeInsets.all(FurFeelTokens.space4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.battery_charging_full_rounded,
+                      size: 18, color: FurFeelTokens.brand),
+                  const SizedBox(width: FurFeelTokens.space2),
+                  Expanded(
+                    child: Text(
+                      'HARNESS DEVICE & BATTERY',
+                      style: textTheme.labelSmall,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 16, color: FurFeelTokens.inkMuted),
+                ],
+              ),
+              const SizedBox(height: FurFeelTokens.space3),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Circular Battery Gauge Visual representation
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: CircularProgressIndicator(
+                          value: battery / 100.0,
+                          strokeWidth: 5,
+                          strokeCap: StrokeCap.round,
+                          color: batteryColor,
+                          backgroundColor: FurFeelTokens.surfaceAlt,
+                        ),
+                      ),
+                      Icon(batteryIcon, size: 22, color: batteryColor),
+                    ],
+                  ),
+                  const SizedBox(width: FurFeelTokens.space4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              '$battery%',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(width: FurFeelTokens.space2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: FurFeelTokens.space2,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isLow
+                                    ? FurFeelTokens.statusHighBg
+                                    : battery <= 30
+                                        ? FurFeelTokens.statusMildBg
+                                        : FurFeelTokens.statusCalmBg,
+                                borderRadius:
+                                    BorderRadius.circular(FurFeelTokens.radiusPill),
+                              ),
+                              child: Text(
+                                statusText,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isLow
+                                      ? FurFeelTokens.statusHighOwner
+                                      : battery <= 30
+                                          ? FurFeelTokens.statusMildFg
+                                          : FurFeelTokens.statusCalmFg,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          device.status == 'offline' ? 'Offline' : 'Connected',
+                          style: TextStyle(
+                            fontSize: FurFeelTokens.typeCaptionSize,
+                            fontWeight: FontWeight.w600,
+                            color: device.status == 'offline'
+                                ? FurFeelTokens.statusHighOwner
+                                : FurFeelTokens.statusCalmFg,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: FurFeelTokens.space3),
+              Text(
+                descriptionText,
+                style: textTheme.bodyMedium?.copyWith(
+                  fontSize: 13,
+                  color: FurFeelTokens.ink,
+                ),
+              ),
+              const SizedBox(height: FurFeelTokens.space2),
+              Text(
+                device.lastSeenAt != null
+                    ? 'Last synced ${friendlyTimestamp(device.lastSeenAt!)}'
+                    : 'No sync yet — put the harness on and give it a minute.',
+                style: textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A premium custom horizontal segmented tab/pill selector for switching between
+/// Vitals, Activity, and Care Team tabs (docs/19 §7).
+class _HomeTabBar extends StatelessWidget {
+  const _HomeTabBar({
+    required this.selectedIndex,
+    required this.onTabSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onTabSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: FurFeelTokens.surfaceAlt,
+        borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
+      ),
+      child: Row(
+        children: [
+          _buildTab(context, index: 0, label: 'Vitals', icon: Icons.analytics_outlined),
+          _buildTab(context, index: 1, label: 'Activity', icon: Icons.trending_up_rounded),
+          _buildTab(context, index: 2, label: 'Care Team', icon: Icons.healing_outlined),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(BuildContext context,
+      {required int index, required String label, required IconData icon}) {
+    final isSelected = selectedIndex == index;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTabSelected(index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: FurFeelTokens.space2),
+          decoration: BoxDecoration(
+            color: isSelected ? FurFeelTokens.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
+            boxShadow: isSelected ? FurFeelTokens.shadowCard : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? FurFeelTokens.brand : FurFeelTokens.inkMuted,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: textTheme.labelSmall?.copyWith(
+                  color: isSelected ? FurFeelTokens.brand : FurFeelTokens.inkMuted,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
             ],
