@@ -114,12 +114,26 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
 
   Future<void> _exportPdf() => _export(() async {
         final range = _range;
+        // Owner + clinic + alerts turn the export into a transferable record
+        // (owner feedback) — same document another clinic can file.
+        final extras = await Future.wait<Object>([
+          widget.repository.fetchMyProfile(),
+          widget.repository.fetchClinics(),
+          widget.repository.fetchAlerts(widget.dog.id, limit: 100),
+        ]);
+        Clinic? clinic;
+        for (final c in extras[1] as List<Clinic>) {
+          if (c.id == widget.dog.clinicId) clinic = c;
+        }
         final bytes = await buildHealthReportPdf(
           dog: widget.dog,
           from: range.start,
           to: range.end,
           readings: _readings,
           classifications: _classifications,
+          owner: extras[0] as UserProfile,
+          clinic: clinic,
+          alerts: extras[2] as List<Alert>,
         );
         await saveOrShareFile(bytes, '$_fileStem.pdf', 'application/pdf');
       });
