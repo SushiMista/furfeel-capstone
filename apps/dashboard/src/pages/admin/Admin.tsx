@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { Activity, Bell, Building2, Dog as DogIcon, Plus, Users as UsersIcon, Wifi, WifiOff } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   createClinic,
+  createUserAccount,
   fetchAllDevices,
   fetchAllDogs,
   fetchAllUsers,
   fetchClinics,
+  fetchSystemHealth,
   registerDevice,
   updateDevice,
   updateDogClinic,
   updateUserRoleClinic,
+  type SystemHealth,
 } from "../../lib/adminQueries.ts";
+import { Kpi } from "../overview/Overview.tsx";
 import { useCurrentRole } from "../../lib/useCurrentRole.ts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Button } from "../../components/ui/button.tsx";
@@ -32,7 +36,7 @@ import type {
 
 const ROLES: UserRole[] = ["owner", "vet_staff", "veterinarian", "admin"];
 const DEVICE_STATUSES: DeviceStatus[] = ["active", "inactive", "offline", "maintenance"];
-type Tab = "users" | "clinics" | "devices";
+type Tab = "users" | "clinics" | "devices" | "health";
 
 /** Admin (docs/05 §4): manage users (role + clinic), clinics, and devices.
  * The page is offered to the admin role only as UX; the users_update_admin /
@@ -95,7 +99,7 @@ export function Admin() {
       <h1 className="m-0 text-2xl font-bold text-ink">Admin</h1>
 
       <div className="flex gap-2">
-        {(["users", "clinics", "devices"] as Tab[]).map((t) => (
+        {(["users", "clinics", "devices", "health"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
@@ -119,6 +123,10 @@ export function Admin() {
           onChanged={(u) => {
             setUsers((prev) => prev.map((x) => (x.id === u.id ? u : x)));
             toast("success", `${u.name} updated`);
+          }}
+          onCreated={(u) => {
+            setUsers((prev) => [...prev, u].sort((a, b) => a.name.localeCompare(b.name)));
+            toast("success", `${u.name} created as ${u.role}`);
           }}
           onError={(m) => toast("error", m)}
         />
@@ -148,6 +156,81 @@ export function Admin() {
           onToast={toast}
         />
       )}
+      {tab === "health" && (
+        <HealthTab users={users} clinics={clinics} devices={devices} dogs={dogs} />
+      )}
+    </div>
+  );
+}
+
+/** System Health (docs/03 admin permission "view system health"). Read-only:
+ * fleet + entity counts come from the already-loaded admin data; telemetry and
+ * alert volume are fetched here. */
+function HealthTab({
+  users,
+  clinics,
+  devices,
+  dogs,
+}: {
+  users: User[];
+  clinics: Clinic[];
+  devices: Device[];
+  dogs: Dog[];
+}) {
+  const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSystemHealth(supabase)
+      .then(setHealth)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load system health"));
+  }, []);
+
+  const online = devices.filter((d) => d.status === "active").length;
+  const offline = devices.filter((d) => d.status === "offline").length;
+
+  if (error)
+    return (
+      <p role="alert" className="rounded-sm bg-high-soft px-3 py-2 text-sm text-high-fg">
+        {error}
+      </p>
+    );
+  if (!health) return <CardSkeleton lines={4} />;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap gap-4">
+        <Kpi label="Devices online" value={String(online)} icon={<Wifi size={22} />} tone="positive" />
+        <Kpi
+          label="Devices offline"
+          value={String(offline)}
+          icon={<WifiOff size={22} />}
+          tone="attention"
+          attention={offline > 0}
+        />
+        <Kpi
+          label="Open alerts"
+          value={String(health.open_alerts)}
+          icon={<Bell size={22} />}
+          tone="attention"
+          attention={health.open_alerts > 0}
+        />
+      </div>
+      <div className="flex flex-wrap gap-4">
+        <Kpi label="Readings, last hour" value={health.telemetry_last_hour.toLocaleString()} icon={<Activity size={22} />} />
+        <Kpi label="Readings, last 24 h" value={health.telemetry_last_24h.toLocaleString()} icon={<Activity size={22} />} />
+      </div>
+      <div className="flex flex-wrap gap-4">
+        <Kpi label="Users" value={String(users.length)} icon={<UsersIcon size={22} />} />
+        <Kpi label="Clinics" value={String(clinics.length)} icon={<Building2 size={22} />} />
+        <Kpi label="Dogs" value={String(dogs.length)} icon={<DogIcon size={22} />} />
+      </div>
+      <p className="m-0 text-xs text-ink-muted">
+        Last telemetry received:{" "}
+        {health.last_telemetry_at ? new Date(health.last_telemetry_at).toLocaleString() : "never"}
+        {" · "}Device fleet: {devices.length} registered (
+        {devices.length - online - offline} inactive/maintenance)
+      </p>
     </div>
   );
 }
@@ -156,13 +239,22 @@ function UsersTab({
   users,
   clinics,
   onChanged,
+  onCreated,
   onError,
 }: {
   users: User[];
   clinics: Clinic[];
   onChanged: (u: User) => void;
+  onCreated: (u: User) => void;
   onError: (message: string) => void;
 }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [newRole, setNewRole] = useState<UserRole>("owner");
+  const [newClinicId, setNewClinicId] = useState("");
+  const [saving, setSaving] = useState(false);
+
   async function apply(user: User, role: UserRole, clinicId: string | null) {
     try {
       onChanged(await updateUserRoleClinic(supabase, user.id, role, clinicId));
@@ -171,15 +263,103 @@ function UsersTab({
     }
   }
 
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const user = await createUserAccount(supabase, {
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        role: newRole,
+        clinicId: newClinicId === "" ? null : newClinicId,
+      });
+      setName("");
+      setEmail("");
+      setPassword("");
+      setNewRole("owner");
+      setNewClinicId("");
+      onCreated(user);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Failed to create the user");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Users</CardTitle>
         <CardDescription>
-          Assign roles and clinics. New accounts sign up in the apps and start as owners.
+          Add accounts and assign roles and clinics. New users get a confirmation email
+          and must confirm before their first login. Users can also sign up in the apps
+          themselves and start as owners.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-5">
+        <form className="flex flex-wrap items-end gap-3" onSubmit={submit}>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-name">Name</Label>
+            <Input id="user-name" value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-email">Email</Label>
+            <Input
+              id="user-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-password">Temporary password</Label>
+            <Input
+              id="user-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              minLength={6}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-role">Role</Label>
+            <Select
+              id="user-role"
+              className="h-10 w-36"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as UserRole)}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-clinic">Clinic</Label>
+            <Select
+              id="user-clinic"
+              className="h-10 w-48"
+              value={newClinicId}
+              onChange={(e) => setNewClinicId(e.target.value)}
+            >
+              <option value="">— none —</option>
+              {clinics.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <Button type="submit" disabled={saving || name.trim() === "" || email.trim() === "" || password.length < 6}>
+            <Plus size={14} /> Add user
+          </Button>
+        </form>
+
         <Table>
           <THead>
             <Tr className="border-t-0">
