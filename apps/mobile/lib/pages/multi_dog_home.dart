@@ -4,7 +4,6 @@ import '../data/furfeel_repository.dart';
 import '../data/settings_controller.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
-import '../util/friendly_time.dart';
 import '../util/motion.dart';
 import '../widgets/dog_avatar.dart';
 import '../widgets/skeletons.dart';
@@ -127,9 +126,7 @@ class _PackGreeting extends StatelessWidget {
       ],
     ).entrance(context);
   }
-}
-
-/// One glanceable dog card. Word + color everywhere, never color alone.
+}/// One glanceable dog card. Word + color everywhere, never color alone.
 class DogOverviewCard extends StatelessWidget {
   const DogOverviewCard({
     super.key,
@@ -145,13 +142,8 @@ class DogOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final settings = SettingsScope.of(context);
     final dog = overview.dog;
     final level = overview.classification?.stressLevel;
-    final reading = overview.reading;
-    final wellness = overview.wellness;
-    final battery = overview.device?.batteryPercent;
-    final batteryLow = overview.device?.isBatteryLow ?? false;
 
     return PressScale(
       child: Material(
@@ -167,134 +159,55 @@ class DogOverviewCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
               boxShadow: FurFeelTokens.shadowCard,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    DogAvatar(
-                      dog: dog,
-                      repository: repository,
-                      backgroundColor: level != null
-                          ? stressLevelSoftBg(level)
-                          : FurFeelTokens.brandSoft,
-                    ),
-                    const SizedBox(width: FurFeelTokens.space3),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(dog.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700)),
-                          if (dog.breed != null)
-                            Text(dog.breed!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.bodySmall),
-                        ],
-                      ),
-                    ),
-                    if (level != null)
-                      StressPill(level: level)
-                    else
-                      Text('No data yet', style: textTheme.bodySmall),
-                  ],
+                DogAvatar(
+                  dog: dog,
+                  repository: repository,
+                  backgroundColor: level != null
+                      ? stressLevelSoftBg(level)
+                      : FurFeelTokens.brandSoft,
                 ),
-                const SizedBox(height: FurFeelTokens.space3),
-                Row(
-                  children: [
-                    if (wellness != null) ...[
-                      _MiniStat(
-                        icon: Icons.favorite_border,
-                        label: 'Wellness',
-                        value: '${wellness.score}',
+                const SizedBox(width: FurFeelTokens.space3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        dog.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      const SizedBox(width: FurFeelTokens.space4),
+                      if (dog.breed != null)
+                        Text(
+                          dog.breed!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall,
+                        ),
                     ],
-                    if (reading?.heartRateBpm != null) ...[
-                      _MiniStat(
-                        icon: Icons.monitor_heart_outlined,
-                        label: 'Heart',
-                        value: '${reading!.heartRateBpm} bpm',
-                      ),
-                      const SizedBox(width: FurFeelTokens.space4),
-                    ] else if (reading?.bodyTemperatureC != null) ...[
-                      _MiniStat(
-                        icon: Icons.thermostat_outlined,
-                        label: 'Temp',
-                        value:
-                            '${settings.formatTemperature(reading!.bodyTemperatureC)}${settings.temperatureUnitLabel}',
-                      ),
-                      const SizedBox(width: FurFeelTokens.space4),
-                    ],
-                    if (battery != null)
-                      _MiniStat(
-                        icon: batteryLow ? Icons.battery_alert : Icons.battery_full,
-                        label: 'Battery',
-                        value: '$battery%',
-                        valueColor:
-                            batteryLow ? FurFeelTokens.statusHighOwner : null,
-                      ),
-                    const Spacer(),
-                    Icon(Icons.chevron_right, size: 18, color: FurFeelTokens.inkMuted),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: FurFeelTokens.space2),
-                Text(
-                  reading != null
-                      ? 'Updated ${friendlyTimestamp(reading.capturedAt)}'
-                      : 'Waiting for the first reading',
-                  style: textTheme.bodySmall,
-                ),
+                const SizedBox(width: FurFeelTokens.space2),
+                if (level != null)
+                  StressPill(level: level)
+                else
+                  Text(
+                    'No data yet',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: FurFeelTokens.inkMuted,
+                    ),
+                  ),
+                const SizedBox(width: FurFeelTokens.space2),
+                Icon(Icons.chevron_right, size: 18, color: FurFeelTokens.inkMuted),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: FurFeelTokens.inkMuted),
-        const SizedBox(width: FurFeelTokens.space1),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: FurFeelTokens.inkMuted,
-                )),
-            Text(value,
-                style: TextStyle(
-                  fontSize: FurFeelTokens.typeCaptionSize,
-                  fontWeight: FontWeight.w700,
-                  color: valueColor ?? FurFeelTokens.ink,
-                )),
-          ],
-        ),
-      ],
     );
   }
 }
