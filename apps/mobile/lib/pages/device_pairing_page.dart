@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/furfeel_repository.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
+import '../util/battery.dart';
 import '../util/friendly_time.dart';
 
 /// Device Pairing & Setup (docs/04 module 6): pair a harness by its device
@@ -232,13 +233,9 @@ class _PairedCard extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    device.isBatteryLow
-                        ? Icons.battery_alert
-                        : Icons.battery_full,
+                    batteryIconFor(device.batteryPercent!),
                     size: 18,
-                    color: device.isBatteryLow
-                        ? FurFeelTokens.statusHighOwner
-                        : FurFeelTokens.statusCalmFg,
+                    color: batteryColorFor(device.batteryPercent!),
                   ),
                   const SizedBox(width: FurFeelTokens.space1),
                   Text(
