@@ -67,4 +67,46 @@ void main() {
     expect(bytes.length, greaterThan(500));
     expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
   });
+
+  test('buildHealthReportPdf renders the transferable record extras', () async {
+    // Owner + clinic + alerts (the transferable-record layer) must not break
+    // rendering, including an alert outside the period (filtered out).
+    final bytes = await buildHealthReportPdf(
+      dog: _dog,
+      from: DateTime(2026, 7, 10),
+      to: DateTime(2026, 7, 17),
+      readings: [reading(0, hr: 92, temp: 38.5, battery: 70)],
+      classifications: [],
+      owner: const UserProfile(
+        id: 'u1',
+        name: 'Jamie Rivera',
+        email: 'owner@example.com',
+        phone: '+1-555-0100',
+        emergencyContact: 'Sam Rivera +1-555-0101',
+      ),
+      clinic: const Clinic(id: 'cl1', name: 'Sunrise Vet', address: '123 Bark Ave'),
+      alerts: [
+        Alert(
+          id: 'a1',
+          dogId: 'dog-1',
+          severity: 'critical',
+          type: 'high_stress',
+          message: 'High stress detected',
+          status: 'open',
+          createdAt: DateTime(2026, 7, 12, 14),
+        ),
+        Alert(
+          id: 'a2',
+          dogId: 'dog-1',
+          severity: 'info',
+          type: 'low_battery',
+          message: 'Battery low',
+          status: 'resolved',
+          createdAt: DateTime(2026, 6, 1),
+        ),
+      ],
+    );
+    expect(bytes.length, greaterThan(500));
+    expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+  });
 }
