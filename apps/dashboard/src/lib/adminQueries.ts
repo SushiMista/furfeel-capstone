@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   Clinic,
   Device,
@@ -35,6 +35,33 @@ export async function updateUserRoleClinic(
     .single();
   if (error) throw error;
   return data as unknown as User;
+}
+
+/** Admin "add user" (docs/05 §4): a throwaway anon-key client signs the account
+ * up — the handle_new_user trigger mirrors it into public.users as 'owner' —
+ * then the admin's own client sets role/clinic via users_update_admin. The
+ * admin's session is untouched and no service key ever reaches the browser.
+ * If email confirmations are on, the new user must confirm before first login. */
+export async function createUserAccount(
+  adminClient: SupabaseClient,
+  input: { email: string; password: string; name: string; role: UserRole; clinicId: string | null },
+): Promise<User> {
+  const signupClient = createClient(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+  const { data, error } = await signupClient.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: { data: { name: input.name } },
+  });
+  if (error) throw error;
+  // GoTrue obfuscates duplicate signups as a user with no identities.
+  if (!data.user || data.user.identities?.length === 0) {
+    throw new Error("That email is already registered.");
+  }
+  return updateUserRoleClinic(adminClient, data.user.id, input.role, input.clinicId);
 }
 
 export async function fetchClinics(client: SupabaseClient): Promise<Clinic[]> {
@@ -85,6 +112,35 @@ export async function updateDevice(
     .single();
   if (error) throw error;
   return data as unknown as Device;
+}
+
+export interface SystemHealth {
+  telemetry_last_hour: number;
+  telemetry_last_24h: number;
+  last_telemetry_at: string | null;
+  open_alerts: number;
+}
+
+/** System Health tab (docs/03 "view system health"). Read-only aggregates; the
+ * admin role sees all rows via is_clinic_member/devices_admin_all, so plain
+ * head-count queries are enough. */
+export async function fetchSystemHealth(client: SupabaseClient): Promise<SystemHealth> {
+  const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const [hour, day, latest, alerts] = await Promise.all([
+    client.from("telemetry_readings").select("id", { count: "exact", head: true }).gte("captured_at", hourAgo),
+    client.from("telemetry_readings").select("id", { count: "exact", head: true }).gte("captured_at", dayAgo),
+    client.from("telemetry_readings").select("captured_at").order("captured_at", { ascending: false }).limit(1),
+    client.from("alerts").select("id", { count: "exact", head: true }).eq("status", "open"),
+  ]);
+  const failed = [hour, day, latest, alerts].find((r) => r.error);
+  if (failed?.error) throw failed.error;
+  return {
+    telemetry_last_hour: hour.count ?? 0,
+    telemetry_last_24h: day.count ?? 0,
+    last_telemetry_at: (latest.data?.[0] as { captured_at: string } | undefined)?.captured_at ?? null,
+    open_alerts: alerts.count ?? 0,
+  };
 }
 
 export async function fetchAllDogs(client: SupabaseClient): Promise<Dog[]> {
