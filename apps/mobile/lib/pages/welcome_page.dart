@@ -37,7 +37,12 @@ class WelcomePage extends StatelessWidget {
     try {
       await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? null : 'io.furfeel.app://login-callback',
+        // Web must pass its own origin: with no redirect_to GoTrue falls back
+        // to the project Site URL (the dashboard's port), which reads as
+        // "site can't be reached" when that app isn't running. The origin
+        // must be in the Auth redirect allow-list — dev runs pin the port via
+        // `flutter run -d chrome --web-port 5175`.
+        redirectTo: kIsWeb ? Uri.base.origin : 'io.furfeel.app://login-callback',
         authScreenLaunchMode:
             kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
         // Always show Google's account chooser instead of silently reusing
