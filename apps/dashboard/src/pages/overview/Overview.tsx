@@ -25,7 +25,7 @@ import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import type { Alert } from "../../../../../packages/shared/types/index.ts";
 
-function Kpi({
+export function Kpi({
   label,
   value,
   icon,
