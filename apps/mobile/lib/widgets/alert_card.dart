@@ -4,8 +4,40 @@ import 'package:flutter/services.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 
-/// Warm alert card (docs/19): coral accent for high severity, a clear
-/// "Acknowledge" button while open; acknowledged alerts fade to muted.
+/// Visual language for one alert severity: word + colors, never color alone
+/// (docs/19). Shared by the card chip and the leading icon badge.
+({String label, Color fg, Color bg}) alertSeverityStyle(String severity) =>
+    switch (severity) {
+      'critical' => (
+          label: 'Critical',
+          fg: FurFeelTokens.statusHighFg,
+          bg: FurFeelTokens.statusHighBg,
+        ),
+      'warning' => (
+          label: 'Warning',
+          fg: FurFeelTokens.statusModerateFg,
+          bg: FurFeelTokens.statusModerateBg,
+        ),
+      _ => (
+          label: 'Info',
+          fg: FurFeelTokens.brand,
+          bg: FurFeelTokens.brandSoft,
+        ),
+    };
+
+/// Per-type glyph so an owner can tell a stress alert from harness chatter
+/// at a glance, before reading a word.
+IconData alertTypeIcon(String type) => switch (type) {
+      'high_stress' => Icons.warning_amber_rounded,
+      'moderate_stress' => Icons.mood_bad_outlined,
+      'device_offline' => Icons.sensors_off_outlined,
+      'low_battery' => Icons.battery_alert_outlined,
+      _ => Icons.notifications_outlined,
+    };
+
+/// Warm alert card (docs/19): severity-tinted icon badge + severity chip,
+/// the event time up front, a clear "Acknowledge" button while open;
+/// acknowledged alerts fade to muted.
 class AlertCard extends StatefulWidget {
   const AlertCard({super.key, required this.alert, this.onAcknowledge});
 
@@ -33,8 +65,8 @@ class _AlertCardState extends State<AlertCard> {
   @override
   Widget build(BuildContext context) {
     final alert = widget.alert;
-    final isCritical = alert.severity == 'critical';
     final acknowledged = !alert.isOpen;
+    final severity = alertSeverityStyle(alert.severity);
 
     return Opacity(
       opacity: acknowledged ? 0.6 : 1,
@@ -42,80 +74,130 @@ class _AlertCardState extends State<AlertCard> {
         margin: const EdgeInsets.only(bottom: FurFeelTokens.space3),
         padding: const EdgeInsets.all(FurFeelTokens.space4),
         decoration: BoxDecoration(
-          color: isCritical && !acknowledged
+          color: alert.severity == 'critical' && !acknowledged
               ? FurFeelTokens.statusHighBg
               : FurFeelTokens.surfaceAlt,
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
           border: Border(
             left: BorderSide(
               width: 4,
-              color: acknowledged
-                  ? FurFeelTokens.hairline
-                  : isCritical
-                      ? FurFeelTokens.statusHighFg
-                      : FurFeelTokens.accent,
+              color: acknowledged ? FurFeelTokens.hairline : severity.fg,
             ),
           ),
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              alert.message,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: FurFeelTokens.ink,
+            // Severity-tinted type icon: the visual aid that reads before
+            // any text does.
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: acknowledged ? FurFeelTokens.surface : severity.bg,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                alertTypeIcon(alert.type),
+                size: 20,
+                color: acknowledged ? FurFeelTokens.inkMuted : severity.fg,
               ),
             ),
-            const SizedBox(height: FurFeelTokens.space1),
-            Text(
-              '${_friendlyTime(alert.createdAt)}'
-              '${acknowledged ? ' · ${alert.status}' : ''}',
-              style: TextStyle(
-                fontSize: FurFeelTokens.typeCaptionSize,
-                color: FurFeelTokens.inkMuted,
-              ),
-            ),
-            // Owner-delight pass: a simple "what you can do" per alert type,
-            // right where the worry is. Observational + practical only.
-            if (alert.isOpen && _tipFor(alert.type) != null) ...[
-              const SizedBox(height: FurFeelTokens.space2),
-              Row(
+            const SizedBox(width: FurFeelTokens.space3),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.tips_and_updates_outlined,
-                      size: 16, color: FurFeelTokens.warm),
-                  const SizedBox(width: FurFeelTokens.space2),
-                  Expanded(
-                    child: Text(
-                      _tipFor(alert.type)!,
-                      style: TextStyle(
-                        fontSize: FurFeelTokens.typeCaptionSize,
-                        color: FurFeelTokens.ink,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _friendlyTime(alert.createdAt) +
+                              (acknowledged ? ' · ${alert.status}' : ''),
+                          style: TextStyle(
+                            fontSize: FurFeelTokens.typeCaptionSize,
+                            fontWeight: FontWeight.w600,
+                            color: FurFeelTokens.inkMuted,
+                          ),
+                        ),
                       ),
+                      // Severity chip — the alert's level as a word.
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FurFeelTokens.space2,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: acknowledged ? FurFeelTokens.surface : severity.bg,
+                          borderRadius:
+                              BorderRadius.circular(FurFeelTokens.radiusPill),
+                        ),
+                        child: Text(
+                          severity.label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: acknowledged
+                                ? FurFeelTokens.inkMuted
+                                : severity.fg,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: FurFeelTokens.space1),
+                  Text(
+                    alert.message,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: FurFeelTokens.ink,
                     ),
                   ),
+                  // Owner-delight pass: a simple "what you can do" per alert
+                  // type, right where the worry is. Observational + practical.
+                  if (alert.isOpen && _tipFor(alert.type) != null) ...[
+                    const SizedBox(height: FurFeelTokens.space2),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.tips_and_updates_outlined,
+                            size: 16, color: FurFeelTokens.warm),
+                        const SizedBox(width: FurFeelTokens.space2),
+                        Expanded(
+                          child: Text(
+                            _tipFor(alert.type)!,
+                            style: TextStyle(
+                              fontSize: FurFeelTokens.typeCaptionSize,
+                              color: FurFeelTokens.ink,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (alert.isOpen && widget.onAcknowledge != null) ...[
+                    const SizedBox(height: FurFeelTokens.space3),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: _busy ? null : _acknowledge,
+                        style: TextButton.styleFrom(
+                          backgroundColor: FurFeelTokens.surface,
+                          foregroundColor: FurFeelTokens.brandStrong,
+                          minimumSize: const Size(0, FurFeelTokens.touchTargetMin),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: FurFeelTokens.space4),
+                          shape: const StadiumBorder(),
+                          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        child: Text(_busy ? 'Acknowledging…' : 'Acknowledge'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
-            ],
-            if (alert.isOpen && widget.onAcknowledge != null) ...[
-              const SizedBox(height: FurFeelTokens.space3),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: _busy ? null : _acknowledge,
-                  style: TextButton.styleFrom(
-                    backgroundColor: FurFeelTokens.surface,
-                    foregroundColor: FurFeelTokens.brandStrong,
-                    minimumSize: const Size(0, FurFeelTokens.touchTargetMin),
-                    padding: const EdgeInsets.symmetric(horizontal: FurFeelTokens.space4),
-                    shape: const StadiumBorder(),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  child: Text(_busy ? 'Acknowledging…' : 'Acknowledge'),
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),
