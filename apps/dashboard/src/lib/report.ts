@@ -44,6 +44,38 @@ function summarize(values: number[]): VitalSummary | null {
   };
 }
 
+/** Abnormal-pattern highlights (docs/05 §3). Strictly observational: surfaces
+ * only nonzero facts the pipeline already produced (classifier levels, alert
+ * status, intake validation) — no clinical thresholds are invented here and
+ * nothing reads as a diagnosis. Empty array = nothing flagged. */
+export function buildHighlights(report: DogReport, dogName: string): string[] {
+  const highlights: string[] = [];
+  const elevated = report.stressBreakdown.moderate + report.stressBreakdown.high;
+  if (elevated > 0) {
+    const pct = Math.round((elevated / report.classificationCount) * 100);
+    highlights.push(
+      `${dogName} was classified at moderate or high stress in ${elevated} of ` +
+        `${report.classificationCount} classifications (${pct}%).`,
+    );
+  }
+  if (report.openAlertCount > 0) {
+    highlights.push(
+      `${report.openAlertCount} of ${report.alertCount} alerts from this period ` +
+        `${report.openAlertCount === 1 ? "is" : "are"} still open.`,
+    );
+  }
+  if (report.invalidReadingCount > 0) {
+    highlights.push(
+      `${report.invalidReadingCount} readings were flagged invalid by intake validation ` +
+        `and excluded from classification.`,
+    );
+  }
+  if (report.readingCount > 0 && report.classificationCount === 0) {
+    highlights.push("Readings arrived in this period but no stress classifications were recorded.");
+  }
+  return highlights;
+}
+
 export function buildDogReport(
   readings: TelemetryReading[],
   classifications: StressClassification[],
