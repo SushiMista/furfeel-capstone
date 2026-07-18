@@ -1,15 +1,30 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Activity, Bell, Building2, Dog as DogIcon, Plus, Users as UsersIcon, Wifi, WifiOff } from "lucide-react";
+import {
+  Activity,
+  Bell,
+  Building2,
+  Dog as DogIcon,
+  Pencil,
+  Plus,
+  Trash2,
+  Users as UsersIcon,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   createClinic,
   createUserAccount,
+  deleteClinic,
+  deleteDevice,
+  deleteUserAccount,
   fetchAllDevices,
   fetchAllDogs,
   fetchAllUsers,
   fetchClinics,
   fetchSystemHealth,
   registerDevice,
+  updateClinic,
   updateDevice,
   updateDogClinic,
   updateUserRoleClinic,
@@ -17,8 +32,10 @@ import {
 } from "../../lib/adminQueries.ts";
 import { Kpi } from "../overview/Overview.tsx";
 import { useCurrentRole } from "../../lib/useCurrentRole.ts";
+import { useAuth } from "../../lib/useAuth.ts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Button } from "../../components/ui/button.tsx";
+import { Dialog } from "../../components/ui/dialog.tsx";
 import { Input, Label, Select } from "../../components/ui/input.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
@@ -38,11 +55,45 @@ const ROLES: UserRole[] = ["owner", "vet_staff", "veterinarian", "admin"];
 const DEVICE_STATUSES: DeviceStatus[] = ["active", "inactive", "offline", "maintenance"];
 type Tab = "users" | "clinics" | "devices" | "health";
 
+/** Shared destructive-action confirmation (docs/19 dialog primitive). Delete
+ * is the one Admin action that can't be undone, so every delete flow in this
+ * page routes through this instead of firing on a single click. */
+function ConfirmDeleteDialog({
+  open,
+  title,
+  description,
+  busy,
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  busy: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={open} onClose={onClose} title={title}>
+      <p className="m-0 mb-4 text-sm text-ink-muted">{description}</p>
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose} disabled={busy}>
+          Cancel
+        </Button>
+        <Button variant="destructive" onClick={onConfirm} disabled={busy}>
+          {busy ? "Deleting…" : "Delete"}
+        </Button>
+      </div>
+    </Dialog>
+  );
+}
+
 /** Admin (docs/05 §4): manage users (role + clinic), clinics, and devices.
  * The page is offered to the admin role only as UX; the users_update_admin /
  * clinics_admin_manage / devices_admin_all RLS policies are the actual gate. */
 export function Admin() {
   const { role, loading: roleLoading } = useCurrentRole();
+  const { session } = useAuth();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("users");
   const [users, setUsers] = useState<User[]>([]);
@@ -120,6 +171,7 @@ export function Admin() {
         <UsersTab
           users={users}
           clinics={clinics}
+          currentUserId={session?.user.id ?? null}
           onChanged={(u) => {
             setUsers((prev) => prev.map((x) => (x.id === u.id ? u : x)));
             toast("success", `${u.name} updated`);
@@ -127,6 +179,10 @@ export function Admin() {
           onCreated={(u) => {
             setUsers((prev) => [...prev, u].sort((a, b) => a.name.localeCompare(b.name)));
             toast("success", `${u.name} created as ${u.role}`);
+          }}
+          onDeleted={(id, name) => {
+            setUsers((prev) => prev.filter((x) => x.id !== id));
+            toast("success", `${name} deleted`);
           }}
           onError={(m) => toast("error", m)}
         />
@@ -137,6 +193,16 @@ export function Admin() {
           onCreated={(c) => {
             setClinics((prev) => [...prev, c].sort((a, b) => a.name.localeCompare(b.name)));
             toast("success", `${c.name} created`);
+          }}
+          onChanged={(c) => {
+            setClinics((prev) =>
+              prev.map((x) => (x.id === c.id ? c : x)).sort((a, b) => a.name.localeCompare(b.name)),
+            );
+            toast("success", `${c.name} updated`);
+          }}
+          onDeleted={(id, name) => {
+            setClinics((prev) => prev.filter((x) => x.id !== id));
+            toast("success", `${name} deleted`);
           }}
           onError={(m) => toast("error", m)}
         />
@@ -150,6 +216,7 @@ export function Admin() {
           clinicNames={clinicNames}
           onChanged={(d) => setDevices((prev) => prev.map((x) => (x.id === d.id ? d : x)))}
           onRegistered={(d) => setDevices((prev) => [...prev, d])}
+          onDeleted={(id) => setDevices((prev) => prev.filter((x) => x.id !== id))}
           onDogClinicChanged={(dog) =>
             setDogs((prev) => prev.map((x) => (x.id === dog.id ? dog : x)))
           }
@@ -238,14 +305,18 @@ function HealthTab({
 function UsersTab({
   users,
   clinics,
+  currentUserId,
   onChanged,
   onCreated,
+  onDeleted,
   onError,
 }: {
   users: User[];
   clinics: Clinic[];
+  currentUserId: string | null;
   onChanged: (u: User) => void;
   onCreated: (u: User) => void;
+  onDeleted: (id: string, name: string) => void;
   onError: (message: string) => void;
 }) {
   const [name, setName] = useState("");
@@ -254,12 +325,28 @@ function UsersTab({
   const [newRole, setNewRole] = useState<UserRole>("owner");
   const [newClinicId, setNewClinicId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function apply(user: User, role: UserRole, clinicId: string | null) {
     try {
       onChanged(await updateUserRoleClinic(supabase, user.id, role, clinicId));
     } catch (err) {
       onError(err instanceof Error ? err.message : "Failed to update the user");
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await deleteUserAccount(supabase, pendingDelete.id);
+      onDeleted(pendingDelete.id, pendingDelete.name);
+      setPendingDelete(null);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Failed to delete the user");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -292,8 +379,8 @@ function UsersTab({
       <CardHeader>
         <CardTitle>Users</CardTitle>
         <CardDescription>
-          Add accounts and assign roles and clinics. New users get a confirmation email
-          and must confirm before their first login. Users can also sign up in the apps
+          Add accounts and assign roles and clinics. Accounts created here can sign in
+          right away — no email confirmation needed. Users can also sign up in the apps
           themselves and start as owners.
         </CardDescription>
       </CardHeader>
@@ -367,6 +454,7 @@ function UsersTab({
               <Th>Email</Th>
               <Th>Role</Th>
               <Th>Clinic</Th>
+              <Th></Th>
             </Tr>
           </THead>
           <TBody>
@@ -403,28 +491,102 @@ function UsersTab({
                     ))}
                   </Select>
                 </Td>
+                <Td>
+                  {u.id !== currentUserId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Delete ${u.name}`}
+                      onClick={() => setPendingDelete(u)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                </Td>
               </Tr>
             ))}
           </TBody>
         </Table>
       </CardContent>
+
+      <ConfirmDeleteDialog
+        open={pendingDelete !== null}
+        title="Delete user"
+        description={
+          pendingDelete
+            ? `Delete ${pendingDelete.name} (${pendingDelete.email})? This can't be undone. Accounts that still own dog profiles or authored records can't be deleted.`
+            : ""
+        }
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </Card>
+  );
+}
+
+/** Edit-clinic form, shared by the dialog below — same fields as "Add clinic". */
+function ClinicFields({
+  name,
+  address,
+  contact,
+  onName,
+  onAddress,
+  onContact,
+  idPrefix,
+}: {
+  name: string;
+  address: string;
+  contact: string;
+  onName: (v: string) => void;
+  onAddress: (v: string) => void;
+  onContact: (v: string) => void;
+  idPrefix: string;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor={`${idPrefix}-name`}>Name</Label>
+        <Input id={`${idPrefix}-name`} value={name} onChange={(e) => onName(e.target.value)} required />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor={`${idPrefix}-address`}>Address</Label>
+        <Input id={`${idPrefix}-address`} value={address} onChange={(e) => onAddress(e.target.value)} />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor={`${idPrefix}-contact`}>Contact</Label>
+        <Input id={`${idPrefix}-contact`} value={contact} onChange={(e) => onContact(e.target.value)} />
+      </div>
+    </>
   );
 }
 
 function ClinicsTab({
   clinics,
   onCreated,
+  onChanged,
+  onDeleted,
   onError,
 }: {
   clinics: Clinic[];
   onCreated: (c: Clinic) => void;
+  onChanged: (c: Clinic) => void;
+  onDeleted: (id: string, name: string) => void;
   onError: (message: string) => void;
 }) {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [contact, setContact] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [editing, setEditing] = useState<Clinic | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editContact, setEditContact] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  const [pendingDelete, setPendingDelete] = useState<Clinic | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -447,6 +609,46 @@ function ClinicsTab({
     }
   }
 
+  function startEdit(c: Clinic) {
+    setEditing(c);
+    setEditName(c.name);
+    setEditAddress(c.address ?? "");
+    setEditContact(c.contact_number ?? "");
+  }
+
+  async function saveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editing || editName.trim() === "") return;
+    setEditSaving(true);
+    try {
+      const clinic = await updateClinic(supabase, editing.id, {
+        name: editName.trim(),
+        address: editAddress.trim() === "" ? null : editAddress.trim(),
+        contact_number: editContact.trim() === "" ? null : editContact.trim(),
+      });
+      onChanged(clinic);
+      setEditing(null);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Failed to update the clinic");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await deleteClinic(supabase, pendingDelete.id);
+      onDeleted(pendingDelete.id, pendingDelete.name);
+      setPendingDelete(null);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Failed to delete the clinic");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -454,18 +656,15 @@ function ClinicsTab({
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <form className="flex flex-wrap items-end gap-3" onSubmit={submit}>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="clinic-name">Name</Label>
-            <Input id="clinic-name" value={name} onChange={(e) => setName(e.target.value)} required />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="clinic-address">Address</Label>
-            <Input id="clinic-address" value={address} onChange={(e) => setAddress(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="clinic-contact">Contact</Label>
-            <Input id="clinic-contact" value={contact} onChange={(e) => setContact(e.target.value)} />
-          </div>
+          <ClinicFields
+            idPrefix="clinic"
+            name={name}
+            address={address}
+            contact={contact}
+            onName={setName}
+            onAddress={setAddress}
+            onContact={setContact}
+          />
           <Button type="submit" disabled={saving || name.trim() === ""}>
             <Plus size={14} /> Add clinic
           </Button>
@@ -477,6 +676,7 @@ function ClinicsTab({
               <Th>Name</Th>
               <Th>Address</Th>
               <Th>Contact</Th>
+              <Th></Th>
             </Tr>
           </THead>
           <TBody>
@@ -485,11 +685,61 @@ function ClinicsTab({
                 <Td className="font-semibold">{c.name}</Td>
                 <Td className="text-ink-muted">{c.address ?? "—"}</Td>
                 <Td className="text-ink-muted">{c.contact_number ?? "—"}</Td>
+                <Td>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" aria-label={`Edit ${c.name}`} onClick={() => startEdit(c)}>
+                      <Pencil size={14} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Delete ${c.name}`}
+                      onClick={() => setPendingDelete(c)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                </Td>
               </Tr>
             ))}
           </TBody>
         </Table>
       </CardContent>
+
+      <Dialog open={editing !== null} onClose={() => setEditing(null)} title="Edit clinic">
+        <form className="flex flex-col gap-3" onSubmit={saveEdit}>
+          <ClinicFields
+            idPrefix="clinic-edit"
+            name={editName}
+            address={editAddress}
+            contact={editContact}
+            onName={setEditName}
+            onAddress={setEditAddress}
+            onContact={setEditContact}
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setEditing(null)} disabled={editSaving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={editSaving || editName.trim() === ""}>
+              {editSaving ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      <ConfirmDeleteDialog
+        open={pendingDelete !== null}
+        title="Delete clinic"
+        description={
+          pendingDelete
+            ? `Delete ${pendingDelete.name}? This can't be undone. Clinics still linked to staff or dogs can't be deleted — reassign them first.`
+            : ""
+        }
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </Card>
   );
 }
@@ -502,6 +752,7 @@ function DevicesTab({
   clinicNames,
   onChanged,
   onRegistered,
+  onDeleted,
   onDogClinicChanged,
   onToast,
 }: {
@@ -512,12 +763,15 @@ function DevicesTab({
   clinicNames: Map<string, string>;
   onChanged: (d: Device) => void;
   onRegistered: (d: Device) => void;
+  onDeleted: (id: string) => void;
   onDogClinicChanged: (d: Dog) => void;
   onToast: (kind: "success" | "error", message: string) => void;
 }) {
   const [code, setCode] = useState("");
   const [firmware, setFirmware] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Device | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function register(e: FormEvent) {
     e.preventDefault();
@@ -555,6 +809,21 @@ function DevicesTab({
       onToast("success", `${dog.name}'s clinic updated`);
     } catch (err) {
       onToast("error", err instanceof Error ? err.message : "Failed to update the dog's clinic");
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await deleteDevice(supabase, pendingDelete.id);
+      onDeleted(pendingDelete.id);
+      onToast("success", `${pendingDelete.device_code} deleted`);
+      setPendingDelete(null);
+    } catch (err) {
+      onToast("error", err instanceof Error ? err.message : "Failed to delete the device");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -600,6 +869,7 @@ function DevicesTab({
                 <Th>Status</Th>
                 <Th>Assigned dog</Th>
                 <Th>Last seen</Th>
+                <Th></Th>
               </Tr>
             </THead>
             <TBody>
@@ -638,11 +908,34 @@ function DevicesTab({
                   <Td className="text-xs text-ink-muted">
                     {d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : "never"}
                   </Td>
+                  <Td>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Delete ${d.device_code}`}
+                      onClick={() => setPendingDelete(d)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </Td>
                 </Tr>
               ))}
             </TBody>
           </Table>
         </CardContent>
+
+        <ConfirmDeleteDialog
+          open={pendingDelete !== null}
+          title="Delete device"
+          description={
+            pendingDelete
+              ? `Delete ${pendingDelete.device_code}? This can't be undone. Devices with telemetry history can't be deleted — set status to inactive instead.`
+              : ""
+          }
+          busy={deleting}
+          onConfirm={confirmDelete}
+          onClose={() => setPendingDelete(null)}
+        />
       </Card>
 
       <Card>

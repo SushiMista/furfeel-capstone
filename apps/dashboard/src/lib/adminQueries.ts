@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Clinic,
   Device,
@@ -37,31 +37,45 @@ export async function updateUserRoleClinic(
   return data as unknown as User;
 }
 
-/** Admin "add user" (docs/05 §4): a throwaway anon-key client signs the account
- * up — the handle_new_user trigger mirrors it into public.users as 'owner' —
- * then the admin's own client sets role/clinic via users_update_admin. The
- * admin's session is untouched and no service key ever reaches the browser.
- * If email confirmations are on, the new user must confirm before first login. */
+/** Admin "add user" (docs/05 §4): calls the admin-create-user Edge Function,
+ * which creates the account pre-confirmed (service-role only; no service key
+ * in this client) and sets role + clinic in one step. Auto-confirming is
+ * safe here specifically because an admin — not the account owner — is
+ * picking the email; self-signup in the mobile/dashboard apps still requires
+ * email confirmation. The function re-checks the caller is an admin
+ * server-side, so this call is only ever a UI convenience, not the gate. */
 export async function createUserAccount(
   adminClient: SupabaseClient,
   input: { email: string; password: string; name: string; role: UserRole; clinicId: string | null },
 ): Promise<User> {
-  const signupClient = createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-  const { data, error } = await signupClient.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: { data: { name: input.name } },
+  const { data, error } = await adminClient.functions.invoke("admin-create-user", {
+    body: {
+      email: input.email,
+      password: input.password,
+      name: input.name,
+      role: input.role,
+      clinicId: input.clinicId,
+    },
   });
-  if (error) throw error;
-  // GoTrue obfuscates duplicate signups as a user with no identities.
-  if (!data.user || data.user.identities?.length === 0) {
-    throw new Error("That email is already registered.");
+  if (error) {
+    // FunctionsHttpError carries the function's JSON error body on .context.
+    const body = await error.context?.json?.().catch(() => null);
+    throw new Error(body?.error ?? error.message ?? "Failed to create the user");
   }
-  return updateUserRoleClinic(adminClient, data.user.id, input.role, input.clinicId);
+  return data as User;
+}
+
+/** Admin deletes another user's account (docs/05 §4). Auth deletion needs the
+ * service role, so this goes through the admin-delete-user Edge Function —
+ * same reasoning as createUserAccount. The function itself refuses self-delete,
+ * deleting the last admin, and deleting a user who still owns dogs, so those
+ * checks don't need duplicating here. */
+export async function deleteUserAccount(client: SupabaseClient, userId: string): Promise<void> {
+  const { error } = await client.functions.invoke("admin-delete-user", { body: { userId } });
+  if (error) {
+    const body = await error.context?.json?.().catch(() => null);
+    throw new Error(body?.error ?? error.message ?? "Failed to delete the user");
+  }
 }
 
 export async function fetchClinics(client: SupabaseClient): Promise<Clinic[]> {
@@ -77,6 +91,36 @@ export async function createClinic(
   const { data, error } = await client.from("clinics").insert(clinic).select("*").single();
   if (error) throw error;
   return data as unknown as Clinic;
+}
+
+export async function updateClinic(
+  client: SupabaseClient,
+  clinicId: string,
+  patch: Partial<Pick<Clinic, "name" | "address" | "contact_number">>,
+): Promise<Clinic> {
+  const { data, error } = await client
+    .from("clinics")
+    .update(patch)
+    .eq("id", clinicId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as unknown as Clinic;
+}
+
+/** Postgres foreign-key violation (clinics/devices still referenced by other
+ * rows) surfaces as error code 23503 — reworded here since the raw message
+ * names a constraint, not something a clinic admin should have to parse. */
+function friendlyDeleteError(error: { code?: string; message?: string }, linkedTo: string): Error {
+  if (error.code === "23503") {
+    return new Error(`Still linked to ${linkedTo} — reassign or remove those first.`);
+  }
+  return new Error(error.message ?? "Delete failed");
+}
+
+export async function deleteClinic(client: SupabaseClient, clinicId: string): Promise<void> {
+  const { error } = await client.from("clinics").delete().eq("id", clinicId);
+  if (error) throw friendlyDeleteError(error, "staff or dogs");
 }
 
 export async function fetchAllDevices(client: SupabaseClient): Promise<Device[]> {
@@ -112,6 +156,15 @@ export async function updateDevice(
     .single();
   if (error) throw error;
   return data as unknown as Device;
+}
+
+/** Devices with telemetry history can't be deleted (ADR-003: raw telemetry is
+ * never deleted, and telemetry_readings.device_id is a NOT NULL FK with no
+ * cascade) — set status to inactive/maintenance instead. Freshly registered,
+ * never-used devices delete cleanly. */
+export async function deleteDevice(client: SupabaseClient, deviceId: string): Promise<void> {
+  const { error } = await client.from("devices").delete().eq("id", deviceId);
+  if (error) throw friendlyDeleteError(error, "telemetry history — set it to inactive instead");
 }
 
 export interface SystemHealth {

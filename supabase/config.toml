@@ -398,6 +398,16 @@ enabled = true
 verify_jwt = true # caller must be a signed-in user; the function deletes their own account
 entrypoint = "../services/edge/delete-account/index.ts"
 
+[functions.admin-create-user]
+enabled = true
+verify_jwt = true # caller must be signed in; the function itself checks for the admin role
+entrypoint = "../services/edge/admin-create-user/index.ts"
+
+[functions.admin-delete-user]
+enabled = true
+verify_jwt = true # caller must be signed in; the function itself checks for the admin role
+entrypoint = "../services/edge/admin-delete-user/index.ts"
+
 [analytics]
 enabled = true
 port = 54327

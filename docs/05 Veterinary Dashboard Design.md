@@ -33,12 +33,17 @@ Left sidebar: **Overview · Monitoring Board · Alerts · Reports · Admin** (Ad
 - Per-dog period summary: stress distribution, abnormal-pattern highlights, vitals trends.
 - Printable/exportable (PDF/print stylesheet).
 
-### 4. Admin (as built)
-Four tabs, offered to the `admin` role only as UX — the `users_update_admin` / `clinics_admin_manage` / `devices_admin_all` RLS policies are the actual gate.
-- **Users:** assign role + clinic per user, and **add accounts** from the dashboard — a throwaway anon-key client signs the account up (the `handle_new_user` trigger mirrors it into `public.users` as `owner`), then the admin's session sets role/clinic through `users_update_admin`. No service key ever reaches the browser; with email confirmations on, the new user confirms before first login. Role changes work with the plain anon key: the permissive admin policy ORs with `users_update_own`, and self-promotion by non-admins stays blocked (verified end-to-end).
-- **Clinics:** create + list.
-- **Devices:** register harnesses, assign to dogs, set status; plus dog ↔ clinic assignment.
+### 4. Admin (as built) — full CRUD on Users, Clinics, Devices
+Four tabs, offered to the `admin` role only as UX. RLS (`users_update_admin` / `clinics_admin_manage` / `devices_admin_all`) is the real gate for Clinics/Devices and for role/clinic updates on Users; Users create/delete need the service role (Auth admin API), so those two go through dedicated Edge Functions instead of a client-held service key.
+- **Users — Create, Read, Update, Delete:**
+  - Create: **`admin-create-user`** Edge Function creates the account **pre-confirmed** (`email_confirm: true`) and sets role + clinic in one call. Auto-confirming is safe specifically because the *admin* is picking the email, not the account owner — self-signup in the mobile/dashboard apps still requires confirmation. The function re-checks the caller is `admin` server-side (never trusts the client), so the UI call is a convenience, not the gate.
+  - Update: role + clinic via the plain anon-key client — the permissive `users_update_admin` policy ORs with `users_update_own`, and self-promotion by non-admins stays blocked (verified end-to-end).
+  - Delete: **`admin-delete-user`** Edge Function. Guards: an admin can't delete their own account through this panel (this alone also prevents ever locking Admin out — the caller is always a *different*, still-existing admin than the target, so a separate "last admin" head-count would be dead code and isn't implemented); a user who still owns dog profiles is refused (`dogs.owner_user_id` is `NOT NULL` with no cascade, and ADR-003 rules out cascading through monitoring history); any other remaining FK reference (authored vet notes, acknowledged alerts, reviewed media) surfaces as a generic "still has linked records" error.
+- **Clinics — Create, Read, Update, Delete:** plain RLS-backed CRUD (`clinics_admin_manage` is `for all`). Update edits name/address/contact via a dialog; delete is blocked with a friendly message when the clinic is still referenced by a user or a dog (Postgres FK violation `23503`, reworded client-side rather than shown raw).
+- **Devices — Create, Read, Update, Delete:** register, assign to a dog, set status (Update), plus dog ↔ clinic assignment. Delete is blocked the same way when the device has telemetry history (`telemetry_readings.device_id` is `NOT NULL` with no cascade, protecting ADR-003) — the message points at setting status to inactive/maintenance instead, since a never-used device deletes cleanly.
 - **System Health** (docs/03 "view system health", read-only): device fleet online/offline counts (from `devices.status`, which pg_cron already maintains), telemetry ingest volume (last hour / 24 h + last-received time), open-alert count, and user/clinic/dog totals. Fleet + totals derive from the already-loaded admin data; only telemetry and alerts add queries (`fetchSystemHealth`).
+
+Every delete in the UI routes through a shared confirmation dialog (`ConfirmDeleteDialog`) — the one Admin action that can't be undone doesn't fire on a single click.
 
 ## Alerts queue
 Triage list grouped by severity; acknowledge (sets `acknowledged_by`/`acknowledged_at`); device-offline + stress alerts.
