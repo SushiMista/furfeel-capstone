@@ -102,6 +102,7 @@ FURFEEL_DEVICE_KEY=<ask a teammate — the plaintext device ingest key>
 ## 4. Test accounts (shared dev data)
 - Owner (mobile app): `owner@example.com` / `password123`
 - Vet (dashboard): `vet@example.com` / `password123`
+- Admin (dashboard → Admin module): `admin@example.com` / `password123`
 
 ## 5. Run it
 Open a separate terminal tab per piece.
@@ -116,9 +117,9 @@ Open the printed `localhost` URL → sign in as the vet.
 **Owner app (Chrome):**
 ```
 cd apps/mobile
-flutter run -d chrome --dart-define-from-file=env.json
+flutter run -d chrome --web-port 5175 --dart-define-from-file=env.json
 ```
-Sign in as the owner. No Chrome device? Use `flutter run -d web-server --dart-define-from-file=env.json` and open the URL in any browser. (On Windows you can also target the desktop app with `-d windows`.)
+Sign in as the owner. **Keep `--web-port 5175`** — Google sign-in only redirects back to allow-listed URLs, and `http://localhost:5175` is the port on the Supabase Auth allow-list (a random port ends in "this site can't be reached" after the Google screen). No Chrome device? Use `flutter run -d web-server --web-port 5175 --dart-define-from-file=env.json` and open the URL in any browser. (On Windows you can also target the desktop app with `-d windows`.)
 In the run terminal: `r` = hot reload, `R` = hot restart, `q` = quit.
 
 **Simulator (live data):**
@@ -177,6 +178,7 @@ Add the last three via `npx skills add` from the `vercel-labs/agent-skills` regi
 - **"Docker daemon" warning on `db push`** — harmless; the push still applies. Docker isn't needed for hosted dev.
 - **`flutter` / `node` / `supabase` not recognized (Windows)** — PATH not refreshed; open a new terminal, or re-check the PATH entry.
 - **No Chrome device in `flutter run`** — install Chrome, or set `CHROME_EXECUTABLE`, or use `-d web-server` and open in any browser.
+- **Google sign-in ends on "this site can't be reached"** — the app is running on a port that isn't on the Auth redirect allow-list, so Supabase fell back to the Site URL (the dashboard's port). Run the Flutter web app with `--web-port 5175`, or add your origin under Supabase dashboard → Authentication → URL Configuration.
 - **Login shows "Database error querying schema"** — the auth user is misconfigured; recreate it via Supabase dashboard → Authentication → Users (auto-confirm on).
 - **Photo/observation upload fails with a permission error** — make sure the latest storage migrations are applied (`supabase db push`).
 - **Line endings (cross-platform)** — set `git config --global core.autocrlf input` (macOS/Linux) or `true` (Windows) to avoid noisy diffs.
