@@ -21,6 +21,7 @@ import { VetNotes } from "../../components/VetNotes.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
+import { cn } from "../../lib/cn.ts";
 import type {
   Alert,
   Dog,
@@ -29,6 +30,16 @@ import type {
 } from "../../../../../packages/shared/types/index.ts";
 
 const HISTORY_LIMIT = 50;
+
+/** Section tabs (docs/05): same pill pattern as Admin — the per-dog page was
+ * one long scroll; this groups it without changing what data shows. */
+const TABS = [
+  { id: "alerts", label: "Alerts" },
+  { id: "telemetry", label: "Live telemetry" },
+  { id: "stress", label: "Stress history" },
+  { id: "notes", label: "Vet notes" },
+] as const;
+type TabId = (typeof TABS)[number]["id"];
 
 /** Vital card (docs/19 §7): label, big tabular value, small unit. */
 function Vital({
@@ -59,6 +70,7 @@ export function DogDetail() {
   const [classifications, setClassifications] = useState<StressClassification[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [mixSummary, setMixSummary] = useState<DailyStressSummaryRow[]>([]);
+  const [tab, setTab] = useState<TabId>("alerts");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -188,60 +200,96 @@ export function DogDetail() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Alerts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {alerts.length === 0 ? (
-            <EmptyState>No alerts — {dog.name} is doing great 🐾</EmptyState>
-          ) : (
-            alerts.map((a) => (
-              <AlertCard
-                key={a.id}
-                alert={a}
-                onAcknowledge={async (alert) => {
-                  const userId = session?.user.id;
-                  if (!userId) return;
-                  const updated = await acknowledgeAlert(supabase, alert.id, userId);
-                  if (updated) {
-                    setAlerts((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-                  }
-                }}
-              />
-            ))
-          )}
-        </CardContent>
-      </Card>
+      <div role="tablist" aria-label="Dog detail sections" className="flex flex-wrap gap-2">
+        {TABS.map((t) => {
+          const openCount = t.id === "alerts" ? alerts.filter((a) => a.status === "open").length : 0;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors duration-fast",
+                tab === t.id
+                  ? "bg-brand-soft text-brand-strong"
+                  : "text-ink-muted hover:bg-surface-alt hover:text-ink",
+              )}
+            >
+              {t.label}
+              {openCount > 0 && (
+                <span className="rounded-pill bg-high-soft px-2 py-0.5 text-xs font-bold tabular-nums text-high-fg">
+                  {openCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Live telemetry</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TelemetryChart readings={readings} />
-        </CardContent>
-      </Card>
+      {tab === "alerts" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Alerts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {alerts.length === 0 ? (
+              <EmptyState>No alerts — {dog.name} is doing great 🐾</EmptyState>
+            ) : (
+              alerts.map((a) => (
+                <AlertCard
+                  key={a.id}
+                  alert={a}
+                  onAcknowledge={async (alert) => {
+                    const userId = session?.user.id;
+                    if (!userId) return;
+                    const updated = await acknowledgeAlert(supabase, alert.id, userId);
+                    if (updated) {
+                      setAlerts((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+                    }
+                  }}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Stress mix — last 14 days</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <StressMixChart summary={mixSummary} />
-        </CardContent>
-      </Card>
+      {tab === "telemetry" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Live telemetry</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TelemetryChart readings={readings} />
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Stress timeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <StressTimeline classifications={classifications} />
-        </CardContent>
-      </Card>
+      {tab === "stress" && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Stress mix — last 14 days</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StressMixChart summary={mixSummary} />
+            </CardContent>
+          </Card>
 
-      <VetNotes dogId={dog.id} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Stress timeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StressTimeline classifications={classifications} />
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {tab === "notes" && <VetNotes dogId={dog.id} />}
     </div>
   );
 }

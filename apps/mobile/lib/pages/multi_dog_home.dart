@@ -10,8 +10,8 @@ import '../widgets/skeletons.dart';
 import '../widgets/stress_pill.dart';
 import 'dog_detail_page.dart';
 
-/// Multi-dog Home (QA item 9): one glanceable card per owned dog — photo,
-/// name, stress pill / wellness score, a key vital, battery, last-updated.
+/// Multi-dog Home (QA item 9): one minimalist glance row per owned dog —
+/// photo, name, breed, stress pill; numbers live on the dog's own page.
 /// Tapping a card opens the dog's full detail. Single-dog owners never see
 /// this; RootShell routes them straight to the rich detail.
 class MultiDogHomeTab extends StatefulWidget {
