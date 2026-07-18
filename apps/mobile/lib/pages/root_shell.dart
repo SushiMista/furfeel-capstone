@@ -270,7 +270,12 @@ class _RootShellState extends State<RootShell> {
       appBar: AppBar(
         title: const FurFeelLogo(),
         actions: [
-          if (dogs != null && dog != null)
+          // Owner feedback: on the multi-dog Home the cards ARE the dog list,
+          // so the switcher chip would be redundant there. It stays on
+          // Alerts/Trends/Profile, which still need a selected dog.
+          if (dogs != null &&
+              dog != null &&
+              !(_tab == 0 && dogs.length > 1))
             Padding(
               padding: const EdgeInsets.only(right: FurFeelTokens.space3),
               child: _DogSwitcher(
