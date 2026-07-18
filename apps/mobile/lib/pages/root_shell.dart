@@ -275,7 +275,8 @@ class _RootShellState extends State<RootShell> {
           // Alerts/Trends/Profile, which still need a selected dog.
           if (dogs != null &&
               dog != null &&
-              !(_tab == 0 && dogs.length > 1))
+              !(_tab == 0 && dogs.length > 1) &&
+              _tab != 3)
             Padding(
               padding: const EdgeInsets.only(right: FurFeelTokens.space3),
               child: _DogSwitcher(
