@@ -126,7 +126,7 @@ Linked notes:
 ## ADR-011: Google Sign-In via Supabase OAuth (Browser Flow)
 Status: Accepted
 
-Decision: Add "Continue with Google" to the mobile app's auth screens using Supabase's OAuth browser flow (`signInWithOAuth`) for all platforms, rather than the native `google_sign_in` SDK. The deep link `io.furfeel.app://login-callback` returns mobile users to the app; web returns to the page origin. The `handle_new_user` trigger falls back to `full_name` metadata so Google signups get a proper display name.
+Decision: Add "Continue with Google" to the mobile app's auth screens using Supabase's OAuth browser flow (`signInWithOAuth`) for all platforms, rather than the native `google_sign_in` SDK. The deep link `io.furfeel.app://login-callback` returns mobile users to the app; web passes `redirectTo: Uri.base.origin` explicitly — with no `redirect_to`, GoTrue falls back to the project **Site URL** (the dashboard's port), which surfaces as "this site can't be reached" when that app isn't running. Every return URL must be on the Auth redirect allow-list, and Supabase doesn't support port wildcards, so Flutter-web dev runs pin their port (`--web-port 5175`, allow-listed alongside the dashboard's 5173/5174 and the deep link). The `handle_new_user` trigger falls back to `full_name` metadata so Google signups get a proper display name.
 
 Reason: One code path covers web, Android, and iOS with zero client-held secrets (the Google client secret lives only in the Supabase provider config). The native SDK flow can be added later purely as a UX upgrade without schema or provider changes. Google accounts sharing an email with an existing password account are auto-linked by Supabase, so no duplicate-user handling is needed.
 
