@@ -3,7 +3,7 @@ title: "Veterinary Dashboard Design"
 type: product-design
 project: FurFeel
 created: 2026-07-09
-updated: 2026-07-11
+updated: 2026-07-18
 tags: [furfeel, dashboard, veterinary]
 ---
 
@@ -33,14 +33,18 @@ Left sidebar: **Overview · Monitoring Board · Alerts · Reports · Admin** (Ad
 - Per-dog period summary: stress distribution, abnormal-pattern highlights, vitals trends.
 - Printable/exportable (PDF/print stylesheet).
 
-### 4. Admin
-- Manage users (assign role + clinic), clinics, and devices (register, assign to dog, deactivate). Role-gated by RLS.
+### 4. Admin (as built)
+Four tabs, offered to the `admin` role only as UX — the `users_update_admin` / `clinics_admin_manage` / `devices_admin_all` RLS policies are the actual gate.
+- **Users:** assign role + clinic per user, and **add accounts** from the dashboard — a throwaway anon-key client signs the account up (the `handle_new_user` trigger mirrors it into `public.users` as `owner`), then the admin's session sets role/clinic through `users_update_admin`. No service key ever reaches the browser; with email confirmations on, the new user confirms before first login. Role changes work with the plain anon key: the permissive admin policy ORs with `users_update_own`, and self-promotion by non-admins stays blocked (verified end-to-end).
+- **Clinics:** create + list.
+- **Devices:** register harnesses, assign to dogs, set status; plus dog ↔ clinic assignment.
+- **System Health** (docs/03 "view system health", read-only): device fleet online/offline counts (from `devices.status`, which pg_cron already maintains), telemetry ingest volume (last hour / 24 h + last-received time), open-alert count, and user/clinic/dog totals. Fleet + totals derive from the already-loaded admin data; only telemetry and alerts add queries (`fetchSystemHealth`).
 
 ## Alerts queue
 Triage list grouped by severity; acknowledge (sets `acknowledged_by`/`acknowledged_at`); device-offline + stress alerts.
 
 ## MVP priority order
-Board (done) → Dog detail (done) → Alerts queue (done) → Vet notes (done) → Reports (done) → **Vet Review media + confirm/override (new)** → **Admin (new)**.
+Board (done) → Dog detail (done) → Alerts queue (done) → Vet notes (done) → Reports (done) → Vet Review media + confirm/override (done) → Admin incl. add-user + System Health (done).
 
 ## Related
 - [[19 Design System]]
