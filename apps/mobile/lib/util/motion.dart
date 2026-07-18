@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -27,11 +28,20 @@ extension FurFeelEntrance on Widget {
   }
 }
 
-/// Wraps a tappable in a 0.98 press-scale (docs/19 §5a micro-interactions).
+/// Wraps a tappable in a press-scale (docs/19 §5a micro-interactions).
 class PressScale extends StatefulWidget {
-  const PressScale({super.key, required this.child});
+  const PressScale({
+    super.key,
+    required this.child,
+    this.scale = 0.98,
+    this.enableHapticFeedback = false,
+    this.curve = Curves.easeOut,
+  });
 
   final Widget child;
+  final double scale;
+  final bool enableHapticFeedback;
+  final Curve curve;
 
   @override
   State<PressScale> createState() => _PressScaleState();
@@ -44,13 +54,18 @@ class _PressScaleState extends State<PressScale> {
   Widget build(BuildContext context) {
     if (context.reduceMotion) return widget.child;
     return Listener(
-      onPointerDown: (_) => setState(() => _pressed = true),
+      onPointerDown: (_) {
+        if (widget.enableHapticFeedback) {
+          HapticFeedback.lightImpact();
+        }
+        setState(() => _pressed = true);
+      },
       onPointerUp: (_) => setState(() => _pressed = false),
       onPointerCancel: (_) => setState(() => _pressed = false),
       child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1,
+        scale: _pressed ? widget.scale : 1.0,
         duration: FurFeelTokens.motionFast,
-        curve: Curves.easeOut,
+        curve: widget.curve,
         child: widget.child,
       ),
     );
