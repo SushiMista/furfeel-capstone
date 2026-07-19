@@ -195,12 +195,17 @@ class _AccountPageState extends State<AccountPage> {
                         child: InkWell(
                           customBorder: const CircleBorder(),
                           onTap: _busy ? null : _changePhoto,
-                          child: Padding(
-                            padding: const EdgeInsets.all(6),
-                            child: Icon(
-                              Icons.photo_camera_outlined,
-                              size: 18,
-                              color: context.ff.surface,
+                          // A11y: icon-only control needs a spoken name.
+                          child: Semantics(
+                            label: 'Change profile photo',
+                            button: true,
+                            child: Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Icon(
+                                Icons.photo_camera_outlined,
+                                size: 18,
+                                color: context.ff.surface,
+                              ),
                             ),
                           ),
                         ),
