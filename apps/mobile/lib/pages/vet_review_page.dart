@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/friendly_time.dart';
 import '../widgets/stress_pill.dart';
+import '../util/errors.dart';
 
 /// Vet Review, owner side (docs/04 module 5): the clinic's notes and confirmed
 /// stress assessments for this dog. Read-only in MVP (threaded follow-up is
@@ -44,11 +45,11 @@ class _VetReviewPageState extends State<VetReviewPage> {
         _loading = false;
         _error = null;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Something went wrong loading the vet review. Pull to retry.';
+        _error = loadErrorMessage(e, 'the vet review');
       });
     }
   }

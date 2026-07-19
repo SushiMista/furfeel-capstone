@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/battery.dart';
 import '../util/friendly_time.dart';
+import '../util/errors.dart';
 
 /// Device Pairing & Setup (docs/04 module 6): pair a harness by its device
 /// code, see connectivity + last sync, and unpair. (QR scanning is a natural
@@ -47,11 +48,11 @@ class _DevicePairingPageState extends State<DevicePairingPage> {
         _loading = false;
         _error = null;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Something went wrong checking the harness. Pull to retry.';
+        _error = loadErrorMessage(e, 'the harness status');
       });
     }
   }
@@ -80,7 +81,7 @@ class _DevicePairingPageState extends State<DevicePairingPage> {
         _busy = false;
         _error = err is FurFeelDataException
             ? err.message
-            : 'Pairing failed — please try again.';
+            : actionErrorMessage(err, 'Pairing');
       });
     }
   }
@@ -125,7 +126,7 @@ class _DevicePairingPageState extends State<DevicePairingPage> {
         _busy = false;
         _error = err is FurFeelDataException
             ? err.message
-            : 'Unpairing failed — please try again.';
+            : actionErrorMessage(err, 'Unpairing');
       });
     }
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/settings_controller.dart';
 import '../models/models.dart';
+import '../util/errors.dart';
 
 /// Shared edit flow for the profile contact fields (Phone Number, Emergency
 /// Contact): prefilled dialog → save through the repository → refresh the
@@ -52,9 +53,9 @@ Future<void> editContactField(
       content: Text(submitted.trim().isEmpty ? '$title cleared' : '$title saved'),
       behavior: SnackBarBehavior.floating,
     ));
-  } catch (_) {
-    messenger.showSnackBar(const SnackBar(
-      content: Text('Couldn\'t save — please check your connection and try again.'),
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(
+      content: Text(actionErrorMessage(e, 'Saving')),
       behavior: SnackBarBehavior.floating,
     ));
   }
