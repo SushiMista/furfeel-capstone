@@ -4,16 +4,19 @@
 /// word describes where a number sits relative to the dog's typical resting
 /// range, never what it means medically.
 ///
-/// Thresholds mirror packages/shared/classifier_config.json (rule-v1 tiers and
-/// the environmental amplifier / cold context rules). There is no Dart codegen
-/// from that JSON yet, so keep these constants in sync by hand — every value
-/// here is provisional and vet-tunable at the source config.
+/// Thresholds come from packages/shared/classifier_config.json via codegen
+/// (biometric_bands.g.dart — regenerate with
+/// `node packages/shared/scripts/generate_classifier_bands.mjs`); a staleness
+/// test fails when the config changes without regenerating. Every value is
+/// provisional and vet-tunable at the source config.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
+
+import 'biometric_bands.g.dart';
 
 /// Plain-language status for a vital, from Low to High.
 enum VitalStatus {
@@ -35,31 +38,27 @@ Color vitalStatusColor(BuildContext context, VitalStatus status) => switch (stat
       VitalStatus.high => context.ff.statusHighOwner,
     };
 
-// Global default baselines (classifier_config.json global_baselines).
-const _globalRestingHr = 90;
-const _globalRestingRr = 24;
-
 /// Heart-rate status from the dog's baseline (dog_baselines row when the
 /// clinic set one, else the global default). Ratio bands align with the
 /// rule-v1 hr tiers: >=1.15 scores, >=1.35 scores harder.
 VitalStatus? heartRateStatus(int? bpm, DogBaseline? baseline) {
   if (bpm == null) return null;
-  final resting = baseline?.restingHeartRateBpm ?? _globalRestingHr;
+  final resting = baseline?.restingHeartRateBpm ?? kGlobalRestingHr;
   final ratio = bpm / resting;
-  if (ratio < 0.7) return VitalStatus.low;
-  if (ratio < 1.15) return VitalStatus.normal;
-  if (ratio < 1.35) return VitalStatus.elevated;
+  if (ratio < kHrRatioLowBelow) return VitalStatus.low;
+  if (ratio < kHrRatioElevatedAt) return VitalStatus.normal;
+  if (ratio < kHrRatioHighAt) return VitalStatus.elevated;
   return VitalStatus.high;
 }
 
 /// Respiratory-rate status; bands align with the rule-v1 rr tiers (1.3 / 1.8).
 VitalStatus? respiratoryStatus(int? bpm, DogBaseline? baseline) {
   if (bpm == null) return null;
-  final resting = baseline?.restingRespiratoryRateBpm ?? _globalRestingRr;
+  final resting = baseline?.restingRespiratoryRateBpm ?? kGlobalRestingRr;
   final ratio = bpm / resting;
-  if (ratio < 0.5) return VitalStatus.low;
-  if (ratio < 1.3) return VitalStatus.normal;
-  if (ratio < 1.8) return VitalStatus.elevated;
+  if (ratio < kRrRatioLowBelow) return VitalStatus.low;
+  if (ratio < kRrRatioElevatedAt) return VitalStatus.normal;
+  if (ratio < kRrRatioHighAt) return VitalStatus.elevated;
   return VitalStatus.high;
 }
 
@@ -67,9 +66,9 @@ VitalStatus? respiratoryStatus(int? bpm, DogBaseline? baseline) {
 /// typical resting range 37.5-39.2 matches the vital detail screen).
 VitalStatus? temperatureStatus(double? celsius) {
   if (celsius == null) return null;
-  if (celsius < 37.5) return VitalStatus.low;
-  if (celsius < 39.2) return VitalStatus.normal;
-  if (celsius < 39.7) return VitalStatus.elevated;
+  if (celsius < kTempLowBelowC) return VitalStatus.low;
+  if (celsius < kTempElevatedAtC) return VitalStatus.normal;
+  if (celsius < kTempHighAtC) return VitalStatus.elevated;
   return VitalStatus.high;
 }
 
@@ -77,18 +76,12 @@ VitalStatus? temperatureStatus(double? celsius) {
 String vitalStatusPhrase(String vitalLabel, String value, VitalStatus status, String dogName) =>
     '$vitalLabel $value — ${status.label} for $dogName';
 
-// Environment thresholds (classifier_config.json environmental_amplifier /
-// context_rules.environmental_cold).
-const _hotAmbientC = 32.0;
-const _hotHumidityPercent = 80.0;
-const _coldAmbientC = 8.0;
-
 bool _isHot(TelemetryReading r) =>
-    (r.ambientTemperatureC != null && r.ambientTemperatureC! > _hotAmbientC) ||
-    (r.humidityPercent != null && r.humidityPercent! > _hotHumidityPercent);
+    (r.ambientTemperatureC != null && r.ambientTemperatureC! > kHotAmbientAboveC) ||
+    (r.humidityPercent != null && r.humidityPercent! > kHotHumidityAbovePercent);
 
 bool _isCold(TelemetryReading r) =>
-    r.ambientTemperatureC != null && r.ambientTemperatureC! < _coldAmbientC;
+    r.ambientTemperatureC != null && r.ambientTemperatureC! < kColdAmbientBelowC;
 
 /// Picks the active combination context for Care Insights, or null when no
 /// combination applies (fall back to the per-level guidance). Keys must match
@@ -103,7 +96,7 @@ String? careContextKey({
   final stressed = level != null && level != StressLevel.calm;
   final rr = respiratoryStatus(reading.respiratoryRateBpm, baseline);
   final hr = heartRateStatus(reading.heartRateBpm, baseline);
-  final restless = (reading.motionActivity ?? 0) >= 0.6;
+  final restless = (reading.motionActivity ?? 0) >= kRestlessMotionAt;
 
   if (stressed && _isCold(reading)) return 'cold_stressed';
   if (_isHot(reading) && rr == VitalStatus.high) return 'panting_hot';

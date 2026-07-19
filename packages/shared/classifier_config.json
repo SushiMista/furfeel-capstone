@@ -70,6 +70,13 @@
     }
   },
 
+  "biometric_status_bands": {
+    "_comment": "Owner-facing Low/Normal/Elevated/High status words (docs/08). Only the Low floors live here — the Elevated/High floors are DERIVED from the scoring_rules tiers above (tier 1 min = Elevated, tier 2 min = High) so they can never drift from what actually scores. Consumed by generate_classifier_bands.mjs -> apps/mobile/lib/insights/biometric_bands.g.dart. Provisional, vet-tunable.",
+    "hr_ratio_low_below": 0.7,
+    "rr_ratio_low_below": 0.5,
+    "body_temperature_c_low_below": 37.5
+  },
+
   "context_rules": {
     "_comment": "Context-only reason codes: they NEVER change the stress score (docs/08 scores heat but not cold), but they feed the owner-facing 'why' and Care Insights combinations (e.g. cold + stressed -> warm bed tip). Thresholds are provisional and vet-tunable like everything else here.",
     "environmental_cold": {
