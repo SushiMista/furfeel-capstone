@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { acknowledgeAlert, fetchDogs, fetchMonitoringBoardRowForDog, sortBoardRows } from "../src/lib/queries.ts";
+import { acknowledgeAlert, acknowledgeAlerts, fetchDogs, fetchMonitoringBoardRowForDog, sortBoardRows } from "../src/lib/queries.ts";
 import type { Dog } from "../../../packages/shared/types/index.ts";
 
 /** Minimal fake of the fluent PostgrestFilterBuilder chain: chainable + thenable, and
@@ -218,5 +218,28 @@ describe("acknowledgeAlert", () => {
     };
     const client = fakeClient({ alerts: chain });
     expect(await acknowledgeAlert(client, "a1", "user-1")).toBeNull();
+  });
+});
+
+describe("acknowledgeAlerts (bulk, step 16)", () => {
+  it("returns [] without touching the client when there are no ids", async () => {
+    const client = { from: () => { throw new Error("must not query"); } } as unknown as SupabaseClient;
+    expect(await acknowledgeAlerts(client, [], "user-1")).toEqual([]);
+  });
+
+  it("applies the open-status guard and returns the flipped rows", async () => {
+    const calls: Record<string, unknown[]> = {};
+    const chain: Record<string, unknown> = {
+      update: (v: unknown) => ((calls.update = [v]), chain),
+      in: (col: string, ids: unknown) => ((calls.in = [col, ids]), chain),
+      eq: (col: string, v: unknown) => ((calls.eq = [col, v]), chain),
+      select: () => Promise.resolve({ data: [{ id: "a1", status: "acknowledged" }], error: null }),
+    };
+    const client = { from: () => chain } as unknown as SupabaseClient;
+    const updated = await acknowledgeAlerts(client, ["a1", "a2"], "user-1");
+    expect(calls.in).toEqual(["id", ["a1", "a2"]]);
+    expect(calls.eq).toEqual(["status", "open"]);
+    expect((calls.update![0] as { acknowledged_by: string }).acknowledged_by).toBe("user-1");
+    expect(updated).toHaveLength(1);
   });
 });
