@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'data/furfeel_repository.dart';
 import 'data/settings_controller.dart';
+import 'data/status_cache.dart';
 import 'pages/onboarding_page.dart';
 import 'pages/root_shell.dart';
 import 'pages/splash_page.dart';
@@ -80,6 +81,7 @@ class _FurFeelAppState extends State<FurFeelApp> {
       }
       if (state.event == AuthChangeEvent.signedOut) {
         _settings.clear();
+        StatusCache.clear(); // cached readings belong to the signed-out account
         // Sign-out can fire while AccountPage (or another screen) is pushed
         // on top of the home StreamBuilder -- pop back so the freshly
         // signed-out Welcome screen is actually visible, not a half-cleared
