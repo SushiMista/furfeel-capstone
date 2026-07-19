@@ -21,7 +21,7 @@ class VetNoteCard extends StatelessWidget {
         note.authorName.trim().isEmpty ? '?' : note.authorName.trim()[0].toUpperCase();
     final placeholder = Text(
       initial,
-      style: TextStyle(fontWeight: FontWeight.w700, color: FurFeelTokens.brand),
+      style: TextStyle(fontWeight: FontWeight.w700, color: context.ff.brand),
     );
     final avatarPath = note.authorAvatarPath;
 
@@ -36,7 +36,7 @@ class VetNoteCard extends StatelessWidget {
                 if (avatarPath == null)
                   CircleAvatar(
                     radius: 18,
-                    backgroundColor: FurFeelTokens.brandSoft,
+                    backgroundColor: context.ff.brandSoft,
                     child: placeholder,
                   )
                 else
@@ -44,7 +44,7 @@ class VetNoteCard extends StatelessWidget {
                     future: repository.getSignedAvatarUrl(avatarPath),
                     builder: (context, snapshot) => CircleAvatar(
                       radius: 18,
-                      backgroundColor: FurFeelTokens.brandSoft,
+                      backgroundColor: context.ff.brandSoft,
                       foregroundImage: snapshot.data == null
                           ? null
                           : NetworkImage(snapshot.data!),
@@ -65,7 +65,7 @@ class VetNoteCard extends StatelessWidget {
                   ),
                 ),
                 Icon(Icons.medical_information_outlined,
-                    size: 18, color: FurFeelTokens.inkMuted),
+                    size: 18, color: context.ff.inkMuted),
               ],
             ),
             const SizedBox(height: FurFeelTokens.space3),

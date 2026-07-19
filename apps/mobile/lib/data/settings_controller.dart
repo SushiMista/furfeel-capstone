@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../models/models.dart';
 import 'furfeel_repository.dart';
@@ -44,12 +44,12 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// True when the app should render dark. 'system' follows the OS; anything
-  /// unexpected falls back to light (QA: light is the default experience).
-  bool resolveDark(Brightness platformBrightness) => switch (settings.theme) {
-        'dark' => true,
-        'system' => platformBrightness == Brightness.dark,
-        _ => false,
+  /// ThemeMode for MaterialApp. 'system' follows the OS; anything unexpected
+  /// falls back to light (QA: light is the default experience).
+  ThemeMode get themeMode => switch (settings.theme) {
+        'dark' => ThemeMode.dark,
+        'system' => ThemeMode.system,
+        _ => ThemeMode.light,
       };
 
   Future<void> update(UserSettings next) async {

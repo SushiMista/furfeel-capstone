@@ -44,14 +44,14 @@ class FurFeelLogo extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.pets, size: size, color: FurFeelTokens.brand),
+        Icon(Icons.pets, size: size, color: context.ff.brand),
         SizedBox(width: size * 0.4),
         Text(
           'FurFeel',
           style: TextStyle(
             fontSize: size,
             fontWeight: FontWeight.w800,
-            color: FurFeelTokens.brandInk,
+            color: context.ff.brandInk,
           ),
         ),
       ],
@@ -72,12 +72,12 @@ class FurFeelLogo extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [FurFeelTokens.brand, FurFeelTokens.brandStrong],
+          colors: [context.ff.brand, context.ff.brandStrong],
         ),
         borderRadius: BorderRadius.circular(containerSize * 0.28),
         boxShadow: [
           BoxShadow(
-            color: FurFeelTokens.brand.withValues(alpha: 0.30),
+            color: context.ff.brand.withValues(alpha: 0.30),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -105,7 +105,7 @@ class FurFeelLogo extends StatelessWidget {
           TextSpan(
             text: 'Fur',
             style: textTheme.headlineMedium?.copyWith(
-              color: FurFeelTokens.brandInk,
+              color: context.ff.brandInk,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.5,
             ),
@@ -113,7 +113,7 @@ class FurFeelLogo extends StatelessWidget {
           TextSpan(
             text: 'Feel',
             style: textTheme.headlineMedium?.copyWith(
-              color: FurFeelTokens.brand,
+              color: context.ff.brand,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.5,
             ),
@@ -140,7 +140,7 @@ class FurFeelLogo extends StatelessWidget {
           Text(
             'Know how your dog is feeling',
             style: textTheme.bodySmall?.copyWith(
-              color: FurFeelTokens.inkMuted,
+              color: context.ff.inkMuted,
               letterSpacing: 0.1,
             ),
           ),

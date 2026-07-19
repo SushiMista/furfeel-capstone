@@ -15,7 +15,7 @@ class HomeSkeleton extends StatelessWidget {
       if (context.reduceMotion) return child;
       return child
           .animate(onPlay: (c) => c.repeat())
-          .shimmer(duration: 1200.ms, color: FurFeelTokens.surface);
+          .shimmer(duration: 1200.ms, color: context.ff.surface);
     }
 
     Widget block({double? width, double height = 14, double radius = 6}) =>
@@ -23,7 +23,7 @@ class HomeSkeleton extends StatelessWidget {
           width: width,
           height: height,
           decoration: BoxDecoration(
-            color: FurFeelTokens.surfaceAlt,
+            color: context.ff.surfaceAlt,
             borderRadius: BorderRadius.circular(radius),
           ),
         );
@@ -39,9 +39,9 @@ class HomeSkeleton extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(FurFeelTokens.space5),
             decoration: BoxDecoration(
-              color: FurFeelTokens.surface,
+              color: context.ff.surface,
               borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-              border: Border.all(color: FurFeelTokens.hairline),
+              border: Border.all(color: context.ff.hairline),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +52,7 @@ class HomeSkeleton extends StatelessWidget {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: FurFeelTokens.surfaceAlt,
+                        color: context.ff.surfaceAlt,
                         shape: BoxShape.circle,
                       ),
                     ),

@@ -361,7 +361,7 @@ class _VitalSquare extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return PressScale(
       child: Material(
-        color: FurFeelTokens.surface,
+        color: context.ff.surface,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
         child: InkWell(
           onTap: onTap,
@@ -369,7 +369,7 @@ class _VitalSquare extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(FurFeelTokens.space4),
             decoration: BoxDecoration(
-              border: Border.all(color: FurFeelTokens.hairline),
+              border: Border.all(color: context.ff.hairline),
               borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
             ),
             child: Column(
@@ -378,7 +378,7 @@ class _VitalSquare extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(kind.icon, size: 18, color: FurFeelTokens.brand),
+                    Icon(kind.icon, size: 18, color: context.ff.brand),
                     const SizedBox(width: FurFeelTokens.space2),
                     Expanded(
                       child: Text(
@@ -387,7 +387,7 @@ class _VitalSquare extends StatelessWidget {
                         style: textTheme.bodySmall,
                       ),
                     ),
-                    Icon(Icons.chevron_right, size: 16, color: FurFeelTokens.inkMuted),
+                    Icon(Icons.chevron_right, size: 16, color: context.ff.inkMuted),
                   ],
                 ),
                 // Cross-fades on updates (docs/19 §5a), instant under
@@ -412,8 +412,8 @@ class _VitalSquare extends StatelessWidget {
                                     fontSize: FurFeelTokens.typeH2Size,
                                     fontWeight: FurFeelTokens.typeVitalNumberWeight,
                                     color: activityState == ActivityState.noSignal
-                                        ? FurFeelTokens.inkMuted
-                                        : FurFeelTokens.ink,
+                                        ? context.ff.inkMuted
+                                        : context.ff.ink,
                                     height: 1.1,
                                   ),
                                 ),
@@ -428,7 +428,7 @@ class _VitalSquare extends StatelessWidget {
                             style: TextStyle(
                               fontSize: FurFeelTokens.typeVitalNumberSize,
                               fontWeight: FurFeelTokens.typeVitalNumberWeight,
-                              color: FurFeelTokens.ink,
+                              color: context.ff.ink,
                               height: 1.1,
                             ),
                             children: [
@@ -438,7 +438,7 @@ class _VitalSquare extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: FurFeelTokens.typeCaptionSize,
                                     fontWeight: FontWeight.w400,
-                                    color: FurFeelTokens.inkMuted,
+                                    color: context.ff.inkMuted,
                                   ),
                                 ),
                             ],
@@ -452,7 +452,7 @@ class _VitalSquare extends StatelessWidget {
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: vitalStatusColor(status!),
+                          color: vitalStatusColor(context, status!),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -462,7 +462,7 @@ class _VitalSquare extends StatelessWidget {
                         style: TextStyle(
                           fontSize: FurFeelTokens.typeCaptionSize,
                           fontWeight: FontWeight.w600,
-                          color: vitalStatusColor(status!),
+                          color: vitalStatusColor(context, status!),
                         ),
                       ),
                     ],
@@ -506,18 +506,18 @@ class _TodaySoFar extends StatelessWidget {
 
     final delta = yesterdayShare == null ? null : todayShare - yesterdayShare;
     final (trendIcon, trendColor, trendWord) = switch (delta) {
-      null => (null, FurFeelTokens.inkMuted, null),
-      >= 0.05 => (Icons.trending_up, FurFeelTokens.statusCalmFg, 'calmer than yesterday'),
-      <= -0.05 => (Icons.trending_down, FurFeelTokens.warm, 'less calm than yesterday'),
-      _ => (Icons.trending_flat, FurFeelTokens.inkMuted, 'about the same as yesterday'),
+      null => (null, context.ff.inkMuted, null),
+      >= 0.05 => (Icons.trending_up, context.ff.statusCalmFg, 'calmer than yesterday'),
+      <= -0.05 => (Icons.trending_down, context.ff.warm, 'less calm than yesterday'),
+      _ => (Icons.trending_flat, context.ff.inkMuted, 'about the same as yesterday'),
     };
 
     return Container(
       padding: const EdgeInsets.all(FurFeelTokens.space4),
       decoration: BoxDecoration(
-        color: FurFeelTokens.surface,
+        color: context.ff.surface,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-        border: Border.all(color: FurFeelTokens.hairline),
+        border: Border.all(color: context.ff.hairline),
       ),
       child: Row(
         children: [
@@ -540,8 +540,8 @@ class _TodaySoFar extends StatelessWidget {
                     value: value,
                     strokeWidth: 6,
                     strokeCap: StrokeCap.round,
-                    color: FurFeelTokens.statusCalmFg,
-                    backgroundColor: FurFeelTokens.surfaceAlt,
+                    color: context.ff.statusCalmFg,
+                    backgroundColor: context.ff.surfaceAlt,
                   ),
                   Center(
                     child: Text(
@@ -549,7 +549,7 @@ class _TodaySoFar extends StatelessWidget {
                       style: TextStyle(
                         fontSize: FurFeelTokens.typeH3Size,
                         fontWeight: FontWeight.w700,
-                        color: FurFeelTokens.ink,
+                        color: context.ff.ink,
                       ),
                     ),
                   ),
@@ -567,7 +567,7 @@ class _TodaySoFar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: FurFeelTokens.typeBodyMobileSize,
                     fontWeight: FontWeight.w600,
-                    color: FurFeelTokens.ink,
+                    color: context.ff.ink,
                   ),
                 ),
                 if (trendWord != null) ...[
@@ -628,7 +628,7 @@ class _StatusHero extends StatelessWidget {
                   dog: dog,
                   repository: repository,
                   backgroundColor:
-                      level != null ? stressLevelSoftBg(level) : FurFeelTokens.brandSoft,
+                      level != null ? stressLevelSoftBg(context, level) : context.ff.brandSoft,
                 ),
                 const SizedBox(width: FurFeelTokens.space4),
                 Expanded(
@@ -664,7 +664,7 @@ class _StatusHero extends StatelessWidget {
               Row(
                 children: [
                   Icon(Icons.thermostat_outlined,
-                      size: 16, color: FurFeelTokens.inkMuted),
+                      size: 16, color: context.ff.inkMuted),
                   const SizedBox(width: FurFeelTokens.space1),
                   Expanded(
                     child: Text(
@@ -711,7 +711,7 @@ class _BirthdayBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(FurFeelTokens.space4),
       decoration: BoxDecoration(
-        color: FurFeelTokens.warmSoft,
+        color: context.ff.warmSoft,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
       ),
       child: Row(
@@ -753,13 +753,13 @@ class _DeviceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final offline = device.status == 'offline';
     final color = device.isOnline
-        ? FurFeelTokens.statusCalmFg
+        ? context.ff.statusCalmFg
         : offline
-            ? FurFeelTokens.statusHighOwner
-            : FurFeelTokens.inkMuted;
+            ? context.ff.statusHighOwner
+            : context.ff.inkMuted;
     final battery = device.batteryPercent;
     final batteryColor =
-        device.isBatteryLow ? FurFeelTokens.statusHighOwner : FurFeelTokens.inkMuted;
+        device.isBatteryLow ? context.ff.statusHighOwner : context.ff.inkMuted;
     final batteryIcon = battery == null ? null : batteryIconFor(battery);
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -806,7 +806,7 @@ class _CareInsightsCard extends StatelessWidget {
       padding: const EdgeInsets.all(FurFeelTokens.space5),
       decoration: BoxDecoration(
         // Owner-app warmth layer (docs/19): warm tinted card, warm accent.
-        color: FurFeelTokens.warmSoft,
+        color: context.ff.warmSoft,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
       ),
       child: Column(
@@ -815,7 +815,7 @@ class _CareInsightsCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.tips_and_updates_outlined,
-                  size: 18, color: FurFeelTokens.warm),
+                  size: 18, color: context.ff.warm),
               const SizedBox(width: FurFeelTokens.space2),
               Text('CARE INSIGHTS', style: textTheme.labelSmall),
             ],
@@ -845,7 +845,7 @@ class _QuickLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: FurFeelTokens.surface,
+      color: context.ff.surface,
       borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
       child: InkWell(
         onTap: onTap,
@@ -853,12 +853,12 @@ class _QuickLink extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(FurFeelTokens.space4),
           decoration: BoxDecoration(
-            border: Border.all(color: FurFeelTokens.hairline),
+            border: Border.all(color: context.ff.hairline),
             borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
           ),
           child: Column(
             children: [
-              Icon(icon, color: FurFeelTokens.brand),
+              Icon(icon, color: context.ff.brand),
               const SizedBox(height: FurFeelTokens.space2),
               Text(
                 label,
@@ -866,7 +866,7 @@ class _QuickLink extends StatelessWidget {
                 style: TextStyle(
                   fontSize: FurFeelTokens.typeLabelSize,
                   fontWeight: FontWeight.w600,
-                  color: FurFeelTokens.ink,
+                  color: context.ff.ink,
                 ),
               ),
             ],
@@ -895,7 +895,7 @@ class _BatteryHealthCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final battery = device.batteryPercent ?? 100;
     final isLow = device.isBatteryLow;
-    final batteryColor = batteryColorFor(battery);
+    final batteryColor = batteryColorFor(context, battery);
     final batteryIcon = batteryIconFor(battery);
 
     // Status description text based on battery health
@@ -927,7 +927,7 @@ class _BatteryHealthCard extends StatelessWidget {
               Row(
                 children: [
                   Icon(Icons.battery_charging_full_rounded,
-                      size: 18, color: FurFeelTokens.brand),
+                      size: 18, color: context.ff.brand),
                   const SizedBox(width: FurFeelTokens.space2),
                   Expanded(
                     child: Text(
@@ -935,7 +935,7 @@ class _BatteryHealthCard extends StatelessWidget {
                       style: textTheme.labelSmall,
                     ),
                   ),
-                  Icon(Icons.chevron_right, size: 16, color: FurFeelTokens.inkMuted),
+                  Icon(Icons.chevron_right, size: 16, color: context.ff.inkMuted),
                 ],
               ),
               const SizedBox(height: FurFeelTokens.space3),
@@ -954,7 +954,7 @@ class _BatteryHealthCard extends StatelessWidget {
                           strokeWidth: 5,
                           strokeCap: StrokeCap.round,
                           color: batteryColor,
-                          backgroundColor: FurFeelTokens.surfaceAlt,
+                          backgroundColor: context.ff.surfaceAlt,
                         ),
                       ),
                       Icon(batteryIcon, size: 22, color: batteryColor),
@@ -982,10 +982,10 @@ class _BatteryHealthCard extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: isLow
-                                    ? FurFeelTokens.statusHighBg
+                                    ? context.ff.statusHighBg
                                     : battery <= 30
-                                        ? FurFeelTokens.statusMildBg
-                                        : FurFeelTokens.statusCalmBg,
+                                        ? context.ff.statusMildBg
+                                        : context.ff.statusCalmBg,
                                 borderRadius:
                                     BorderRadius.circular(FurFeelTokens.radiusPill),
                               ),
@@ -995,10 +995,10 @@ class _BatteryHealthCard extends StatelessWidget {
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: isLow
-                                      ? FurFeelTokens.statusHighOwner
+                                      ? context.ff.statusHighOwner
                                       : battery <= 30
-                                          ? FurFeelTokens.statusMildFg
-                                          : FurFeelTokens.statusCalmFg,
+                                          ? context.ff.statusMildFg
+                                          : context.ff.statusCalmFg,
                                 ),
                               ),
                             ),
@@ -1011,8 +1011,8 @@ class _BatteryHealthCard extends StatelessWidget {
                             fontSize: FurFeelTokens.typeCaptionSize,
                             fontWeight: FontWeight.w600,
                             color: device.status == 'offline'
-                                ? FurFeelTokens.statusHighOwner
-                                : FurFeelTokens.statusCalmFg,
+                                ? context.ff.statusHighOwner
+                                : context.ff.statusCalmFg,
                           ),
                         ),
                       ],
@@ -1025,7 +1025,7 @@ class _BatteryHealthCard extends StatelessWidget {
                 descriptionText,
                 style: textTheme.bodyMedium?.copyWith(
                   fontSize: 13,
-                  color: FurFeelTokens.ink,
+                  color: context.ff.ink,
                 ),
               ),
               const SizedBox(height: FurFeelTokens.space2),
@@ -1059,7 +1059,7 @@ class _HomeTabBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: FurFeelTokens.surfaceAlt,
+        color: context.ff.surfaceAlt,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
       ),
       child: Row(
@@ -1083,7 +1083,7 @@ class _HomeTabBar extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: FurFeelTokens.space2),
           decoration: BoxDecoration(
-            color: isSelected ? FurFeelTokens.surface : Colors.transparent,
+            color: isSelected ? context.ff.surface : Colors.transparent,
             borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
             boxShadow: isSelected ? FurFeelTokens.shadowCard : null,
           ),
@@ -1093,13 +1093,13 @@ class _HomeTabBar extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: isSelected ? FurFeelTokens.brand : FurFeelTokens.inkMuted,
+                color: isSelected ? context.ff.brand : context.ff.inkMuted,
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: textTheme.labelSmall?.copyWith(
-                  color: isSelected ? FurFeelTokens.brand : FurFeelTokens.inkMuted,
+                  color: isSelected ? context.ff.brand : context.ff.inkMuted,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),

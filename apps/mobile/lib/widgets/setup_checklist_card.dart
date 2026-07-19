@@ -33,7 +33,7 @@ class SetupChecklistCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.checklist_rounded, size: 18, color: FurFeelTokens.brand),
+                Icon(Icons.checklist_rounded, size: 18, color: context.ff.brand),
                 const SizedBox(width: FurFeelTokens.space2),
                 Expanded(
                   child: Text('FINISH SETTING UP $dogName'.toUpperCase(),
@@ -63,8 +63,8 @@ class SetupChecklistCard extends StatelessWidget {
                             : Icons.radio_button_unchecked,
                         size: 20,
                         color: entry.value
-                            ? FurFeelTokens.statusCalmFg
-                            : FurFeelTokens.inkMuted,
+                            ? context.ff.statusCalmFg
+                            : context.ff.inkMuted,
                       ),
                       const SizedBox(width: FurFeelTokens.space3),
                       Expanded(
@@ -79,8 +79,8 @@ class SetupChecklistCard extends StatelessWidget {
                                     ? TextDecoration.lineThrough
                                     : null,
                                 color: entry.value
-                                    ? FurFeelTokens.inkMuted
-                                    : FurFeelTokens.ink,
+                                    ? context.ff.inkMuted
+                                    : context.ff.ink,
                               ),
                             ),
                             if (!entry.value)
@@ -90,7 +90,7 @@ class SetupChecklistCard extends StatelessWidget {
                       ),
                       if (!entry.value && entry.key != SetupStep.firstReading)
                         Icon(Icons.chevron_right,
-                            size: 18, color: FurFeelTokens.inkMuted),
+                            size: 18, color: context.ff.inkMuted),
                     ],
                   ),
                 ),

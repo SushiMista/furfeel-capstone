@@ -81,7 +81,7 @@ class _VaccinationTab extends StatelessWidget {
           icon: Icons.vaccines_outlined,
           title: 'Vaccination Records',
           subtitle: 'Keep track of ${dog.name}\'s immunization history',
-          color: FurFeelTokens.brand,
+          color: context.ff.brand,
         ),
         const SizedBox(height: FurFeelTokens.space4),
         for (final v in _placeholderVaccines) ...[
@@ -94,7 +94,7 @@ class _VaccinationTab extends StatelessWidget {
         Text(
           'Vaccination data will sync with your partner clinic once connected.',
           textAlign: TextAlign.center,
-          style: textTheme.bodySmall?.copyWith(color: FurFeelTokens.inkMuted),
+          style: textTheme.bodySmall?.copyWith(color: context.ff.inkMuted),
         ),
       ],
     );
@@ -127,15 +127,15 @@ class _VaccineCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final isOverdue = record.status == 'Overdue';
     final statusColor =
-        isOverdue ? FurFeelTokens.statusHighFg : FurFeelTokens.statusCalmFg;
+        isOverdue ? context.ff.statusHighFg : context.ff.statusCalmFg;
     final statusBg =
-        isOverdue ? FurFeelTokens.statusHighBg : FurFeelTokens.statusCalmBg;
+        isOverdue ? context.ff.statusHighBg : context.ff.statusCalmBg;
 
     return Container(
       decoration: BoxDecoration(
-        color: FurFeelTokens.surface,
+        color: context.ff.surface,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-        border: Border.all(color: FurFeelTokens.hairline),
+        border: Border.all(color: context.ff.hairline),
         boxShadow: FurFeelTokens.shadowCard,
       ),
       child: Padding(
@@ -177,7 +177,7 @@ class _VaccineCard extends StatelessWidget {
               icon: Icons.event_repeat_outlined,
               label: 'Next due',
               value: record.nextDue,
-              valueColor: isOverdue ? FurFeelTokens.statusHighFg : null,
+              valueColor: isOverdue ? context.ff.statusHighFg : null,
             ),
             const SizedBox(height: FurFeelTokens.space2),
             _InfoLine(
@@ -228,7 +228,7 @@ class _MedicalHistoryTab extends StatelessWidget {
           icon: Icons.medical_services_outlined,
           title: 'Medical History',
           subtitle: 'Past visits, treatments, and diagnoses',
-          color: FurFeelTokens.accent,
+          color: context.ff.accent,
         ),
         const SizedBox(height: FurFeelTokens.space4),
         for (final entry in _placeholderHistory) ...[
@@ -241,7 +241,7 @@ class _MedicalHistoryTab extends StatelessWidget {
         Text(
           'Medical records from partner clinics will appear here once linked.',
           textAlign: TextAlign.center,
-          style: textTheme.bodySmall?.copyWith(color: FurFeelTokens.inkMuted),
+          style: textTheme.bodySmall?.copyWith(color: context.ff.inkMuted),
         ),
       ],
     );
@@ -277,9 +277,9 @@ class _MedicalCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: FurFeelTokens.surface,
+        color: context.ff.surface,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-        border: Border.all(color: FurFeelTokens.hairline),
+        border: Border.all(color: context.ff.hairline),
         boxShadow: FurFeelTokens.shadowCard,
       ),
       child: Padding(
@@ -300,15 +300,15 @@ class _MedicalCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: FurFeelTokens.surfaceAlt,
+                    color: context.ff.surfaceAlt,
                     borderRadius:
                         BorderRadius.circular(FurFeelTokens.radiusPill),
-                    border: Border.all(color: FurFeelTokens.hairline),
+                    border: Border.all(color: context.ff.hairline),
                   ),
                   child: Text(
                     entry.category,
                     style: textTheme.labelSmall?.copyWith(
-                      color: FurFeelTokens.inkMuted,
+                      color: context.ff.inkMuted,
                       fontSize: 10,
                     ),
                   ),
@@ -333,13 +333,13 @@ class _MedicalCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(FurFeelTokens.space3),
               decoration: BoxDecoration(
-                color: FurFeelTokens.surfaceAlt,
+                color: context.ff.surfaceAlt,
                 borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
               ),
               child: Text(
                 entry.note,
                 style: textTheme.bodySmall
-                    ?.copyWith(color: FurFeelTokens.inkMuted),
+                    ?.copyWith(color: context.ff.inkMuted),
               ),
             ),
           ],
@@ -367,20 +367,20 @@ class _ArchivedTab extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: FurFeelTokens.surfaceAlt,
+                color: context.ff.surfaceAlt,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.inventory_2_outlined,
                 size: 36,
-                color: FurFeelTokens.inkMuted,
+                color: context.ff.inkMuted,
               ),
             ),
             const SizedBox(height: FurFeelTokens.space4),
             Text(
               'No archived pets',
               style: textTheme.titleMedium?.copyWith(
-                color: FurFeelTokens.brandInk,
+                color: context.ff.brandInk,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -390,7 +390,7 @@ class _ArchivedTab extends StatelessWidget {
               'retain their monitoring history.',
               textAlign: TextAlign.center,
               style:
-                  textTheme.bodySmall?.copyWith(color: FurFeelTokens.inkMuted),
+                  textTheme.bodySmall?.copyWith(color: context.ff.inkMuted),
             ),
           ],
         ),
@@ -448,14 +448,14 @@ class _SectionBanner extends StatelessWidget {
                   title,
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: FurFeelTokens.brandInk,
+                    color: context.ff.brandInk,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: textTheme.bodySmall
-                      ?.copyWith(color: FurFeelTokens.inkMuted),
+                      ?.copyWith(color: context.ff.inkMuted),
                 ),
               ],
             ),
@@ -484,18 +484,18 @@ class _InfoLine extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Row(
       children: [
-        Icon(icon, size: 14, color: FurFeelTokens.inkMuted),
+        Icon(icon, size: 14, color: context.ff.inkMuted),
         const SizedBox(width: FurFeelTokens.space2),
         Text(
           '$label: ',
-          style: textTheme.bodySmall?.copyWith(color: FurFeelTokens.inkMuted),
+          style: textTheme.bodySmall?.copyWith(color: context.ff.inkMuted),
         ),
         Expanded(
           child: Text(
             value,
             style: textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w500,
-              color: valueColor ?? FurFeelTokens.ink,
+              color: valueColor ?? context.ff.ink,
             ),
             overflow: TextOverflow.ellipsis,
           ),

@@ -16,8 +16,8 @@ IconData batteryIconFor(int percent) => switch (percent) {
 
 /// Word+color convention (docs/19): red at the alert threshold, amber when a
 /// charge is worth planning, calm green otherwise.
-Color batteryColorFor(int percent) => switch (percent) {
-      <= 15 => FurFeelTokens.statusHighOwner,
-      <= 30 => FurFeelTokens.warm,
-      _ => FurFeelTokens.statusCalmFg,
+Color batteryColorFor(BuildContext context, int percent) => switch (percent) {
+      <= 15 => context.ff.statusHighOwner,
+      <= 30 => context.ff.warm,
+      _ => context.ff.statusCalmFg,
     };

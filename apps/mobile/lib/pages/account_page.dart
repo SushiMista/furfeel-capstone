@@ -150,7 +150,7 @@ class _AccountPageState extends State<AccountPage> {
             child: const Text('Keep my account'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: FurFeelTokens.statusHighFg),
+            style: FilledButton.styleFrom(backgroundColor: context.ff.statusHighFg),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
           ),
@@ -189,7 +189,7 @@ class _AccountPageState extends State<AccountPage> {
                       right: 0,
                       bottom: 0,
                       child: Material(
-                        color: FurFeelTokens.brand,
+                        color: context.ff.brand,
                         shape: const CircleBorder(),
                         child: InkWell(
                           customBorder: const CircleBorder(),
@@ -199,7 +199,7 @@ class _AccountPageState extends State<AccountPage> {
                             child: Icon(
                               Icons.photo_camera_outlined,
                               size: 18,
-                              color: FurFeelTokens.surface,
+                              color: context.ff.surface,
                             ),
                           ),
                         ),
@@ -218,23 +218,23 @@ class _AccountPageState extends State<AccountPage> {
             child: Column(
               children: [
                 ListTile(
-                  leading: Icon(Icons.badge_outlined, color: FurFeelTokens.brand),
+                  leading: Icon(Icons.badge_outlined, color: context.ff.brand),
                   title: const Text('Name'),
                   subtitle: Text(profile?.name ?? '—'),
-                  trailing: Icon(Icons.chevron_right, color: FurFeelTokens.inkMuted),
+                  trailing: Icon(Icons.chevron_right, color: context.ff.inkMuted),
                   onTap: _busy ? null : _editName,
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 ListTile(
-                  leading: Icon(Icons.mail_outline, color: FurFeelTokens.brand),
+                  leading: Icon(Icons.mail_outline, color: context.ff.brand),
                   title: const Text('Email'),
                   subtitle: Text(profile?.email ?? '—'),
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 ListTile(
-                  leading: Icon(Icons.password_outlined, color: FurFeelTokens.brand),
+                  leading: Icon(Icons.password_outlined, color: context.ff.brand),
                   title: const Text('Change password'),
-                  trailing: Icon(Icons.chevron_right, color: FurFeelTokens.inkMuted),
+                  trailing: Icon(Icons.chevron_right, color: context.ff.inkMuted),
                   onTap: _busy ? null : _changePassword,
                 ),
               ],
@@ -251,7 +251,7 @@ class _AccountPageState extends State<AccountPage> {
             onPressed: _busy ? null : _deleteAccount,
             child: Text(
               'Delete account',
-              style: TextStyle(color: FurFeelTokens.statusHighFg),
+              style: TextStyle(color: context.ff.statusHighFg),
             ),
           ).entrance(context, index: 3),
         ],

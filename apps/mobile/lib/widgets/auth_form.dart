@@ -14,18 +14,18 @@ class InlineFormError extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(FurFeelTokens.space3),
       decoration: BoxDecoration(
-        color: FurFeelTokens.statusHighBg,
+        color: context.ff.statusHighBg,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.error_outline, size: 20, color: FurFeelTokens.statusHighFg),
+          Icon(Icons.error_outline, size: 20, color: context.ff.statusHighFg),
           const SizedBox(width: FurFeelTokens.space2),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: FurFeelTokens.statusHighFg),
+              style: TextStyle(color: context.ff.statusHighFg),
             ),
           ),
         ],
@@ -42,7 +42,7 @@ class OrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Divider(color: FurFeelTokens.hairline)),
+        Expanded(child: Divider(color: context.ff.hairline)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: FurFeelTokens.space3),
           child: Text(
@@ -50,10 +50,10 @@ class OrDivider extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
-                ?.copyWith(color: FurFeelTokens.inkMuted),
+                ?.copyWith(color: context.ff.inkMuted),
           ),
         ),
-        Expanded(child: Divider(color: FurFeelTokens.hairline)),
+        Expanded(child: Divider(color: context.ff.hairline)),
       ],
     );
   }
@@ -100,7 +100,7 @@ class BusyButtonLabel extends StatelessWidget {
           height: 18,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: FurFeelTokens.inkMuted,
+            color: context.ff.inkMuted,
           ),
         ),
         const SizedBox(width: FurFeelTokens.space2),

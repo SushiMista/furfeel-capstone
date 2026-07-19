@@ -127,8 +127,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           height: 8,
                           decoration: BoxDecoration(
                             color: i == _index
-                                ? FurFeelTokens.brand
-                                : FurFeelTokens.hairline,
+                                ? context.ff.brand
+                                : context.ff.hairline,
                             borderRadius:
                                 BorderRadius.circular(FurFeelTokens.radiusPill),
                           ),
@@ -149,7 +149,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               child: Text(
                 'Decision support for you and your care team, never a diagnosis.',
                 textAlign: TextAlign.center,
-                style: textTheme.bodySmall?.copyWith(color: FurFeelTokens.inkMuted),
+                style: textTheme.bodySmall?.copyWith(color: context.ff.inkMuted),
               ),
             ),
           ],
@@ -176,17 +176,17 @@ class _SlideView extends StatelessWidget {
             width: 140,
             height: 140,
             decoration: BoxDecoration(
-              color: FurFeelTokens.brandSoft,
+              color: context.ff.brandSoft,
               shape: BoxShape.circle,
             ),
-            child: Icon(slide.icon, size: 64, color: FurFeelTokens.brand),
+            child: Icon(slide.icon, size: 64, color: context.ff.brand),
           ).entrance(context),
           const SizedBox(height: FurFeelTokens.space6),
           Text(
             slide.title,
             textAlign: TextAlign.center,
             style: textTheme.headlineMedium?.copyWith(
-              color: FurFeelTokens.brandInk,
+              color: context.ff.brandInk,
               fontWeight: FontWeight.w800,
             ),
           ).entrance(context, index: 1),
@@ -195,7 +195,7 @@ class _SlideView extends StatelessWidget {
             slide.body,
             textAlign: TextAlign.center,
             style: textTheme.bodyMedium?.copyWith(
-              color: FurFeelTokens.inkMuted,
+              color: context.ff.inkMuted,
               height: 1.5,
             ),
           ).entrance(context, index: 2),

@@ -441,13 +441,13 @@ class _DogSwitcher extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              FurFeelTokens.brand.withValues(alpha: 0.12),
-              FurFeelTokens.brand.withValues(alpha: 0.18),
+              context.ff.brand.withValues(alpha: 0.12),
+              context.ff.brand.withValues(alpha: 0.18),
             ],
           ),
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
           border: Border.all(
-            color: FurFeelTokens.brand.withValues(alpha: 0.25),
+            color: context.ff.brand.withValues(alpha: 0.25),
             width: 1,
           ),
         ),
@@ -459,10 +459,10 @@ class _DogSwitcher extends StatelessWidget {
               width: 22,
               height: 22,
               decoration: BoxDecoration(
-                color: FurFeelTokens.brand.withValues(alpha: 0.15),
+                color: context.ff.brand.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.pets, size: 13, color: FurFeelTokens.brandStrong),
+              child: Icon(Icons.pets, size: 13, color: context.ff.brandStrong),
             ),
             const SizedBox(width: 6),
             // Flexible + ellipsis: a long dog name must never push this Row
@@ -476,14 +476,14 @@ class _DogSwitcher extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: FurFeelTokens.brandStrong,
+                  color: context.ff.brandStrong,
                 ),
               ),
             ),
             if (hasMultiple) ...[
               const SizedBox(width: 2),
               Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 18, color: FurFeelTokens.brandStrong),
+                  size: 18, color: context.ff.brandStrong),
             ],
           ],
         ),
@@ -513,7 +513,7 @@ class _DogSwitcherSheet extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: FurFeelTokens.surface,
+        color: context.ff.surface,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(FurFeelTokens.radiusLg),
         ),
@@ -530,7 +530,7 @@ class _DogSwitcherSheet extends StatelessWidget {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: FurFeelTokens.hairline,
+                color: context.ff.hairline,
                 borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
               ),
             ),
@@ -542,25 +542,25 @@ class _DogSwitcherSheet extends StatelessWidget {
                   horizontal: FurFeelTokens.space5),
               child: Row(
                 children: [
-                  Icon(Icons.pets, size: 18, color: FurFeelTokens.brand),
+                  Icon(Icons.pets, size: 18, color: context.ff.brand),
                   const SizedBox(width: FurFeelTokens.space2),
                   Text(
                     'Your dogs',
                     style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: FurFeelTokens.brandInk,
+                      color: context.ff.brandInk,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: FurFeelTokens.space3),
-            Divider(color: FurFeelTokens.hairline, height: 1),
+            Divider(color: context.ff.hairline, height: 1),
 
             // ── Dog list ─────────────────────────────────────────────────
             for (final dog in dogs) _DogRow(dog: dog, selected: selected, onTap: onSelected),
 
-            Divider(color: FurFeelTokens.hairline, height: 1),
+            Divider(color: context.ff.hairline, height: 1),
 
             // ── Add a dog ─────────────────────────────────────────────────
             InkWell(
@@ -576,21 +576,21 @@ class _DogSwitcherSheet extends StatelessWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: FurFeelTokens.surfaceAlt,
+                        color: context.ff.surfaceAlt,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: FurFeelTokens.hairline,
+                          color: context.ff.hairline,
                           width: 1.5,
                           strokeAlign: BorderSide.strokeAlignOutside,
                         ),
                       ),
-                      child: Icon(Icons.add, color: FurFeelTokens.inkMuted, size: 22),
+                      child: Icon(Icons.add, color: context.ff.inkMuted, size: 22),
                     ),
                     const SizedBox(width: FurFeelTokens.space4),
                     Text(
                       'Add another dog',
                       style: textTheme.bodyMedium?.copyWith(
-                        color: FurFeelTokens.inkMuted,
+                        color: context.ff.inkMuted,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -628,7 +628,7 @@ class _DogRow extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         color: isActive
-            ? FurFeelTokens.brand.withValues(alpha: 0.06)
+            ? context.ff.brand.withValues(alpha: 0.06)
             : Colors.transparent,
         padding: const EdgeInsets.symmetric(
           horizontal: FurFeelTokens.space5,
@@ -643,11 +643,11 @@ class _DogRow extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isActive
-                    ? FurFeelTokens.brand.withValues(alpha: 0.12)
-                    : FurFeelTokens.surfaceAlt,
+                    ? context.ff.brand.withValues(alpha: 0.12)
+                    : context.ff.surfaceAlt,
                 border: isActive
                     ? Border.all(
-                        color: FurFeelTokens.brand,
+                        color: context.ff.brand,
                         width: 2,
                         strokeAlign: BorderSide.strokeAlignOutside,
                       )
@@ -656,7 +656,7 @@ class _DogRow extends StatelessWidget {
               child: Icon(
                 Icons.pets,
                 size: 22,
-                color: isActive ? FurFeelTokens.brand : FurFeelTokens.inkMuted,
+                color: isActive ? context.ff.brand : context.ff.inkMuted,
               ),
             ),
             const SizedBox(width: FurFeelTokens.space4),
@@ -671,8 +671,8 @@ class _DogRow extends StatelessWidget {
                     style: textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isActive
-                          ? FurFeelTokens.brandInk
-                          : FurFeelTokens.ink,
+                          ? context.ff.brandInk
+                          : context.ff.ink,
                     ),
                   ),
                   if (dog.breed != null) ...[
@@ -680,7 +680,7 @@ class _DogRow extends StatelessWidget {
                     Text(
                       dog.breed!,
                       style: textTheme.bodySmall
-                          ?.copyWith(color: FurFeelTokens.inkMuted),
+                          ?.copyWith(color: context.ff.inkMuted),
                     ),
                   ],
                 ],
@@ -695,7 +695,7 @@ class _DogRow extends StatelessWidget {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: FurFeelTokens.brand,
+                  color: context.ff.brand,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check, size: 14, color: Colors.white),
@@ -727,7 +727,7 @@ class _EmptyMessage extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(color: FurFeelTokens.inkMuted),
+            style: TextStyle(color: context.ff.inkMuted),
           ),
         ],
       ),

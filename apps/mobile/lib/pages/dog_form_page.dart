@@ -181,7 +181,7 @@ class _DogFormPageState extends State<DogFormPage> {
             IconButton(
               tooltip: 'Remove profile',
               onPressed: _saving ? null : _delete,
-              icon: Icon(Icons.delete_outline, color: FurFeelTokens.inkMuted),
+              icon: Icon(Icons.delete_outline, color: context.ff.inkMuted),
             ),
         ],
       ),
@@ -196,12 +196,12 @@ class _DogFormPageState extends State<DogFormPage> {
                 borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
                 child: CircleAvatar(
                   radius: 40,
-                  backgroundColor: FurFeelTokens.brandSoft,
+                  backgroundColor: context.ff.brandSoft,
                   child: _photo != null
                       ? Icon(Icons.check_circle_outline,
-                          size: 32, color: FurFeelTokens.brand)
+                          size: 32, color: context.ff.brand)
                       : Icon(Icons.add_a_photo_outlined,
-                          size: 28, color: FurFeelTokens.brand),
+                          size: 28, color: context.ff.brand),
                 ),
               ),
             ),
@@ -236,7 +236,7 @@ class _DogFormPageState extends State<DogFormPage> {
                       : '${_birthdate!.year}-${_birthdate!.month.toString().padLeft(2, '0')}-'
                           '${_birthdate!.day.toString().padLeft(2, '0')}',
                   style: _birthdate == null
-                      ? TextStyle(color: FurFeelTokens.inkMuted)
+                      ? TextStyle(color: context.ff.inkMuted)
                       : null,
                 ),
               ),
@@ -308,12 +308,12 @@ class _DogFormPageState extends State<DogFormPage> {
               Container(
                 padding: const EdgeInsets.all(FurFeelTokens.space3),
                 decoration: BoxDecoration(
-                  color: FurFeelTokens.statusHighBg,
+                  color: context.ff.statusHighBg,
                   borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
                 ),
                 child: Text(
                   _error!,
-                  style: TextStyle(color: FurFeelTokens.statusHighOwner),
+                  style: TextStyle(color: context.ff.statusHighOwner),
                 ),
               ),
             ],

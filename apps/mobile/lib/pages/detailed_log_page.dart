@@ -212,7 +212,7 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
                 padding: const EdgeInsets.only(bottom: FurFeelTokens.space4),
                 child: Text(_error!,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: FurFeelTokens.statusHighOwner)),
+                    style: TextStyle(color: context.ff.statusHighOwner)),
               ),
 
             if (_loading)
@@ -224,34 +224,34 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
               Container(
                 padding: const EdgeInsets.all(FurFeelTokens.space5),
                 decoration: BoxDecoration(
-                  color: FurFeelTokens.surfaceAlt,
+                  color: context.ff.surfaceAlt,
                   borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
                 ),
                 child: Text(
                   'No readings in this period — try a wider range.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: FurFeelTokens.inkMuted),
+                  style: TextStyle(color: context.ff.inkMuted),
                 ),
               )
             else ...[
               _VitalChartCard(
                 title: 'Heart rate',
                 unit: 'bpm',
-                color: FurFeelTokens.statusHighOwner,
+                color: context.ff.statusHighOwner,
                 readings: _readings,
                 pick: (r) => r.heartRateBpm?.toDouble(),
               ),
               _VitalChartCard(
                 title: 'Breathing',
                 unit: 'breaths/min',
-                color: FurFeelTokens.accent,
+                color: context.ff.accent,
                 readings: _readings,
                 pick: (r) => r.respiratoryRateBpm?.toDouble(),
               ),
               _VitalChartCard(
                 title: 'Body temperature',
                 unit: settings.temperatureUnitLabel,
-                color: FurFeelTokens.warm,
+                color: context.ff.warm,
                 readings: _readings,
                 pick: (r) => r.bodyTemperatureC == null
                     ? null
@@ -261,7 +261,7 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
               _VitalChartCard(
                 title: 'Movement',
                 unit: 'of 1',
-                color: FurFeelTokens.brand,
+                color: context.ff.brand,
                 readings: _readings,
                 pick: (r) => r.motionActivity,
                 decimals: 2,
@@ -384,7 +384,7 @@ class _VitalChartCard extends StatelessWidget {
                     gridData: FlGridData(
                       drawVerticalLine: false,
                       getDrawingHorizontalLine: (value) =>
-                          FlLine(color: FurFeelTokens.hairline, strokeWidth: 1),
+                          FlLine(color: context.ff.hairline, strokeWidth: 1),
                     ),
                     titlesData: FlTitlesData(
                       topTitles: const AxisTitles(),
@@ -398,7 +398,7 @@ class _VitalChartCard extends StatelessWidget {
                             meta.formattedValue,
                             style: TextStyle(
                               fontSize: FurFeelTokens.typeCaptionSize,
-                              color: FurFeelTokens.inkMuted,
+                              color: context.ff.inkMuted,
                             ),
                           ),
                         ),
@@ -443,12 +443,12 @@ class _StatChip extends StatelessWidget {
         Text('$label ',
             style: TextStyle(
                 fontSize: FurFeelTokens.typeCaptionSize,
-                color: FurFeelTokens.inkMuted)),
+                color: context.ff.inkMuted)),
         Text(value,
             style: TextStyle(
               fontSize: FurFeelTokens.typeCaptionSize,
               fontWeight: FontWeight.w700,
-              color: FurFeelTokens.ink,
+              color: context.ff.ink,
             )),
       ],
     );

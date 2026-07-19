@@ -45,12 +45,12 @@ class FloatingNavBar extends StatelessWidget {
         child: Container(
           height: 64,
           decoration: BoxDecoration(
-            color: FurFeelTokens.surface,
+            color: context.ff.surface,
             borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
-            border: Border.all(color: FurFeelTokens.hairline),
+            border: Border.all(color: context.ff.hairline),
             boxShadow: [
               BoxShadow(
-                color: FurFeelTokens.ink.withValues(alpha: 0.10),
+                color: context.ff.ink.withValues(alpha: 0.10),
                 offset: const Offset(0, 10),
                 blurRadius: 28,
                 spreadRadius: -6,
@@ -88,7 +88,7 @@ class _FloatingNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? FurFeelTokens.brandStrong : FurFeelTokens.inkMuted;
+    final color = selected ? context.ff.brandStrong : context.ff.inkMuted;
 
     Widget icon = Icon(
       selected ? destination.selectedIcon : destination.icon,
@@ -122,7 +122,7 @@ class _FloatingNavItem extends StatelessWidget {
                   vertical: FurFeelTokens.space1,
                 ),
                 decoration: BoxDecoration(
-                  color: selected ? FurFeelTokens.brandSoft : Colors.transparent,
+                  color: selected ? context.ff.brandSoft : Colors.transparent,
                   borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
                 ),
                 child: Column(

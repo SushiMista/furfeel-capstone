@@ -36,7 +36,7 @@ class VitalNumber extends StatelessWidget {
             style: TextStyle(
               fontSize: FurFeelTokens.typeVitalNumberSize,
               fontWeight: FurFeelTokens.typeVitalNumberWeight,
-              color: FurFeelTokens.ink,
+              color: context.ff.ink,
               height: 1.2,
             ),
             children: [
@@ -46,7 +46,7 @@ class VitalNumber extends StatelessWidget {
                   style: TextStyle(
                     fontSize: FurFeelTokens.typeCaptionSize,
                     fontWeight: FontWeight.w400,
-                    color: FurFeelTokens.inkMuted,
+                    color: context.ff.inkMuted,
                   ),
                 ),
             ],
@@ -57,7 +57,7 @@ class VitalNumber extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: FurFeelTokens.typeCaptionSize,
-            color: FurFeelTokens.inkMuted,
+            color: context.ff.inkMuted,
           ),
         ),
       ],

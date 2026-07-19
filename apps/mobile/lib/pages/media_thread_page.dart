@@ -106,9 +106,9 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
                       child: _mediaUrl == null
                           ? Container(
                               height: 180,
-                              color: FurFeelTokens.surfaceAlt,
+                              color: context.ff.surfaceAlt,
                               child: Icon(Icons.photo_outlined,
-                                  size: 40, color: FurFeelTokens.inkMuted),
+                                  size: 40, color: context.ff.inkMuted),
                             )
                           : Image.network(
                               _mediaUrl!,
@@ -117,9 +117,9 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
                               fit: BoxFit.cover,
                               errorBuilder: (_, _, _) => Container(
                                 height: 180,
-                                color: FurFeelTokens.surfaceAlt,
+                                color: context.ff.surfaceAlt,
                                 child: Icon(Icons.broken_image_outlined,
-                                    size: 40, color: FurFeelTokens.inkMuted),
+                                    size: 40, color: context.ff.inkMuted),
                               ),
                             ),
                     )
@@ -127,7 +127,7 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
                     Container(
                       height: 120,
                       decoration: BoxDecoration(
-                        color: FurFeelTokens.surfaceAlt,
+                        color: context.ff.surfaceAlt,
                         borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
                       ),
                       child: Center(
@@ -135,7 +135,7 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.videocam_outlined,
-                                size: 32, color: FurFeelTokens.inkMuted),
+                                size: 32, color: context.ff.inkMuted),
                             const SizedBox(height: FurFeelTokens.space1),
                             Text('Video shared with your clinic',
                                 style: textTheme.bodySmall),
@@ -204,7 +204,7 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: FurFeelTokens.space2),
                       child: Text(_error!,
-                          style: TextStyle(color: FurFeelTokens.statusHighOwner)),
+                          style: TextStyle(color: context.ff.statusHighOwner)),
                     ),
                   Row(
                     children: [
@@ -259,14 +259,14 @@ class _Bubble extends StatelessWidget {
         padding: const EdgeInsets.all(FurFeelTokens.space3),
         constraints: const BoxConstraints(maxWidth: 300),
         decoration: BoxDecoration(
-          color: mine ? FurFeelTokens.brandSoft : FurFeelTokens.surfaceAlt,
+          color: mine ? context.ff.brandSoft : context.ff.surfaceAlt,
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(author,
-                style: textTheme.labelSmall?.copyWith(color: FurFeelTokens.inkMuted)),
+                style: textTheme.labelSmall?.copyWith(color: context.ff.inkMuted)),
             const SizedBox(height: 2),
             Text(body, style: textTheme.bodyMedium),
             if (timestamp != null) ...[

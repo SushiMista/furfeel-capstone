@@ -5,11 +5,11 @@ import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 
 // Getter, not const: token colors resolve against the active theme.
-Map<StressLevel, Color> get _levelColors => <StressLevel, Color>{
-      StressLevel.calm: FurFeelTokens.statusCalmFg,
-      StressLevel.mild: FurFeelTokens.statusMildFg,
-      StressLevel.moderate: FurFeelTokens.statusModerateFg,
-      StressLevel.high: FurFeelTokens.statusHighOwner,
+Map<StressLevel, Color> _levelColors(BuildContext context) => <StressLevel, Color>{
+      StressLevel.calm: context.ff.statusCalmFg,
+      StressLevel.mild: context.ff.statusMildFg,
+      StressLevel.moderate: context.ff.statusModerateFg,
+      StressLevel.high: context.ff.statusHighOwner,
     };
 
 /// Daily stress mix as a 100%-stacked bar per day: composition, not volume,
@@ -46,9 +46,9 @@ class StressMixChart extends StatelessWidget {
         items.add(BarChartRodStackItem(
           from,
           from + share,
-          _levelColors[level]!,
+          _levelColors(context)[level]!,
           // Hairline surface gap between segments so stacks read as parts.
-          borderSide: BorderSide(color: FurFeelTokens.surface, width: 1),
+          borderSide: BorderSide(color: context.ff.surface, width: 1),
         ));
         from += share;
       }
@@ -113,7 +113,7 @@ class StressMixChart extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 10,
                             height: 1.1,
-                            color: FurFeelTokens.inkMuted,
+                            color: context.ff.inkMuted,
                           ),
                         ),
                       );
@@ -138,7 +138,7 @@ class StressMixChart extends StatelessWidget {
                     width: 10,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: _levelColors[level],
+                      color: _levelColors(context)[level],
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -147,7 +147,7 @@ class StressMixChart extends StatelessWidget {
                     level.name[0].toUpperCase() + level.name.substring(1),
                     style: TextStyle(
                       fontSize: FurFeelTokens.typeCaptionSize,
-                      color: FurFeelTokens.inkMuted,
+                      color: context.ff.inkMuted,
                     ),
                   ),
                 ],
