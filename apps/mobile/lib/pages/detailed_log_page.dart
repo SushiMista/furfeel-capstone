@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:fl_chart/fl_chart.dart';
@@ -10,6 +11,7 @@ import '../theme/furfeel_tokens.dart';
 import '../util/exports.dart';
 import '../util/save_file.dart';
 import '../util/errors.dart';
+import '../util/full_export.dart';
 
 /// Detailed Log, redesigned (QA item 13): friendly per-vital mini-dashboards
 /// over a selectable date range, with downloadable exports — CSV always, plus
@@ -137,6 +139,39 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
           alerts: extras[2] as List<Alert>,
         );
         await saveOrShareFile(bytes, '$_fileStem.pdf', 'application/pdf');
+      });
+
+  // ADDED (step 14, docs/12): the complete per-dog archive — every record the
+  // owner can read under RLS, paged past the PostgREST row cap, one JSON file.
+  Future<void> _exportEverything() => _export(() async {
+        final dogId = widget.dog.id;
+        final results = await Future.wait<Object?>([
+          fetchAllReadings(widget.repository, dogId),
+          fetchAllClassifications(widget.repository, dogId),
+          widget.repository.fetchMyProfile(),
+          widget.repository.fetchBaseline(dogId),
+          widget.repository.fetchDeviceForDog(dogId),
+          widget.repository.fetchAlerts(dogId, limit: 1000),
+          widget.repository.fetchVetNotes(dogId, limit: 1000),
+          widget.repository.fetchStressLabels(dogId, limit: 1000),
+          widget.repository.fetchMediaSubmissions(dogId, limit: 1000),
+        ]);
+        final json = buildFullExportJson(
+          dog: widget.dog,
+          owner: results[2] as UserProfile,
+          baseline: results[3] as DogBaseline?,
+          device: results[4] as Device?,
+          readings: results[0] as List<TelemetryReading>,
+          classifications: results[1] as List<StressClassification>,
+          alerts: results[5] as List<Alert>,
+          vetNotes: results[6] as List<VetNote>,
+          stressLabels: results[7] as List<StressLabelEntry>,
+          media: results[8] as List<MediaSubmission>,
+        );
+        final name =
+            widget.dog.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+        await saveOrShareFile(Uint8List.fromList(utf8.encode(json)),
+            'furfeel-$name-everything.json', 'application/json');
       });
 
   Future<void> _export(Future<void> Function() run) async {
@@ -293,10 +328,18 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
                 ),
               ],
             ),
+            const SizedBox(height: FurFeelTokens.space3),
+            OutlinedButton.icon(
+              onPressed: _exporting ? null : _exportEverything,
+              icon: const Icon(Icons.archive_outlined, size: 18),
+              label: const Text('Download everything (JSON)'),
+            ),
             const SizedBox(height: FurFeelTokens.space2),
             Text(
               'The PDF is a friendly summary to share with your vet; the CSV is '
-              'the raw data. Neither is a medical assessment.',
+              'the raw data. "Everything" is your complete FurFeel archive for '
+              'this dog — readings, stress history, alerts, vet notes, and '
+              'observation records. None of it is a medical assessment.',
               style: textTheme.bodySmall,
             ),
             const SizedBox(height: FurFeelTokens.space5),
