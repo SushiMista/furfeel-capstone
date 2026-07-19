@@ -7,6 +7,7 @@ import '../data/settings_controller.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/motion.dart';
 import '../widgets/user_avatar.dart';
+import '../util/errors.dart';
 
 /// ADDED: Profile / Account (docs/04): name, email, profile photo
 /// (users.avatar_path → avatars bucket), change password, sign out, delete
@@ -37,10 +38,10 @@ class _AccountPageState extends State<AccountPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Something went wrong — please try again.')),
+          SnackBar(content: Text(actionErrorMessage(e, 'That change'))),
         );
       }
     } finally {

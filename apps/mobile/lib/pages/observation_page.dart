@@ -5,6 +5,7 @@ import '../data/furfeel_repository.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/friendly_time.dart';
+import '../util/errors.dart';
 import 'media_thread_page.dart';
 
 /// Observation Assessment (docs/04 module 3): the owner shares notes, photos,
@@ -52,11 +53,11 @@ class _ObservationPageState extends State<ObservationPage> {
         _loading = false;
         _error = null;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Something went wrong loading your submissions. Pull to retry.';
+        _error = loadErrorMessage(e, 'your submissions');
       });
     }
   }
@@ -110,7 +111,7 @@ class _ObservationPageState extends State<ObservationPage> {
         _submitting = false;
         _error = err is FurFeelDataException
             ? err.message
-            : 'Upload failed — please check your connection and try again.';
+            : actionErrorMessage(err, 'The upload');
       });
     }
   }

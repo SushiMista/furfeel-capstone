@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
 import '../models/models.dart';
+import '../util/errors.dart';
+import '../widgets/retry_message.dart';
 import '../widgets/skeletons.dart';
 import 'home_tab.dart';
 
@@ -26,6 +28,7 @@ class _DogDetailPageState extends State<DogDetailPage> {
   List<CareGuidance> _guidance = const [];
   List<VetNoteFeedItem> _vetNotes = const [];
   bool _loading = true;
+  String? _error;
   Unsubscribe? _unsubscribe;
 
   @override
@@ -70,9 +73,16 @@ class _DogDetailPageState extends State<DogDetailPage> {
         _guidance = results[4] as List<CareGuidance>;
         _vetNotes = results[5] as List<VetNoteFeedItem>;
         _loading = false;
+        _error = null;
       });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      // A failed load must not masquerade as "no data yet" (state audit).
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = loadErrorMessage(e, "${widget.dog.name}'s data");
+        });
+      }
     }
   }
 
@@ -82,7 +92,9 @@ class _DogDetailPageState extends State<DogDetailPage> {
       appBar: AppBar(title: Text(widget.dog.name)),
       body: _loading
           ? const HomeSkeleton()
-          : HomeTab(
+          : _error != null
+              ? RetryMessage(message: _error!, onRefresh: _load)
+              : HomeTab(
               repository: widget.repository,
               dog: widget.dog,
               reading: _reading,

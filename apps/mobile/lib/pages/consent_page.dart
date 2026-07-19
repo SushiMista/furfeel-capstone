@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/furfeel_repository.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/motion.dart';
+import '../util/errors.dart';
 
 /// Current data-collection policy version (docs/12). Bumping this makes every
 /// existing user re-consent: the consents table stores one row per accepted
@@ -40,11 +41,11 @@ class _ConsentPageState extends State<ConsentPage> {
     try {
       await widget.repository.acceptConsent(kConsentPolicyVersion);
       if (mounted) widget.onAccepted();
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'Couldn\'t save your consent — please check your connection and try again.';
+        _error = actionErrorMessage(e, 'Saving your consent');
       });
     }
   }

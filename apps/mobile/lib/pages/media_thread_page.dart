@@ -4,6 +4,7 @@ import '../data/furfeel_repository.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/friendly_time.dart';
+import '../util/errors.dart';
 
 /// One submission's conversation (QA item 12): the photo/video, the owner's
 /// note, the clinic's review, and a back-and-forth reply thread
@@ -53,8 +54,12 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
       final messages =
           await widget.repository.fetchMediaMessages(widget.submission.id);
       if (mounted) setState(() => _messages = messages);
-    } catch (_) {
-      // Thread stays at whatever we had; pull-to-refresh retries.
+    } catch (e) {
+      // Keep whatever we already had, but never let a first-load failure look
+      // like an empty conversation (state audit).
+      if (mounted && _messages.isEmpty) {
+        setState(() => _error = loadErrorMessage(e, 'this conversation'));
+      }
     }
   }
 
@@ -74,11 +79,11 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
         _reply.clear();
         _sending = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _sending = false;
-        _error = 'Couldn\'t send — please check your connection and try again.';
+        _error = actionErrorMessage(e, 'Sending');
       });
     }
   }

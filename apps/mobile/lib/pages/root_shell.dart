@@ -7,7 +7,9 @@ import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../widgets/floating_nav_bar.dart';
 import '../widgets/furfeel_logo.dart';
+import '../widgets/retry_message.dart';
 import '../widgets/skeletons.dart';
+import '../util/errors.dart';
 import 'alerts_tab.dart';
 import 'consent_page.dart';
 import 'dog_form_page.dart';
@@ -106,11 +108,11 @@ class _RootShellState extends State<RootShell> {
       });
       final dog = _selectedDog;
       if (dog != null) await _selectDog(dog.id);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Something went wrong loading your dogs. Pull to retry.';
+        _error = loadErrorMessage(e, 'your dogs');
       });
     }
   }
@@ -187,11 +189,11 @@ class _RootShellState extends State<RootShell> {
           }).catchError((_) {});
         },
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted || _selectedDogId != dogId) return;
       setState(() {
         _loading = false;
-        _error = 'Something went wrong loading your dog. Pull to retry.';
+        _error = loadErrorMessage(e, 'your dog');
       });
     }
   }
@@ -326,7 +328,7 @@ class _RootShellState extends State<RootShell> {
 
   Widget _buildBody(Dog? dog) {
     if (_error != null && dog == null) {
-      return _EmptyMessage(message: _error!, onRefresh: _loadDogs);
+      return RetryMessage(message: _error!, onRefresh: _loadDogs);
     }
     if (_loading || dog == null) {
       // Skeletons shaped like the real Home cards, not a spinner (docs/19 §5a).
@@ -339,7 +341,7 @@ class _RootShellState extends State<RootShell> {
       0 when (_dogs?.length ?? 0) > 1 =>
         MultiDogHomeTab(repository: widget.repository, dogs: _dogs!),
       0 => _error != null
-          ? _EmptyMessage(message: _error!, onRefresh: _refresh)
+          ? RetryMessage(message: _error!, onRefresh: _refresh)
           : HomeTab(
               repository: widget.repository,
               dog: dog,
@@ -709,28 +711,3 @@ class _DogRow extends StatelessWidget {
 }
 
 
-class _EmptyMessage extends StatelessWidget {
-  const _EmptyMessage({required this.message, required this.onRefresh});
-
-  final String message;
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(FurFeelTokens.space5),
-        children: [
-          const SizedBox(height: 80),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.ff.inkMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
