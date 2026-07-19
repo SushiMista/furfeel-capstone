@@ -5,9 +5,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../theme/furfeel_tokens.dart';
 import '../util/motion.dart';
+import '../data/demo_repository.dart';
 import '../widgets/auth_form.dart';
 import '../widgets/furfeel_logo.dart';
 import 'login_page.dart';
+import 'root_shell.dart';
 
 /// ADDED: real first-run flow (docs/04 Onboarding/sign-up): a warm animated
 /// welcome, then create account (Supabase Auth) or sign in. After sign-up the
@@ -159,14 +161,32 @@ class WelcomePage extends StatelessWidget {
                 ),
                 4,
               ),
-              const SizedBox(height: FurFeelTokens.space4),
+              const SizedBox(height: FurFeelTokens.space2),
+              // ADDED (step 10): evaluators can explore with zero setup —
+              // fully local sample data, clearly bannered inside.
+              staggered(
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RootShell(
+                        repository: DemoRepository(),
+                        demo: true,
+                        onSignOut: () async => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ),
+                  child: const Text('Explore the demo (sample data)'),
+                ),
+                5,
+              ),
+              const SizedBox(height: FurFeelTokens.space2),
               staggered(
                 Text(
                   'Decision support for you and your care team, never a diagnosis.',
                   textAlign: TextAlign.center,
                   style: textTheme.bodySmall,
                 ),
-                5,
+                6,
               ),
             ],
           ),
