@@ -9,6 +9,7 @@ import { Overview } from "./pages/overview/Overview.tsx";
 import { MonitoringBoard } from "./pages/monitoring_board/MonitoringBoard.tsx";
 import { DogDetail } from "./pages/dog_detail/DogDetail.tsx";
 import { AlertsQueue } from "./pages/alerts/AlertsQueue.tsx";
+import { Handover } from "./pages/handover/Handover.tsx";
 import { Reports } from "./pages/reports/Reports.tsx";
 import { VetReview } from "./pages/vet_review/VetReview.tsx";
 import { Admin } from "./pages/admin/Admin.tsx";
@@ -99,6 +100,14 @@ export function App() {
             element={
               <RequireAuth>
                 <Reports />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/handover"
+            element={
+              <RequireAuth>
+                <Handover />
               </RequireAuth>
             }
           />

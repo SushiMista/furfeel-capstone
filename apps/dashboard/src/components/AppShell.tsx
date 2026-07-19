@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import {
+  ArrowLeftRight,
   Bell,
   FileText,
   LayoutDashboard,
@@ -17,6 +18,7 @@ const NAV = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/board", label: "Monitoring board", icon: Table2 },
   { to: "/alerts", label: "Alerts", icon: Bell },
+  { to: "/handover", label: "Handover", icon: ArrowLeftRight },
   { to: "/reports", label: "Reports", icon: FileText },
 ];
 
