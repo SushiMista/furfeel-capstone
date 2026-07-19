@@ -4,9 +4,12 @@ import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/widgets/stress_pill.dart';
 
 void main() {
-  test('each stress level has a distinct color and soft background', () {
-    final fgs = StressLevel.values.map(stressLevelColor).toSet();
-    final bgs = StressLevel.values.map(stressLevelSoftBg).toSet();
+  testWidgets('each stress level has a distinct color and soft background',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    final context = tester.element(find.byType(SizedBox));
+    final fgs = StressLevel.values.map((l) => stressLevelColor(context, l)).toSet();
+    final bgs = StressLevel.values.map((l) => stressLevelSoftBg(context, l)).toSet();
     expect(fgs.length, StressLevel.values.length);
     expect(bgs.length, StressLevel.values.length);
   });

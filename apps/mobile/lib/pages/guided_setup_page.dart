@@ -75,7 +75,7 @@ class _GuidedSetupPageState extends State<GuidedSetupPage> {
           IconButton(
             tooltip: 'Sign out',
             onPressed: () => widget.onSignOut(),
-            icon: Icon(Icons.logout, color: FurFeelTokens.inkMuted),
+            icon: Icon(Icons.logout, color: context.ff.inkMuted),
           ),
         ],
       ),
@@ -89,7 +89,7 @@ class _GuidedSetupPageState extends State<GuidedSetupPage> {
           const SizedBox(height: FurFeelTokens.space2),
           Text(
             'Three small steps and FurFeel starts watching over your best friend.',
-            style: textTheme.bodyMedium?.copyWith(color: FurFeelTokens.inkMuted),
+            style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
           ).entrance(context, index: 1),
           const SizedBox(height: FurFeelTokens.space5),
           _SetupStep(
@@ -155,15 +155,15 @@ class _SetupStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final circleColor = done
-        ? FurFeelTokens.statusCalmFg
+        ? context.ff.statusCalmFg
         : active
-            ? FurFeelTokens.brand
-            : FurFeelTokens.surfaceAlt;
-    final numberColor = done || active ? FurFeelTokens.surface : FurFeelTokens.inkMuted;
+            ? context.ff.brand
+            : context.ff.surfaceAlt;
+    final numberColor = done || active ? context.ff.surface : context.ff.inkMuted;
 
     return PressScale(
       child: Material(
-        color: FurFeelTokens.surface,
+        color: context.ff.surface,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
         child: InkWell(
           onTap: onTap,
@@ -172,7 +172,7 @@ class _SetupStep extends StatelessWidget {
             padding: const EdgeInsets.all(FurFeelTokens.space4),
             decoration: BoxDecoration(
               border: Border.all(
-                color: active ? FurFeelTokens.brand : FurFeelTokens.hairline,
+                color: active ? context.ff.brand : context.ff.hairline,
                 width: active ? 2 : 1,
               ),
               borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
@@ -186,7 +186,7 @@ class _SetupStep extends StatelessWidget {
                   decoration: BoxDecoration(color: circleColor, shape: BoxShape.circle),
                   child: Center(
                     child: done
-                        ? Icon(Icons.check, size: 20, color: FurFeelTokens.surface)
+                        ? Icon(Icons.check, size: 20, color: context.ff.surface)
                         : Text(
                             '$index',
                             style: TextStyle(
@@ -208,7 +208,7 @@ class _SetupStep extends StatelessWidget {
                   ),
                 ),
                 if (onTap != null)
-                  Icon(Icons.chevron_right, color: FurFeelTokens.inkMuted),
+                  Icon(Icons.chevron_right, color: context.ff.inkMuted),
               ],
             ),
           ),

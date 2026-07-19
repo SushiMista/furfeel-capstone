@@ -155,12 +155,12 @@ class _TrendsTabState extends State<TrendsTab> {
               width: double.infinity,
               padding: const EdgeInsets.all(FurFeelTokens.space6),
               decoration: BoxDecoration(
-                color: FurFeelTokens.surfaceAlt,
+                color: context.ff.surfaceAlt,
                 borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
               ),
               child: Column(
                 children: [
-                  Icon(Icons.insights_outlined, size: 40, color: FurFeelTokens.brand),
+                  Icon(Icons.insights_outlined, size: 40, color: context.ff.brand),
                   const SizedBox(height: FurFeelTokens.space3),
                   Text(
                     'Trends appear after a day or two of wearing the harness — '
@@ -226,14 +226,14 @@ class _TrendsTabState extends State<TrendsTab> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(FurFeelTokens.space5),
                 decoration: BoxDecoration(
-                  color: FurFeelTokens.surfaceAlt,
+                  color: context.ff.surfaceAlt,
                   borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
                 ),
                 child: Text(
                   'Still learning ${dog.name}\'s patterns — insights show up '
                   'once there\'s enough data to be honest about them',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: FurFeelTokens.inkMuted),
+                  style: TextStyle(color: context.ff.inkMuted),
                 ),
               )
             else
@@ -288,7 +288,7 @@ class _StreakCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(FurFeelTokens.space4),
       decoration: BoxDecoration(
-        color: FurFeelTokens.warmSoft,
+        color: context.ff.warmSoft,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
       ),
       child: Row(
@@ -332,18 +332,18 @@ class _CalmWeekHero extends StatelessWidget {
     final delta = (current != null && previous != null) ? current - previous : null;
 
     final (deltaText, deltaColor, deltaIcon) = switch (delta) {
-      null => (null, FurFeelTokens.inkMuted, null),
+      null => (null, context.ff.inkMuted, null),
       >= 0.05 => (
           '+${(delta * 100).round()} pts vs last week',
-          FurFeelTokens.statusCalmFg,
+          context.ff.statusCalmFg,
           Icons.trending_up,
         ),
       <= -0.05 => (
           '${(delta * 100).round()} pts vs last week',
-          FurFeelTokens.warm,
+          context.ff.warm,
           Icons.trending_down,
         ),
-      _ => ('about the same as last week', FurFeelTokens.inkMuted, Icons.trending_flat),
+      _ => ('about the same as last week', context.ff.inkMuted, Icons.trending_flat),
     };
 
     return Card(
@@ -359,7 +359,7 @@ class _CalmWeekHero extends StatelessWidget {
               style: TextStyle(
                 fontSize: 44,
                 fontWeight: FontWeight.w700,
-                color: FurFeelTokens.ink,
+                color: context.ff.ink,
                 height: 1.1,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
@@ -401,18 +401,18 @@ class _InsightCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final (bg, fg, icon) = switch (insight.tone) {
       InsightTone.positive => (
-          FurFeelTokens.statusCalmBg,
-          FurFeelTokens.statusCalmFg,
+          context.ff.statusCalmBg,
+          context.ff.statusCalmFg,
           Icons.favorite_outline,
         ),
       InsightTone.attention => (
-          FurFeelTokens.warmSoft,
-          FurFeelTokens.warm,
+          context.ff.warmSoft,
+          context.ff.warm,
           Icons.lightbulb_outline,
         ),
       InsightTone.neutral => (
-          FurFeelTokens.brandSoft,
-          FurFeelTokens.brand,
+          context.ff.brandSoft,
+          context.ff.brand,
           Icons.insights_outlined,
         ),
     };
@@ -421,9 +421,9 @@ class _InsightCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: FurFeelTokens.space3),
       padding: const EdgeInsets.all(FurFeelTokens.space4),
       decoration: BoxDecoration(
-        color: FurFeelTokens.surface,
+        color: context.ff.surface,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-        border: Border.all(color: FurFeelTokens.hairline),
+        border: Border.all(color: context.ff.hairline),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

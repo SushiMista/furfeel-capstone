@@ -53,7 +53,7 @@ class FurFeelApp extends StatefulWidget {
   State<FurFeelApp> createState() => _FurFeelAppState();
 }
 
-class _FurFeelAppState extends State<FurFeelApp> with WidgetsBindingObserver {
+class _FurFeelAppState extends State<FurFeelApp> {
   static const _onboardingSeenKey = 'furfeel_onboarding_seen_v1';
 
   late final SupabaseClient _client = Supabase.instance.client;
@@ -69,7 +69,6 @@ class _FurFeelAppState extends State<FurFeelApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     if (_client.auth.currentSession != null) _settings.load();
     _client.auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedIn) {
@@ -113,29 +112,27 @@ class _FurFeelAppState extends State<FurFeelApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _settings.dispose();
     super.dispose();
   }
 
   @override
-  void didChangePlatformBrightness() => setState(() {});
-
-  @override
   Widget build(BuildContext context) {
+    // ADDED: theme flows through ThemeData.extensions (FurFeelPalette) now —
+    // MaterialApp owns light/dark/system switching via themeMode, so the old
+    // full-tree rebuild + FurFeelTokens.isDark static are gone.
     return AnimatedBuilder(
       animation: _settings,
       builder: (context, _) {
-        final dark = _settings.resolveDark(
-          WidgetsBinding.instance.platformDispatcher.platformBrightness,
-        );
         return SettingsScope(
           controller: _settings,
           child: MaterialApp(
             title: 'FurFeel',
             navigatorKey: _navigatorKey,
             debugShowCheckedModeBanner: false,
-            theme: buildFurFeelTheme(dark: dark),
+            theme: buildFurFeelTheme(),
+            darkTheme: buildFurFeelTheme(dark: true),
+            themeMode: _settings.themeMode,
             home: !_splashDone || _onboardingSeen == null
                 ? const SplashPage()
                 : StreamBuilder<AuthState>(
@@ -180,7 +177,7 @@ class _MissingConfigApp extends StatelessWidget {
               'Run with:\nflutter run --dart-define-from-file=env.json\n\n'
               '(see apps/mobile/README.md)',
               textAlign: TextAlign.center,
-              style: TextStyle(color: FurFeelTokens.inkMuted),
+              style: TextStyle(color: context.ff.inkMuted),
             ),
           ),
         ),

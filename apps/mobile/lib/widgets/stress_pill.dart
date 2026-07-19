@@ -3,20 +3,20 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 
-Color stressLevelColor(StressLevel level) => switch (level) {
-      StressLevel.calm => FurFeelTokens.statusCalmFg,
-      StressLevel.mild => FurFeelTokens.statusMildFg,
-      StressLevel.moderate => FurFeelTokens.statusModerateFg,
+Color stressLevelColor(BuildContext context, StressLevel level) => switch (level) {
+      StressLevel.calm => context.ff.statusCalmFg,
+      StressLevel.mild => context.ff.statusMildFg,
+      StressLevel.moderate => context.ff.statusModerateFg,
       // Owner app softens `high` to coral for a less alarming feel (docs/19
       // status ramp note); the dashboard keeps the full clinical red.
-      StressLevel.high => FurFeelTokens.statusHighOwner,
+      StressLevel.high => context.ff.statusHighOwner,
     };
 
-Color stressLevelSoftBg(StressLevel level) => switch (level) {
-      StressLevel.calm => FurFeelTokens.statusCalmBg,
-      StressLevel.mild => FurFeelTokens.statusMildBg,
-      StressLevel.moderate => FurFeelTokens.statusModerateBg,
-      StressLevel.high => FurFeelTokens.statusHighBg,
+Color stressLevelSoftBg(BuildContext context, StressLevel level) => switch (level) {
+      StressLevel.calm => context.ff.statusCalmBg,
+      StressLevel.mild => context.ff.statusMildBg,
+      StressLevel.moderate => context.ff.statusModerateBg,
+      StressLevel.high => context.ff.statusHighBg,
     };
 
 /// Status pill (docs/19): soft-bg fill + colored text + a small dot, always
@@ -58,8 +58,8 @@ class _StressPillState extends State<StressPill> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final level = widget.level;
     final large = widget.large;
-    final fg = stressLevelColor(level);
-    final bg = stressLevelSoftBg(level);
+    final fg = stressLevelColor(context, level);
+    final bg = stressLevelSoftBg(context, level);
     return ScaleTransition(
       // 1 → 1.06 → 1: one gentle heartbeat, then still.
       scale: TweenSequence<double>([

@@ -60,7 +60,7 @@ class ProfileTab extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: FurFeelTokens.statusHighFg),
+            style: FilledButton.styleFrom(backgroundColor: context.ff.statusHighFg),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Sign out'),
           ),
@@ -113,14 +113,14 @@ class ProfileTab extends StatelessWidget {
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
-                              ?.copyWith(color: FurFeelTokens.inkMuted),
+                              ?.copyWith(color: context.ff.inkMuted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: FurFeelTokens.inkMuted),
+                  Icon(Icons.chevron_right, color: context.ff.inkMuted),
                 ],
               ),
             ),
@@ -148,8 +148,8 @@ class ProfileTab extends StatelessWidget {
             ),
             SettingsRow(
               icon: Icons.emergency_outlined,
-              iconBackground: FurFeelTokens.warmSoft,
-              iconColor: FurFeelTokens.warm,
+              iconBackground: context.ff.warmSoft,
+              iconColor: context.ff.warm,
               title: 'Emergency Contact',
               subtitle: profile?.emergencyContact ?? 'Not set',
               showChevron: true,
@@ -163,8 +163,8 @@ class ProfileTab extends StatelessWidget {
             ),
             SettingsRow(
               icon: Icons.calendar_month_outlined,
-              iconBackground: FurFeelTokens.statusCalmBg,
-              iconColor: FurFeelTokens.statusCalmFg,
+              iconBackground: context.ff.statusCalmBg,
+              iconColor: context.ff.statusCalmFg,
               title: 'Member Since',
               // Placeholder — will read profile.createdAt once wired
               subtitle: 'July 2025',
@@ -187,8 +187,8 @@ class ProfileTab extends StatelessWidget {
             ),
             SettingsRow(
               icon: Icons.tips_and_updates_outlined,
-              iconBackground: FurFeelTokens.warmSoft,
-              iconColor: FurFeelTokens.warm,
+              iconBackground: context.ff.warmSoft,
+              iconColor: context.ff.warm,
               title: 'Care tips',
               subtitle: 'Guidance for everyday situations',
               onTap: () => Navigator.of(context).push(
@@ -236,7 +236,7 @@ class ProfileTab extends StatelessWidget {
                         tooltip: 'Health records',
                         visualDensity: VisualDensity.compact,
                         icon: Icon(Icons.medical_services_outlined,
-                            color: FurFeelTokens.accent),
+                            color: context.ff.accent),
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) => DogHealthPage(dog: dog),
@@ -247,7 +247,7 @@ class ProfileTab extends StatelessWidget {
                       IconButton(
                         tooltip: 'Harness',
                         visualDensity: VisualDensity.compact,
-                        icon: Icon(Icons.sensors, color: FurFeelTokens.inkMuted),
+                        icon: Icon(Icons.sensors, color: context.ff.inkMuted),
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) =>
@@ -269,8 +269,8 @@ class ProfileTab extends StatelessWidget {
           children: [
             SettingsRow(
               icon: Icons.local_hospital_outlined,
-              iconBackground: FurFeelTokens.statusCalmBg,
-              iconColor: FurFeelTokens.statusCalmFg,
+              iconBackground: context.ff.statusCalmBg,
+              iconColor: context.ff.statusCalmFg,
               title: 'Partner Clinics',
               subtitle: '2 clinics in your area',
               onTap: () => Navigator.of(context).push(

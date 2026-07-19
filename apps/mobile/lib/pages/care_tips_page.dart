@@ -79,7 +79,7 @@ class _CareTipsPageState extends State<CareTipsPage> {
               Padding(
                 padding: const EdgeInsets.only(bottom: FurFeelTokens.space3),
                 child: Text(_error!,
-                    style: TextStyle(color: FurFeelTokens.statusHighOwner)),
+                    style: TextStyle(color: context.ff.statusHighOwner)),
               ),
             Text(
               'Written by care teams for everyday situations. General guidance '
@@ -143,7 +143,7 @@ class _TipCard extends StatelessWidget {
             if (eyebrow != null) ...[
               Text(eyebrow!.toUpperCase(),
                   style: textTheme.labelSmall
-                      ?.copyWith(color: FurFeelTokens.warm)),
+                      ?.copyWith(color: context.ff.warm)),
               const SizedBox(height: FurFeelTokens.space1),
             ],
             Text(title,

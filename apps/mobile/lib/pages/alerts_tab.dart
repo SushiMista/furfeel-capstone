@@ -106,10 +106,10 @@ class _AlertsTabState extends State<AlertsTab> {
           // Messenger-style per-type notification control for the open tab.
           if (groupTypes != null)
             Material(
-              color: FurFeelTokens.surface,
+              color: context.ff.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-                side: BorderSide(color: FurFeelTokens.hairline),
+                side: BorderSide(color: context.ff.hairline),
               ),
               child: SwitchListTile(
                 contentPadding: const EdgeInsets.symmetric(
@@ -120,7 +120,7 @@ class _AlertsTabState extends State<AlertsTab> {
                   style: TextStyle(
                     fontSize: FurFeelTokens.typeBodyMobileSize,
                     fontWeight: FontWeight.w600,
-                    color: FurFeelTokens.ink,
+                    color: context.ff.ink,
                   ),
                 ),
                 subtitle: Text(
@@ -129,7 +129,7 @@ class _AlertsTabState extends State<AlertsTab> {
                       : 'Push notifications are on for this type.',
                   style: TextStyle(
                     fontSize: FurFeelTokens.typeCaptionSize,
-                    color: FurFeelTokens.inkMuted,
+                    color: context.ff.inkMuted,
                   ),
                 ),
                 value: !muted,
@@ -142,7 +142,7 @@ class _AlertsTabState extends State<AlertsTab> {
               width: double.infinity,
               padding: const EdgeInsets.all(FurFeelTokens.space5),
               decoration: BoxDecoration(
-                color: FurFeelTokens.surfaceAlt,
+                color: context.ff.surfaceAlt,
                 borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
               ),
               child: Text(
@@ -150,7 +150,7 @@ class _AlertsTabState extends State<AlertsTab> {
                     ? 'No alerts — ${widget.dog.name} is doing great'
                     : 'No ${_group.label.toLowerCase()} alerts — all clear',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: FurFeelTokens.inkMuted),
+                style: TextStyle(color: context.ff.inkMuted),
               ),
             ).entrance(context, index: 1)
           else

@@ -96,7 +96,7 @@ class WelcomePage extends StatelessWidget {
           .slideY(begin: 0.08, end: 0, duration: 400.ms, curve: Curves.easeOut);
     }
 
-    Widget paw = Icon(Icons.pets, size: 72, color: FurFeelTokens.brand);
+    Widget paw = Icon(Icons.pets, size: 72, color: context.ff.brand);
     if (!reduce) {
       // One gentle settle-in wiggle, then still — welcoming, not busy.
       paw = paw
@@ -123,7 +123,7 @@ class WelcomePage extends StatelessWidget {
                 Text(
                   'FurFeel',
                   style: textTheme.displaySmall?.copyWith(
-                    color: FurFeelTokens.brandInk,
+                    color: context.ff.brandInk,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -135,7 +135,7 @@ class WelcomePage extends StatelessWidget {
                   'Know how your dog is feeling, at home '
                   'or with your clinic, in real time.',
                   textAlign: TextAlign.center,
-                  style: textTheme.bodyMedium?.copyWith(color: FurFeelTokens.inkMuted),
+                  style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
                 ),
                 2,
               ),
@@ -304,7 +304,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     gradient: LinearGradient(
                       colors: [
                         Colors.transparent,
-                        FurFeelTokens.brand.withValues(alpha: 0.20),
+                        context.ff.brand.withValues(alpha: 0.20),
                         Colors.transparent,
                       ],
                     ),
@@ -315,14 +315,14 @@ class _SignUpPageState extends State<SignUpPage> {
                 Text(
                   'Create your account',
                   style: textTheme.headlineSmall?.copyWith(
-                    color: FurFeelTokens.brandInk,
+                    color: context.ff.brandInk,
                     fontWeight: FontWeight.w700,
                   ),
                 ).entrance(context),
                 const SizedBox(height: FurFeelTokens.space2),
                 Text(
                   'One account for all your dogs.',
-                  style: textTheme.bodyMedium?.copyWith(color: FurFeelTokens.inkMuted),
+                  style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
                 ).entrance(context, index: 1),
                 const SizedBox(height: FurFeelTokens.space5),
                 AutofillGroup(
@@ -368,7 +368,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               _obscure
                                   ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
-                              color: FurFeelTokens.inkMuted,
+                              color: context.ff.inkMuted,
                             ),
                           ),
                         ),
@@ -404,7 +404,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       Text(
                         'Already have an account?',
                         style: textTheme.bodyMedium
-                            ?.copyWith(color: FurFeelTokens.inkMuted),
+                            ?.copyWith(color: context.ff.inkMuted),
                       ),
                       TextButton(
                         onPressed: widget.onSignIn,

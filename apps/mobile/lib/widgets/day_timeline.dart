@@ -83,8 +83,8 @@ class _DayTimelineState extends State<DayTimeline> {
                               // The rest of the day hasn't happened yet.
                               ? Colors.transparent
                               : level == null
-                                  ? FurFeelTokens.surfaceAlt
-                                  : stressLevelColor(level),
+                                  ? context.ff.surfaceAlt
+                                  : stressLevelColor(context, level),
                         ),
                       ),
                   ],
@@ -113,7 +113,7 @@ class _DayTimelineState extends State<DayTimeline> {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: stressLevelColor(level),
+                          color: stressLevelColor(context, level),
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
@@ -122,7 +122,7 @@ class _DayTimelineState extends State<DayTimeline> {
                         level.name[0].toUpperCase() + level.name.substring(1),
                         style: TextStyle(
                           fontSize: FurFeelTokens.typeCaptionSize,
-                          color: FurFeelTokens.inkMuted,
+                          color: context.ff.inkMuted,
                         ),
                       ),
                     ],

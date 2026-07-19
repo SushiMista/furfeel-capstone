@@ -217,7 +217,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                 children: [
                   Row(
                     children: [
-                      Icon(widget.kind.icon, color: FurFeelTokens.brand),
+                      Icon(widget.kind.icon, color: context.ff.brand),
                       const SizedBox(width: FurFeelTokens.space2),
                       Text('${widget.dog.name} right now'.toUpperCase(),
                           style: textTheme.labelSmall),
@@ -240,7 +240,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                               style: TextStyle(
                                 fontSize: 44,
                                 fontWeight: FontWeight.w700,
-                                color: FurFeelTokens.ink,
+                                color: context.ff.ink,
                                 height: 1.1,
                               ),
                               children: [
@@ -250,7 +250,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                                     style: TextStyle(
                                       fontSize: FurFeelTokens.typeBodyMobileSize,
                                       fontWeight: FontWeight.w400,
-                                      color: FurFeelTokens.inkMuted,
+                                      color: context.ff.inkMuted,
                                     ),
                                   ),
                               ],
@@ -271,7 +271,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: vitalStatusColor(_status!),
+                            color: vitalStatusColor(context, _status!),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -287,7 +287,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                             ),
                             style: textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: vitalStatusColor(_status!),
+                              color: vitalStatusColor(context, _status!),
                             ),
                           ),
                         ),
@@ -331,7 +331,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                           lineBarsData: [
                             LineChartBarData(
                               spots: _recentSpots(settings),
-                              color: FurFeelTokens.brand,
+                              color: context.ff.brand,
                               barWidth: 2,
                               isCurved: true,
                               preventCurveOverShooting: true,
@@ -342,7 +342,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                           gridData: FlGridData(
                             drawVerticalLine: false,
                             getDrawingHorizontalLine: (value) => FlLine(
-                                color: FurFeelTokens.hairline, strokeWidth: 1),
+                                color: context.ff.hairline, strokeWidth: 1),
                           ),
                           titlesData: FlTitlesData(
                             topTitles: const AxisTitles(),
@@ -356,7 +356,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                                   meta.formattedValue,
                                   style: TextStyle(
                                     fontSize: FurFeelTokens.typeCaptionSize,
-                                    color: FurFeelTokens.inkMuted,
+                                    color: context.ff.inkMuted,
                                   ),
                                 ),
                               ),

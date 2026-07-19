@@ -23,12 +23,12 @@ class DogAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final photoPath = dog.photoPath;
-    final bg = backgroundColor ?? FurFeelTokens.brandSoft;
+    final bg = backgroundColor ?? context.ff.brandSoft;
     if (photoPath == null) {
       return CircleAvatar(
         radius: radius,
         backgroundColor: bg,
-        child: Icon(Icons.pets, size: radius, color: FurFeelTokens.brand),
+        child: Icon(Icons.pets, size: radius, color: context.ff.brand),
       );
     }
     return FutureBuilder<String>(
@@ -39,7 +39,7 @@ class DogAvatar extends StatelessWidget {
           radius: radius,
           backgroundColor: bg,
           foregroundImage: url == null ? null : NetworkImage(url),
-          child: Icon(Icons.pets, size: radius, color: FurFeelTokens.brand),
+          child: Icon(Icons.pets, size: radius, color: context.ff.brand),
         );
       },
     );

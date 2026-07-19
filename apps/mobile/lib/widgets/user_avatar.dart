@@ -28,14 +28,14 @@ class UserAvatar extends StatelessWidget {
       style: TextStyle(
         fontSize: radius * 0.9,
         fontWeight: FontWeight.w700,
-        color: FurFeelTokens.brand,
+        color: context.ff.brand,
       ),
     );
     final avatarPath = profile?.avatarPath;
     if (avatarPath == null) {
       return CircleAvatar(
         radius: radius,
-        backgroundColor: FurFeelTokens.brandSoft,
+        backgroundColor: context.ff.brandSoft,
         child: placeholder,
       );
     }
@@ -45,7 +45,7 @@ class UserAvatar extends StatelessWidget {
         final url = snapshot.data;
         return CircleAvatar(
           radius: radius,
-          backgroundColor: FurFeelTokens.brandSoft,
+          backgroundColor: context.ff.brandSoft,
           foregroundImage: url == null ? null : NetworkImage(url),
           child: placeholder,
         );

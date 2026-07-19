@@ -61,7 +61,7 @@ class _ConsentPageState extends State<ConsentPage> {
               padding: const EdgeInsets.all(FurFeelTokens.space5),
               children: [
                 const SizedBox(height: FurFeelTokens.space5),
-                Icon(Icons.privacy_tip_outlined, size: 40, color: FurFeelTokens.brand)
+                Icon(Icons.privacy_tip_outlined, size: 40, color: context.ff.brand)
                     .entrance(context),
                 const SizedBox(height: FurFeelTokens.space4),
                 Text('Before we start monitoring',
@@ -107,7 +107,7 @@ class _ConsentPageState extends State<ConsentPage> {
                   Text(_error!,
                       textAlign: TextAlign.center,
                       style: textTheme.bodySmall
-                          ?.copyWith(color: FurFeelTokens.statusHighOwner)),
+                          ?.copyWith(color: context.ff.statusHighOwner)),
                 ],
                 const SizedBox(height: FurFeelTokens.space5),
                 ElevatedButton(
@@ -154,10 +154,10 @@ class _ConsentItem extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: FurFeelTokens.brandSoft,
+              color: context.ff.brandSoft,
               borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
             ),
-            child: Icon(icon, size: 20, color: FurFeelTokens.brand),
+            child: Icon(icon, size: 20, color: context.ff.brand),
           ),
           const SizedBox(width: FurFeelTokens.space3),
           Expanded(
