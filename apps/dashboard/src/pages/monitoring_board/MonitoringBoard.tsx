@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { LayoutGrid, Rows3, Search } from "lucide-react";
+import { timed } from "../../lib/perf.ts";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   fetchMonitoringBoard,
@@ -78,7 +79,7 @@ export function MonitoringBoard() {
 
   const load = useCallback(async () => {
     try {
-      const board = await fetchMonitoringBoard(supabase);
+      const board = await timed("board_load", () => fetchMonitoringBoard(supabase));
       setRows(board);
       setError(null);
     } catch (err) {

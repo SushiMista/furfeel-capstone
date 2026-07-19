@@ -132,14 +132,22 @@ function buildPayload(config: SimulatorConfig, tick: number): TelemetryPayload {
 async function postPayload(
   config: SimulatorConfig,
   payload: TelemetryPayload,
-): Promise<{ status: number; body: unknown }> {
+): Promise<{ status: number; body: unknown; ms: number }> {
+  const startedAt = performance.now();
   const res = await fetch(config.functionUrl, {
     method: "POST",
     headers: { "content-type": "application/json", "x-device-key": config.deviceKey },
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => null);
-  return { status: res.status, body };
+  return { status: res.status, body, ms: Math.round(performance.now() - startedAt) };
+}
+
+/** Nearest-rank percentile over the collected round-trip times. */
+function percentile(sortedMs: number[], p: number): number {
+  if (sortedMs.length === 0) return 0;
+  const rank = Math.ceil((p / 100) * sortedMs.length);
+  return sortedMs[Math.min(rank, sortedMs.length) - 1];
 }
 
 function sleep(ms: number): Promise<void> {
@@ -161,15 +169,17 @@ async function main() {
   });
 
   let tick = 0;
+  const latenciesMs: number[] = [];
   while (!stopping && (config.maxTicks === null || tick < config.maxTicks)) {
     const payload = buildPayload(config, tick);
     try {
-      const { status, body } = await postPayload(config, payload);
+      const { status, body, ms } = await postPayload(config, payload);
+      latenciesMs.push(ms);
       console.log(
         `[tick ${tick}] hr=${payload.heart_rate_bpm} rr=${payload.respiratory_rate_bpm} ` +
           `temp=${payload.body_temperature_c} motion=${payload.motion_activity} posture=${payload.posture} ` +
           `battery=${payload.battery_percent}% ` +
-          `-> ${status} ${JSON.stringify(body)}`,
+          `-> ${status} in ${ms}ms ${JSON.stringify(body)}`,
       );
     } catch (err) {
       console.error(`[tick ${tick}] request failed:`, err);
@@ -180,6 +190,15 @@ async function main() {
   }
 
   console.log(`Simulator finished after ${tick} tick(s).`);
+  if (latenciesMs.length > 0) {
+    // Client-observed round-trip percentiles (ISO 25010 performance evidence,
+    // docs/20): includes network + the function's own telemetry_intake_ms.
+    const sorted = [...latenciesMs].sort((a, b) => a - b);
+    console.log(
+      `telemetry-intake round-trip: n=${sorted.length} p50=${percentile(sorted, 50)}ms ` +
+        `p95=${percentile(sorted, 95)}ms max=${sorted[sorted.length - 1]}ms`,
+    );
+  }
 }
 
 main();

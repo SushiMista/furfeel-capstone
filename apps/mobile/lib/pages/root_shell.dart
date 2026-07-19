@@ -10,6 +10,7 @@ import '../widgets/furfeel_logo.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/skeletons.dart';
 import '../util/errors.dart';
+import '../util/perf.dart';
 import 'alerts_tab.dart';
 import 'consent_page.dart';
 import 'dog_form_page.dart';
@@ -140,7 +141,8 @@ class _RootShellState extends State<RootShell> {
 
   Future<void> _loadDogData(String dogId) async {
     try {
-      final results = await Future.wait<Object?>([
+      // [perf] home_load: docs/20 ISO 25010 performance evidence.
+      final results = await timed('home_load', () => Future.wait<Object?>([
         widget.repository.fetchLatestReading(dogId),
         widget.repository.fetchLatestClassification(dogId),
         // Alerts back to 14 days-ish so week-over-week insights are honest.
@@ -150,7 +152,7 @@ class _RootShellState extends State<RootShell> {
         widget.repository.fetchDailyStressSummary(dogId),
         widget.repository.fetchHourlyStressPattern(dogId),
         widget.repository.fetchVetNoteFeed(dogId),
-      ]);
+      ]));
       if (!mounted || _selectedDogId != dogId) return;
       setState(() {
         _latestReading = results[0] as TelemetryReading?;

@@ -20,7 +20,23 @@ function errorResponse(code: string, message: string, status: number): Response 
 // POST /telemetry — docs/10 API and Backend Services, docs/07 Sensor Data Pipeline,
 // docs/08 AI Classification Pipeline. Auth: x-device-key header (device secret), not a
 // Supabase JWT — this function must run with verify_jwt disabled (see supabase/config.toml).
+//
+// ADDED (ISO 25010 performance-efficiency evidence, docs/20): every request
+// logs one structured metric line; grep the function logs for
+// `"metric":"telemetry_intake_ms"` and compute p50/p95 over the ms values.
+// The simulator prints client-observed percentiles at the end of a run too.
 Deno.serve(async (req) => {
+  const startedAt = performance.now();
+  const res = await handleTelemetry(req);
+  console.log(JSON.stringify({
+    metric: "telemetry_intake_ms",
+    ms: Math.round(performance.now() - startedAt),
+    status: res.status,
+  }));
+  return res;
+});
+
+async function handleTelemetry(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return errorResponse("validation_error", "only POST is supported", 400);
   }
@@ -291,4 +307,4 @@ Deno.serve(async (req) => {
     console.error("unhandled error in telemetry-intake", err);
     return errorResponse("internal_error", "unexpected server error", 500);
   }
-});
+}
