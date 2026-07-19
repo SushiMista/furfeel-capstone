@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../data/furfeel_repository.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
+import '../util/errors.dart';
 
 /// Pet Creation / Profiles (docs/04 module 2): create or edit a dog — name,
 /// breed, birthdate (→ age), sex, weight, medical notes, photo, and the clinic
@@ -122,7 +123,7 @@ class _DogFormPageState extends State<DogFormPage> {
         _saving = false;
         _error = err is FurFeelDataException
             ? err.message
-            : 'Saving failed — please check your connection and try again.';
+            : actionErrorMessage(err, 'Saving');
       });
     }
   }
@@ -165,7 +166,7 @@ class _DogFormPageState extends State<DogFormPage> {
         _saving = false;
         _error = err is FurFeelDataException
             ? err.message
-            : 'Removing failed — please try again.';
+            : actionErrorMessage(err, 'Removing');
       });
     }
   }

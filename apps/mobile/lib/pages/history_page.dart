@@ -6,6 +6,7 @@ import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../widgets/stress_pill.dart';
 import '../widgets/vitals_chart.dart';
+import '../util/errors.dart';
 
 const _historyLimit = 50;
 
@@ -46,11 +47,11 @@ class _HistoryViewState extends State<HistoryView> {
         _loading = false;
         _error = null;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Something went wrong loading history. Pull to retry.';
+        _error = loadErrorMessage(e, 'history');
       });
     }
   }

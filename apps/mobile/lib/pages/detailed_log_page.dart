@@ -9,6 +9,7 @@ import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/exports.dart';
 import '../util/save_file.dart';
+import '../util/errors.dart';
 
 /// Detailed Log, redesigned (QA item 13): friendly per-vital mini-dashboards
 /// over a selectable date range, with downloadable exports — CSV always, plus
@@ -73,11 +74,11 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
         _loading = false;
         _error = null;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Something went wrong loading the log. Pull to retry.';
+        _error = loadErrorMessage(e, 'the log');
       });
     }
   }
@@ -143,10 +144,10 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
     setState(() => _exporting = true);
     try {
       await run();
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Export failed — please try again.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(actionErrorMessage(e, 'The export')),
           behavior: SnackBarBehavior.floating,
         ));
       }
