@@ -61,12 +61,34 @@ function DeviceStatus({ status }: { status: string | undefined }) {
 type BoardView = "grid" | "table";
 const VIEW_KEY = "furfeel:board-view";
 
+// ADDED (step 16): quick filters for triage. "attention" = above-calm OR
+// offline OR open alerts; "offline" = offline harnesses only; the stress
+// levels match the current classification exactly.
+const BOARD_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "attention", label: "Needs attention" },
+  { id: "offline", label: "Offline devices" },
+  { id: "moderate", label: "Moderate" },
+  { id: "high", label: "High" },
+] as const;
+type BoardFilter = (typeof BOARD_FILTERS)[number]["id"];
+const FILTER_KEY = "furfeel:board-filter";
+
 /** Multi-dog live board (docs/05 module 1): stress-sorted, Realtime, filterable. */
 export function MonitoringBoard() {
   const [rows, setRows] = useState<MonitoringBoardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "attention">("all");
+  // ADDED (step 16): saved filters — the choice persists per browser like the
+  // view toggle, so "offline devices" or a stress level survives a reload.
+  const [filter, setFilter] = useState<BoardFilter>(() => {
+    const saved = localStorage.getItem(FILTER_KEY);
+    return BOARD_FILTERS.some((f) => f.id === saved) ? (saved as BoardFilter) : "all";
+  });
+  const switchFilter = (next: BoardFilter) => {
+    setFilter(next);
+    localStorage.setItem(FILTER_KEY, next);
+  };
   const [search, setSearch] = useState("");
   const [view, setView] = useState<BoardView>(() =>
     localStorage.getItem(VIEW_KEY) === "table" ? "table" : "grid",
@@ -122,6 +144,12 @@ export function MonitoringBoard() {
           r.device?.status === "offline" ||
           r.openAlertCount > 0,
       );
+    } else if (filter === "offline") {
+      filtered = filtered.filter((r) => r.device?.status === "offline");
+    } else if (filter === "moderate" || filter === "high") {
+      filtered = filtered.filter(
+        (r) => r.latestClassification?.stress_level === filter,
+      );
     }
     const q = search.trim().toLowerCase();
     if (q) {
@@ -159,20 +187,17 @@ export function MonitoringBoard() {
               aria-label="Search dogs"
             />
           </div>
-          <Button
-            variant={filter === "all" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setFilter("all")}
-          >
-            All
-          </Button>
-          <Button
-            variant={filter === "attention" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setFilter("attention")}
-          >
-            Needs attention
-          </Button>
+          {BOARD_FILTERS.map((f) => (
+            <Button
+              key={f.id}
+              variant={filter === f.id ? "secondary" : "ghost"}
+              size="sm"
+              aria-pressed={filter === f.id}
+              onClick={() => switchFilter(f.id)}
+            >
+              {f.label}
+            </Button>
+          ))}
           {/* ADDED: grid ↔ compact table toggle (docs/05). */}
           <div
             className="ml-1 flex rounded-md border border-hairline"
