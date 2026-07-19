@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient.ts";
-import { acknowledgeAlert, fetchAlertsQueue, fetchDogs } from "../../lib/queries.ts";
+import { acknowledgeAlert, acknowledgeAlerts, fetchAlertsQueue, fetchDogs } from "../../lib/queries.ts";
 import { useAuth } from "../../lib/useAuth.ts";
 import { useRealtimeInsert } from "../../lib/useRealtimeInsert.ts";
 import { AlertCard } from "../../components/AlertCard.tsx";
+import { Button } from "../../components/ui/button.tsx";
 import { Card, CardContent } from "../../components/ui/card.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
@@ -20,6 +21,7 @@ export function AlertsQueue() {
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [acking, setAcking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -60,6 +62,27 @@ export function AlertsQueue() {
     [alerts],
   );
 
+  // ADDED (step 16): one-click triage for a noisy morning — flips every open
+  // alert with the same guarded update the per-card button uses.
+  const openIds = useMemo(
+    () => sorted.filter((a) => a.status === "open").map((a) => a.id),
+    [sorted],
+  );
+  const acknowledgeAllOpen = async () => {
+    const userId = session?.user.id;
+    if (!userId || openIds.length === 0) return;
+    setAcking(true);
+    try {
+      const updated = await acknowledgeAlerts(supabase, openIds, userId);
+      const byId = new Map(updated.map((a) => [a.id, a]));
+      setAlerts((prev) => prev.map((a) => byId.get(a.id) ?? a));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to acknowledge alerts");
+    } finally {
+      setAcking(false);
+    }
+  };
+
   if (loading) return <CardSkeleton lines={5} />;
   if (error)
     return (
@@ -72,6 +95,12 @@ export function AlertsQueue() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="m-0 text-2xl font-bold text-ink">Alerts queue</h1>
+        <div className="flex items-center gap-3">
+        {openIds.length > 1 && (
+          <Button size="sm" variant="secondary" disabled={acking} onClick={acknowledgeAllOpen}>
+            {acking ? "Acknowledging…" : `Acknowledge all open (${openIds.length})`}
+          </Button>
+        )}
         <label className="inline-flex items-center gap-2 text-xs font-medium text-ink-muted">
           <input
             type="checkbox"
@@ -81,6 +110,7 @@ export function AlertsQueue() {
           />
           Include acknowledged &amp; resolved
         </label>
+        </div>
       </div>
       <Card>
         <CardContent className="p-5">

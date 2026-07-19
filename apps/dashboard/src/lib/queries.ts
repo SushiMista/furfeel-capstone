@@ -240,6 +240,29 @@ export async function acknowledgeAlert(
   return data as unknown as Alert | null;
 }
 
+/** ADDED (step 16): bulk-acknowledge for triage. Same open-status guard and
+ * RLS as the single ack, one round trip; returns the rows actually flipped so
+ * races (someone else acked first) reconcile in the UI. */
+export async function acknowledgeAlerts(
+  client: SupabaseClient,
+  alertIds: string[],
+  userId: string,
+): Promise<Alert[]> {
+  if (alertIds.length === 0) return [];
+  const { data, error } = await client
+    .from("alerts")
+    .update({
+      status: "acknowledged",
+      acknowledged_by: userId,
+      acknowledged_at: new Date().toISOString(),
+    })
+    .in("id", alertIds)
+    .eq("status", "open")
+    .select(ALERT_COLUMNS);
+  if (error) throw error;
+  return (data ?? []) as unknown as Alert[];
+}
+
 /** The signed-in user's role from public.users (users_select_own RLS). Used only to
  * decide what UI to offer — RLS remains the actual gate on every write. */
 export async function fetchCurrentUserRole(
