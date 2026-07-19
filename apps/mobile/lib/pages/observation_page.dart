@@ -164,7 +164,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                       ? Icons.videocam
                                       : Icons.photo,
                                   size: 18,
-                                  color: FurFeelTokens.brand,
+                                  color: context.ff.brand,
                                 ),
                                 const SizedBox(width: FurFeelTokens.space2),
                                 Expanded(
@@ -200,7 +200,7 @@ class _ObservationPageState extends State<ObservationPage> {
                             const SizedBox(height: FurFeelTokens.space3),
                             Text(
                               _error!,
-                              style: TextStyle(color: FurFeelTokens.statusHighOwner),
+                              style: TextStyle(color: context.ff.statusHighOwner),
                             ),
                           ],
                           const SizedBox(height: FurFeelTokens.space4),
@@ -227,14 +227,14 @@ class _ObservationPageState extends State<ObservationPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(FurFeelTokens.space5),
                       decoration: BoxDecoration(
-                        color: FurFeelTokens.surfaceAlt,
+                        color: context.ff.surfaceAlt,
                         borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
                       ),
                       child: Text(
                         'Nothing shared yet — photos and videos help your clinic '
                         'see the moments behind the readings',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: FurFeelTokens.inkMuted),
+                        style: TextStyle(color: context.ff.inkMuted),
                       ),
                     )
                   else
@@ -288,7 +288,7 @@ class _SubmissionTile extends StatelessWidget {
               Icon(
                 submission.mediaType == 'video' ? Icons.videocam : Icons.photo,
                 size: 18,
-                color: FurFeelTokens.inkMuted,
+                color: context.ff.inkMuted,
               ),
               const SizedBox(width: FurFeelTokens.space2),
               Expanded(
@@ -304,8 +304,8 @@ class _SubmissionTile extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: submission.isReviewed
-                      ? FurFeelTokens.statusCalmBg
-                      : FurFeelTokens.brandSoft,
+                      ? context.ff.statusCalmBg
+                      : context.ff.brandSoft,
                   borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
                 ),
                 child: Text(
@@ -314,8 +314,8 @@ class _SubmissionTile extends StatelessWidget {
                     fontSize: FurFeelTokens.typeCaptionSize,
                     fontWeight: FontWeight.w600,
                     color: submission.isReviewed
-                        ? FurFeelTokens.statusCalmFg
-                        : FurFeelTokens.brandStrong,
+                        ? context.ff.statusCalmFg
+                        : context.ff.brandStrong,
                   ),
                 ),
               ),

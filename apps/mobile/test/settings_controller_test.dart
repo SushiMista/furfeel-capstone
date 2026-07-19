@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/material.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
@@ -22,19 +22,17 @@ void main() {
     final controller = SettingsController(FakeRepository());
     // QA: new installs open in light regardless of OS brightness.
     expect(controller.settings.theme, 'light');
-    expect(controller.resolveDark(Brightness.dark), isFalse);
-    expect(controller.resolveDark(Brightness.light), isFalse);
+    expect(controller.themeMode, ThemeMode.light);
 
     controller.settings = const UserSettings(theme: 'dark');
-    expect(controller.resolveDark(Brightness.light), isTrue);
+    expect(controller.themeMode, ThemeMode.dark);
 
     controller.settings = const UserSettings(theme: 'system');
-    expect(controller.resolveDark(Brightness.dark), isTrue);
-    expect(controller.resolveDark(Brightness.light), isFalse);
+    expect(controller.themeMode, ThemeMode.system);
 
     // Unknown values fall back to light, never to the OS.
     controller.settings = UserSettings.fromMap(const {'theme': 'sepia'});
-    expect(controller.resolveDark(Brightness.dark), isFalse);
+    expect(controller.themeMode, ThemeMode.light);
   });
 
   test('copyWith can clear quiet hours with explicit nulls', () {

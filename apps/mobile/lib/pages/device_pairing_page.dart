@@ -156,12 +156,12 @@ class _DevicePairingPageState extends State<DevicePairingPage> {
                     Container(
                       padding: const EdgeInsets.all(FurFeelTokens.space3),
                       decoration: BoxDecoration(
-                        color: FurFeelTokens.statusHighBg,
+                        color: context.ff.statusHighBg,
                         borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
                       ),
                       child: Text(
                         _error!,
-                        style: TextStyle(color: FurFeelTokens.statusHighOwner),
+                        style: TextStyle(color: context.ff.statusHighOwner),
                       ),
                     ),
                   ],
@@ -184,10 +184,10 @@ class _PairedCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final offline = device.status == 'offline';
     final statusColor = device.isOnline
-        ? FurFeelTokens.statusCalmFg
+        ? context.ff.statusCalmFg
         : offline
-            ? FurFeelTokens.statusHighOwner
-            : FurFeelTokens.inkMuted;
+            ? context.ff.statusHighOwner
+            : context.ff.inkMuted;
 
     return Card(
       child: Padding(
@@ -210,10 +210,10 @@ class _PairedCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: device.isOnline
-                        ? FurFeelTokens.statusCalmBg
+                        ? context.ff.statusCalmBg
                         : offline
-                            ? FurFeelTokens.statusHighBg
-                            : FurFeelTokens.surfaceAlt,
+                            ? context.ff.statusHighBg
+                            : context.ff.surfaceAlt,
                     borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
                   ),
                   child: Text(
@@ -235,7 +235,7 @@ class _PairedCard extends StatelessWidget {
                   Icon(
                     batteryIconFor(device.batteryPercent!),
                     size: 18,
-                    color: batteryColorFor(device.batteryPercent!),
+                    color: batteryColorFor(context, device.batteryPercent!),
                   ),
                   const SizedBox(width: FurFeelTokens.space1),
                   Text(
@@ -244,8 +244,8 @@ class _PairedCard extends StatelessWidget {
                     style: textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: device.isBatteryLow
-                          ? FurFeelTokens.statusHighOwner
-                          : FurFeelTokens.ink,
+                          ? context.ff.statusHighOwner
+                          : context.ff.ink,
                     ),
                   ),
                 ],

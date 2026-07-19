@@ -3,13 +3,11 @@
 
 import 'package:flutter/material.dart';
 
-// ADDED: dark theme — colors resolve through FurFeelTokens.isDark, which the
-// app root sets from user_settings.theme (+ platform brightness) before each
-// build. The full-tree rebuild on theme change keeps every widget in sync.
-// ponytail: static flag + getters over a ThemeExtension refactor; migrate if
-// per-subtree theming is ever needed.
-class _Palette {
-  const _Palette({
+/// FurFeel colors as a Material [ThemeExtension] (docs/19 Design Guide).
+/// Registered on [ThemeData.extensions] by buildFurFeelTheme; read it with
+/// `context.ff` (word + dot always, never color alone).
+class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
+  const FurFeelPalette({
     required this.bg,
     required this.surface,
     required this.surfaceAlt,
@@ -33,6 +31,7 @@ class _Palette {
     required this.statusHighBg,
     required this.statusHighOwner,
   });
+
   final Color bg;
   final Color surface;
   final Color surfaceAlt;
@@ -55,88 +54,146 @@ class _Palette {
   final Color statusHighFg;
   final Color statusHighBg;
   final Color statusHighOwner;
+
+  static const light = FurFeelPalette(
+    bg: Color(0xFFF7F9FC),
+    surface: Color(0xFFFFFFFF),
+    surfaceAlt: Color(0xFFF1F5F9),
+    ink: Color(0xFF0F172A),
+    inkMuted: Color(0xFF64748B),
+    hairline: Color(0xFFE2E8F0),
+    brand: Color(0xFF2563EB),
+    brandStrong: Color(0xFF1D4ED8),
+    brandInk: Color(0xFF1E3A8A),
+    brandSoft: Color(0xFFEAF1FE),
+    accent: Color(0xFF14B8A6),
+    warm: Color(0xFFF59E0B),
+    warmSoft: Color(0xFFFEF3E2),
+    statusCalmFg: Color(0xFF0F9D8C),
+    statusCalmBg: Color(0xFFE6F6F3),
+    statusMildFg: Color(0xFFCA8A04),
+    statusMildBg: Color(0xFFFBF3D6),
+    statusModerateFg: Color(0xFFEA7317),
+    statusModerateBg: Color(0xFFFCEBD9),
+    statusHighFg: Color(0xFFDC2626),
+    statusHighBg: Color(0xFFFBE4E2),
+    statusHighOwner: Color(0xFFE5533D),
+  );
+
+  static const dark = FurFeelPalette(
+    bg: Color(0xFF0B1220),
+    surface: Color(0xFF111B2E),
+    surfaceAlt: Color(0xFF18243B),
+    ink: Color(0xFFE6EDF8),
+    inkMuted: Color(0xFF94A7C4),
+    hairline: Color(0xFF223250),
+    brand: Color(0xFF5B8DEF),
+    brandStrong: Color(0xFF7DA4F3),
+    brandInk: Color(0xFFBFD2F8),
+    brandSoft: Color(0xFF17294B),
+    accent: Color(0xFF2DD4BF),
+    warm: Color(0xFFF5B04A),
+    warmSoft: Color(0xFF33270F),
+    statusCalmFg: Color(0xFF3BC9B4),
+    statusCalmBg: Color(0xFF0D2B27),
+    statusMildFg: Color(0xFFE3B93B),
+    statusMildBg: Color(0xFF2C2409),
+    statusModerateFg: Color(0xFFF0914B),
+    statusModerateBg: Color(0xFF33200D),
+    statusHighFg: Color(0xFFF07364),
+    statusHighBg: Color(0xFF391411),
+    statusHighOwner: Color(0xFFF08A7B),
+  );
+
+  @override
+  FurFeelPalette copyWith({
+    Color? bg,
+    Color? surface,
+    Color? surfaceAlt,
+    Color? ink,
+    Color? inkMuted,
+    Color? hairline,
+    Color? brand,
+    Color? brandStrong,
+    Color? brandInk,
+    Color? brandSoft,
+    Color? accent,
+    Color? warm,
+    Color? warmSoft,
+    Color? statusCalmFg,
+    Color? statusCalmBg,
+    Color? statusMildFg,
+    Color? statusMildBg,
+    Color? statusModerateFg,
+    Color? statusModerateBg,
+    Color? statusHighFg,
+    Color? statusHighBg,
+    Color? statusHighOwner,
+  }) =>
+      FurFeelPalette(
+        bg: bg ?? this.bg,
+        surface: surface ?? this.surface,
+        surfaceAlt: surfaceAlt ?? this.surfaceAlt,
+        ink: ink ?? this.ink,
+        inkMuted: inkMuted ?? this.inkMuted,
+        hairline: hairline ?? this.hairline,
+        brand: brand ?? this.brand,
+        brandStrong: brandStrong ?? this.brandStrong,
+        brandInk: brandInk ?? this.brandInk,
+        brandSoft: brandSoft ?? this.brandSoft,
+        accent: accent ?? this.accent,
+        warm: warm ?? this.warm,
+        warmSoft: warmSoft ?? this.warmSoft,
+        statusCalmFg: statusCalmFg ?? this.statusCalmFg,
+        statusCalmBg: statusCalmBg ?? this.statusCalmBg,
+        statusMildFg: statusMildFg ?? this.statusMildFg,
+        statusMildBg: statusMildBg ?? this.statusMildBg,
+        statusModerateFg: statusModerateFg ?? this.statusModerateFg,
+        statusModerateBg: statusModerateBg ?? this.statusModerateBg,
+        statusHighFg: statusHighFg ?? this.statusHighFg,
+        statusHighBg: statusHighBg ?? this.statusHighBg,
+        statusHighOwner: statusHighOwner ?? this.statusHighOwner,
+      );
+
+  @override
+  FurFeelPalette lerp(FurFeelPalette? other, double t) {
+    if (other == null) return this;
+    return FurFeelPalette(
+      bg: Color.lerp(bg, other.bg, t)!,
+      surface: Color.lerp(surface, other.surface, t)!,
+      surfaceAlt: Color.lerp(surfaceAlt, other.surfaceAlt, t)!,
+      ink: Color.lerp(ink, other.ink, t)!,
+      inkMuted: Color.lerp(inkMuted, other.inkMuted, t)!,
+      hairline: Color.lerp(hairline, other.hairline, t)!,
+      brand: Color.lerp(brand, other.brand, t)!,
+      brandStrong: Color.lerp(brandStrong, other.brandStrong, t)!,
+      brandInk: Color.lerp(brandInk, other.brandInk, t)!,
+      brandSoft: Color.lerp(brandSoft, other.brandSoft, t)!,
+      accent: Color.lerp(accent, other.accent, t)!,
+      warm: Color.lerp(warm, other.warm, t)!,
+      warmSoft: Color.lerp(warmSoft, other.warmSoft, t)!,
+      statusCalmFg: Color.lerp(statusCalmFg, other.statusCalmFg, t)!,
+      statusCalmBg: Color.lerp(statusCalmBg, other.statusCalmBg, t)!,
+      statusMildFg: Color.lerp(statusMildFg, other.statusMildFg, t)!,
+      statusMildBg: Color.lerp(statusMildBg, other.statusMildBg, t)!,
+      statusModerateFg: Color.lerp(statusModerateFg, other.statusModerateFg, t)!,
+      statusModerateBg: Color.lerp(statusModerateBg, other.statusModerateBg, t)!,
+      statusHighFg: Color.lerp(statusHighFg, other.statusHighFg, t)!,
+      statusHighBg: Color.lerp(statusHighBg, other.statusHighBg, t)!,
+      statusHighOwner: Color.lerp(statusHighOwner, other.statusHighOwner, t)!,
+    );
+  }
 }
 
-const _light = _Palette(
-  bg: Color(0xFFF7F9FC),
-  surface: Color(0xFFFFFFFF),
-  surfaceAlt: Color(0xFFF1F5F9),
-  ink: Color(0xFF0F172A),
-  inkMuted: Color(0xFF64748B),
-  hairline: Color(0xFFE2E8F0),
-  brand: Color(0xFF2563EB),
-  brandStrong: Color(0xFF1D4ED8),
-  brandInk: Color(0xFF1E3A8A),
-  brandSoft: Color(0xFFEAF1FE),
-  accent: Color(0xFF14B8A6),
-  warm: Color(0xFFF59E0B),
-  warmSoft: Color(0xFFFEF3E2),
-  statusCalmFg: Color(0xFF0F9D8C),
-  statusCalmBg: Color(0xFFE6F6F3),
-  statusMildFg: Color(0xFFCA8A04),
-  statusMildBg: Color(0xFFFBF3D6),
-  statusModerateFg: Color(0xFFEA7317),
-  statusModerateBg: Color(0xFFFCEBD9),
-  statusHighFg: Color(0xFFDC2626),
-  statusHighBg: Color(0xFFFBE4E2),
-  statusHighOwner: Color(0xFFE5533D),
-);
+/// `context.ff.brand` — the palette for the ambient theme. Falls back to
+/// light when no FurFeel theme is installed (e.g. bare-widget tests).
+extension FurFeelPaletteContext on BuildContext {
+  FurFeelPalette get ff =>
+      Theme.of(this).extension<FurFeelPalette>() ?? FurFeelPalette.light;
+}
 
-const _dark = _Palette(
-  bg: Color(0xFF0B1220),
-  surface: Color(0xFF111B2E),
-  surfaceAlt: Color(0xFF18243B),
-  ink: Color(0xFFE6EDF8),
-  inkMuted: Color(0xFF94A7C4),
-  hairline: Color(0xFF223250),
-  brand: Color(0xFF5B8DEF),
-  brandStrong: Color(0xFF7DA4F3),
-  brandInk: Color(0xFFBFD2F8),
-  brandSoft: Color(0xFF17294B),
-  accent: Color(0xFF2DD4BF),
-  warm: Color(0xFFF5B04A),
-  warmSoft: Color(0xFF33270F),
-  statusCalmFg: Color(0xFF3BC9B4),
-  statusCalmBg: Color(0xFF0D2B27),
-  statusMildFg: Color(0xFFE3B93B),
-  statusMildBg: Color(0xFF2C2409),
-  statusModerateFg: Color(0xFFF0914B),
-  statusModerateBg: Color(0xFF33200D),
-  statusHighFg: Color(0xFFF07364),
-  statusHighBg: Color(0xFF391411),
-  statusHighOwner: Color(0xFFF08A7B),
-);
-
-/// FurFeel design tokens (docs/19 Design Guide — blue + white).
+/// FurFeel non-color design tokens (docs/19 Design Guide).
 abstract final class FurFeelTokens {
-  /// Set by the app root before building; see furfeel_theme.dart.
-  static bool isDark = false;
-  static _Palette get _p => isDark ? _dark : _light;
-
-  // Color — resolved against the active theme (word + dot always, never color alone)
-  static Color get bg => _p.bg;
-  static Color get surface => _p.surface;
-  static Color get surfaceAlt => _p.surfaceAlt;
-  static Color get ink => _p.ink;
-  static Color get inkMuted => _p.inkMuted;
-  static Color get hairline => _p.hairline;
-  static Color get brand => _p.brand;
-  static Color get brandStrong => _p.brandStrong;
-  static Color get brandInk => _p.brandInk;
-  static Color get brandSoft => _p.brandSoft;
-  static Color get accent => _p.accent;
-  static Color get warm => _p.warm;
-  static Color get warmSoft => _p.warmSoft;
-  static Color get statusCalmFg => _p.statusCalmFg;
-  static Color get statusCalmBg => _p.statusCalmBg;
-  static Color get statusMildFg => _p.statusMildFg;
-  static Color get statusMildBg => _p.statusMildBg;
-  static Color get statusModerateFg => _p.statusModerateFg;
-  static Color get statusModerateBg => _p.statusModerateBg;
-  static Color get statusHighFg => _p.statusHighFg;
-  static Color get statusHighBg => _p.statusHighBg;
-  static Color get statusHighOwner => _p.statusHighOwner;
-
   // Radius (mobile set — rounder and friendlier than the dashboard)
   static const double radiusSm = 12;
   static const double radiusMd = 16;

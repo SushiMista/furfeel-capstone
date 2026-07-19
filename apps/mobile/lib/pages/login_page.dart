@@ -111,7 +111,7 @@ class _LoginPageState extends State<LoginPage> {
                     gradient: LinearGradient(
                       colors: [
                         Colors.transparent,
-                        FurFeelTokens.brand.withValues(alpha: 0.20),
+                        context.ff.brand.withValues(alpha: 0.20),
                         Colors.transparent,
                       ],
                     ),
@@ -123,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
                 Text(
                   'Welcome back',
                   style: textTheme.headlineSmall?.copyWith(
-                    color: FurFeelTokens.brandInk,
+                    color: context.ff.brandInk,
                     fontWeight: FontWeight.w700,
                   ),
                 ).entrance(context),
@@ -131,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
                 Text(
                   'Sign in to see how your dog is doing.',
                   style: textTheme.bodyMedium
-                      ?.copyWith(color: FurFeelTokens.inkMuted),
+                      ?.copyWith(color: context.ff.inkMuted),
                 ).entrance(context, index: 1),
                 const SizedBox(height: FurFeelTokens.space5),
 
@@ -170,7 +170,7 @@ class _LoginPageState extends State<LoginPage> {
                               _obscure
                                   ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
-                              color: FurFeelTokens.inkMuted,
+                              color: context.ff.inkMuted,
                             ),
                           ),
                         ),
@@ -214,7 +214,7 @@ class _LoginPageState extends State<LoginPage> {
                       Text(
                         'New here?',
                         style: textTheme.bodyMedium
-                            ?.copyWith(color: FurFeelTokens.inkMuted),
+                            ?.copyWith(color: context.ff.inkMuted),
                       ),
                       TextButton(
                         onPressed: widget.onCreateAccount,

@@ -27,12 +27,12 @@ enum VitalStatus {
 }
 
 /// Token color for a status (word + color, never color alone — docs/19 §9).
-Color vitalStatusColor(VitalStatus status) => switch (status) {
+Color vitalStatusColor(BuildContext context, VitalStatus status) => switch (status) {
       // Low is a heads-up, not "good": amber like mild.
-      VitalStatus.low => FurFeelTokens.statusMildFg,
-      VitalStatus.normal => FurFeelTokens.statusCalmFg,
-      VitalStatus.elevated => FurFeelTokens.statusModerateFg,
-      VitalStatus.high => FurFeelTokens.statusHighOwner,
+      VitalStatus.low => context.ff.statusMildFg,
+      VitalStatus.normal => context.ff.statusCalmFg,
+      VitalStatus.elevated => context.ff.statusModerateFg,
+      VitalStatus.high => context.ff.statusHighOwner,
     };
 
 // Global default baselines (classifier_config.json global_baselines).

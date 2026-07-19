@@ -58,13 +58,13 @@ class PartnerClinicsPage extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  FurFeelTokens.brand.withValues(alpha: 0.08),
-                  FurFeelTokens.accent.withValues(alpha: 0.06),
+                  context.ff.brand.withValues(alpha: 0.08),
+                  context.ff.accent.withValues(alpha: 0.06),
                 ],
               ),
               borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
               border: Border.all(
-                color: FurFeelTokens.brand.withValues(alpha: 0.15),
+                color: context.ff.brand.withValues(alpha: 0.15),
               ),
             ),
             child: Row(
@@ -73,13 +73,13 @@ class PartnerClinicsPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: FurFeelTokens.brand.withValues(alpha: 0.12),
+                    color: context.ff.brand.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.verified_outlined,
                     size: 20,
-                    color: FurFeelTokens.brand,
+                    color: context.ff.brand,
                   ),
                 ),
                 const SizedBox(width: FurFeelTokens.space3),
@@ -90,7 +90,7 @@ class PartnerClinicsPage extends StatelessWidget {
                       Text(
                         'FurFeel Partner Clinics',
                         style: textTheme.titleSmall?.copyWith(
-                          color: FurFeelTokens.brandInk,
+                          color: context.ff.brandInk,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -99,7 +99,7 @@ class PartnerClinicsPage extends StatelessWidget {
                         'These clinics are integrated with FurFeel and can '
                         'view your dog\'s real-time monitoring data.',
                         style: textTheme.bodySmall
-                            ?.copyWith(color: FurFeelTokens.inkMuted),
+                            ?.copyWith(color: context.ff.inkMuted),
                       ),
                     ],
                   ),
@@ -128,7 +128,7 @@ class PartnerClinicsPage extends StatelessWidget {
             'clinics@furfeel.example',
             textAlign: TextAlign.center,
             style: textTheme.bodySmall
-                ?.copyWith(color: FurFeelTokens.inkMuted),
+                ?.copyWith(color: context.ff.inkMuted),
           ),
           const SizedBox(height: FurFeelTokens.space5),
         ],
@@ -148,9 +148,9 @@ class _ClinicCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: FurFeelTokens.surface,
+        color: context.ff.surface,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-        border: Border.all(color: FurFeelTokens.hairline),
+        border: Border.all(color: context.ff.hairline),
         boxShadow: FurFeelTokens.shadowCard,
       ),
       child: Column(
@@ -170,7 +170,7 @@ class _ClinicCard extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [FurFeelTokens.brand, FurFeelTokens.brandStrong],
+                      colors: [context.ff.brand, context.ff.brandStrong],
                     ),
                     borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
                   ),
@@ -189,7 +189,7 @@ class _ClinicCard extends StatelessWidget {
                         clinic.name,
                         style: textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: FurFeelTokens.ink,
+                          color: context.ff.ink,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -199,7 +199,7 @@ class _ClinicCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: FurFeelTokens.statusCalmBg,
+                              color: context.ff.statusCalmBg,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -208,8 +208,8 @@ class _ClinicCard extends StatelessWidget {
                                   : 'Not accepting',
                               style: textTheme.labelSmall?.copyWith(
                                 color: clinic.isAccepting
-                                    ? FurFeelTokens.statusCalmFg
-                                    : FurFeelTokens.inkMuted,
+                                    ? context.ff.statusCalmFg
+                                    : context.ff.inkMuted,
                                 fontSize: 10,
                               ),
                             ),
@@ -219,13 +219,13 @@ class _ClinicCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: FurFeelTokens.brandSoft,
+                              color: context.ff.brandSoft,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               'FurFeel Partner',
                               style: textTheme.labelSmall?.copyWith(
-                                color: FurFeelTokens.brandStrong,
+                                color: context.ff.brandStrong,
                                 fontSize: 10,
                               ),
                             ),
@@ -239,7 +239,7 @@ class _ClinicCard extends StatelessWidget {
             ),
           ),
 
-          Divider(height: 1, color: FurFeelTokens.hairline),
+          Divider(height: 1, color: context.ff.hairline),
 
           // ── Details ─────────────────────────────────────────────────
           Padding(
@@ -266,15 +266,15 @@ class _ClinicCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: FurFeelTokens.surfaceAlt,
+                          color: context.ff.surfaceAlt,
                           borderRadius: BorderRadius.circular(
                               FurFeelTokens.radiusPill),
-                          border: Border.all(color: FurFeelTokens.hairline),
+                          border: Border.all(color: context.ff.hairline),
                         ),
                         child: Text(
                           specialty,
                           style: textTheme.bodySmall?.copyWith(
-                            color: FurFeelTokens.inkMuted,
+                            color: context.ff.inkMuted,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -301,7 +301,7 @@ class _DetailRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: FurFeelTokens.inkMuted),
+        Icon(icon, size: 16, color: context.ff.inkMuted),
         const SizedBox(width: FurFeelTokens.space2),
         Expanded(
           child: Text(
@@ -309,7 +309,7 @@ class _DetailRow extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
-                ?.copyWith(color: FurFeelTokens.inkMuted),
+                ?.copyWith(color: context.ff.inkMuted),
           ),
         ),
       ],

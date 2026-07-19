@@ -126,8 +126,8 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               SettingsRow(
                 icon: Icons.emergency_outlined,
-                iconBackground: FurFeelTokens.warmSoft,
-                iconColor: FurFeelTokens.warm,
+                iconBackground: context.ff.warmSoft,
+                iconColor: context.ff.warm,
                 title: 'Emergency Contact',
                 subtitle: ctrl.profile?.emergencyContact ?? 'Not set',
                 onTap: () => editContactField(
@@ -160,11 +160,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           width: 30,
                           height: 30,
                           decoration: BoxDecoration(
-                            color: FurFeelTokens.brandSoft,
+                            color: context.ff.brandSoft,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(Icons.palette_outlined,
-                              size: 18, color: FurFeelTokens.brand),
+                              size: 18, color: context.ff.brand),
                         ),
                         const SizedBox(width: FurFeelTokens.space3),
                         Text('Theme',
@@ -225,8 +225,8 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               _SwitchRow(
                 icon: Icons.favorite_outline,
-                iconColor: FurFeelTokens.statusHighFg,
-                iconBackground: FurFeelTokens.statusHighBg,
+                iconColor: context.ff.statusHighFg,
+                iconBackground: context.ff.statusHighBg,
                 title: 'Health Alerts',
                 subtitle: 'Heart rate, temperature anomalies',
                 value: s.notificationsEnabled && _healthAlerts,
@@ -236,8 +236,8 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               _SwitchRow(
                 icon: Icons.psychology_outlined,
-                iconColor: FurFeelTokens.statusModerateFg,
-                iconBackground: FurFeelTokens.statusModerateBg,
+                iconColor: context.ff.statusModerateFg,
+                iconBackground: context.ff.statusModerateBg,
                 title: 'Stress Alerts',
                 subtitle: 'Moderate and high stress detections',
                 value: s.notificationsEnabled && _stressAlerts,
@@ -247,8 +247,8 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               _SwitchRow(
                 icon: Icons.battery_alert_outlined,
-                iconColor: FurFeelTokens.statusMildFg,
-                iconBackground: FurFeelTokens.statusMildBg,
+                iconColor: context.ff.statusMildFg,
+                iconBackground: context.ff.statusMildBg,
                 title: 'Battery Alerts',
                 subtitle: 'Low harness battery warnings',
                 value: s.notificationsEnabled && _batteryAlerts,
@@ -343,8 +343,8 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               SettingsRow(
                 icon: Icons.no_accounts_outlined,
-                iconBackground: FurFeelTokens.statusHighBg,
-                iconColor: FurFeelTokens.statusHighFg,
+                iconBackground: context.ff.statusHighBg,
+                iconColor: context.ff.statusHighFg,
                 title: 'Delete Account',
                 destructive: true,
                 onTap: widget.onDeleteAccount ??
@@ -440,13 +440,13 @@ class _SwitchRow extends StatelessWidget {
             height: 30,
             decoration: BoxDecoration(
               color: iconBackground ??
-                  (dimmed ? FurFeelTokens.surfaceAlt : FurFeelTokens.brandSoft),
+                  (dimmed ? context.ff.surfaceAlt : context.ff.brandSoft),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon,
                 size: 18,
                 color: iconColor ??
-                    (dimmed ? FurFeelTokens.inkMuted : FurFeelTokens.brand)),
+                    (dimmed ? context.ff.inkMuted : context.ff.brand)),
           ),
           const SizedBox(width: FurFeelTokens.space3),
           Expanded(
@@ -457,8 +457,8 @@ class _SwitchRow extends StatelessWidget {
                     style: tt.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w500,
                         color: dimmed
-                            ? FurFeelTokens.inkMuted
-                            : FurFeelTokens.ink)),
+                            ? context.ff.inkMuted
+                            : context.ff.ink)),
                 if (subtitle != null)
                   Text(subtitle!, style: tt.bodySmall),
               ],
@@ -497,10 +497,10 @@ class _TimeRow extends StatelessWidget {
               width: 30,
               height: 30,
               decoration: BoxDecoration(
-                color: FurFeelTokens.brandSoft,
+                color: context.ff.brandSoft,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, size: 18, color: FurFeelTokens.brand),
+              child: Icon(icon, size: 18, color: context.ff.brand),
             ),
             const SizedBox(width: FurFeelTokens.space3),
             Expanded(
@@ -512,10 +512,10 @@ class _TimeRow extends StatelessWidget {
             ),
             Text(value,
                 style: TextStyle(
-                    color: FurFeelTokens.brand,
+                    color: context.ff.brand,
                     fontWeight: FontWeight.w600)),
             const SizedBox(width: FurFeelTokens.space2),
-            Icon(Icons.chevron_right, size: 20, color: FurFeelTokens.inkMuted),
+            Icon(Icons.chevron_right, size: 20, color: context.ff.inkMuted),
           ],
         ),
       ),
@@ -552,10 +552,10 @@ class _UnitRow extends StatelessWidget {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              color: FurFeelTokens.brandSoft,
+              color: context.ff.brandSoft,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 18, color: FurFeelTokens.brand),
+            child: Icon(icon, size: 18, color: context.ff.brand),
           ),
           const SizedBox(width: FurFeelTokens.space3),
           Expanded(

@@ -72,7 +72,7 @@ class _VetReviewPageState extends State<VetReviewPage> {
                       child: Text(
                         _error!,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: FurFeelTokens.statusHighOwner),
+                        style: TextStyle(color: context.ff.statusHighOwner),
                       ),
                     ),
                   Text('CONFIRMED ASSESSMENTS', style: textTheme.labelSmall),
@@ -125,13 +125,13 @@ class _VetReviewPageState extends State<VetReviewPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(FurFeelTokens.space5),
         decoration: BoxDecoration(
-          color: FurFeelTokens.surfaceAlt,
+          color: context.ff.surfaceAlt,
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
         ),
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: TextStyle(color: FurFeelTokens.inkMuted),
+          style: TextStyle(color: context.ff.inkMuted),
         ),
       );
 }

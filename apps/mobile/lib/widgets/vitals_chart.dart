@@ -43,13 +43,13 @@ class VitalsChart extends StatelessWidget {
           child: LineChart(
             LineChartData(
               lineBarsData: [
-                series(hrSpots, FurFeelTokens.statusHighOwner),
-                series(rrSpots, FurFeelTokens.accent),
+                series(hrSpots, context.ff.statusHighOwner),
+                series(rrSpots, context.ff.accent),
               ],
               gridData: FlGridData(
                 drawVerticalLine: false,
                 getDrawingHorizontalLine: (value) =>
-                    FlLine(color: FurFeelTokens.hairline, strokeWidth: 1),
+                    FlLine(color: context.ff.hairline, strokeWidth: 1),
               ),
               titlesData: FlTitlesData(
                 topTitles: const AxisTitles(),
@@ -63,7 +63,7 @@ class VitalsChart extends StatelessWidget {
                       meta.formattedValue,
                       style: TextStyle(
                         fontSize: FurFeelTokens.typeCaptionSize,
-                        color: FurFeelTokens.inkMuted,
+                        color: context.ff.inkMuted,
                       ),
                     ),
                   ),
@@ -79,8 +79,8 @@ class VitalsChart extends StatelessWidget {
         Wrap(
           spacing: FurFeelTokens.space4,
           children: [
-            _LegendItem(color: FurFeelTokens.statusHighOwner, label: 'Heart rate (bpm)'),
-            _LegendItem(color: FurFeelTokens.accent, label: 'Breathing (bpm)'),
+            _LegendItem(color: context.ff.statusHighOwner, label: 'Heart rate (bpm)'),
+            _LegendItem(color: context.ff.accent, label: 'Breathing (bpm)'),
           ],
         ),
       ],
@@ -109,7 +109,7 @@ class _LegendItem extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: FurFeelTokens.typeCaptionSize,
-            color: FurFeelTokens.inkMuted,
+            color: context.ff.inkMuted,
           ),
         ),
       ],

@@ -54,10 +54,10 @@ class _WellnessCardState extends State<WellnessCard> {
   }
 
   Color _scoreColor(int score) => score >= 70
-      ? FurFeelTokens.statusCalmFg
+      ? context.ff.statusCalmFg
       : score >= 40
-          ? FurFeelTokens.statusMildFg
-          : FurFeelTokens.statusHighOwner;
+          ? context.ff.statusMildFg
+          : context.ff.statusHighOwner;
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +84,7 @@ class _WellnessCardState extends State<WellnessCard> {
                     strokeWidth: 6,
                     strokeCap: StrokeCap.round,
                     color: color,
-                    backgroundColor: FurFeelTokens.surfaceAlt,
+                    backgroundColor: context.ff.surfaceAlt,
                   ),
                   Center(
                     child: Text(
@@ -92,7 +92,7 @@ class _WellnessCardState extends State<WellnessCard> {
                       style: TextStyle(
                         fontSize: FurFeelTokens.typeH2Size,
                         fontWeight: FontWeight.w700,
-                        color: FurFeelTokens.ink,
+                        color: context.ff.ink,
                       ),
                     ),
                   ),
@@ -153,17 +153,17 @@ class _BalanceBar extends StatelessWidget {
             if (active > 0)
               Expanded(
                 flex: (active * 1000).round(),
-                child: Container(color: FurFeelTokens.brand),
+                child: Container(color: context.ff.brand),
               ),
             if (between > 0)
               Expanded(
                 flex: (between * 1000).round(),
-                child: Container(color: FurFeelTokens.surfaceAlt),
+                child: Container(color: context.ff.surfaceAlt),
               ),
             if (rest > 0)
               Expanded(
                 flex: (rest * 1000).round(),
-                child: Container(color: FurFeelTokens.accent),
+                child: Container(color: context.ff.accent),
               ),
           ],
         ),

@@ -6,22 +6,22 @@ import '../theme/furfeel_tokens.dart';
 
 /// Visual language for one alert severity: word + colors, never color alone
 /// (docs/19). Shared by the card chip and the leading icon badge.
-({String label, Color fg, Color bg}) alertSeverityStyle(String severity) =>
+({String label, Color fg, Color bg}) alertSeverityStyle(BuildContext context, String severity) =>
     switch (severity) {
       'critical' => (
           label: 'Critical',
-          fg: FurFeelTokens.statusHighFg,
-          bg: FurFeelTokens.statusHighBg,
+          fg: context.ff.statusHighFg,
+          bg: context.ff.statusHighBg,
         ),
       'warning' => (
           label: 'Warning',
-          fg: FurFeelTokens.statusModerateFg,
-          bg: FurFeelTokens.statusModerateBg,
+          fg: context.ff.statusModerateFg,
+          bg: context.ff.statusModerateBg,
         ),
       _ => (
           label: 'Info',
-          fg: FurFeelTokens.brand,
-          bg: FurFeelTokens.brandSoft,
+          fg: context.ff.brand,
+          bg: context.ff.brandSoft,
         ),
     };
 
@@ -66,7 +66,7 @@ class _AlertCardState extends State<AlertCard> {
   Widget build(BuildContext context) {
     final alert = widget.alert;
     final acknowledged = !alert.isOpen;
-    final severity = alertSeverityStyle(alert.severity);
+    final severity = alertSeverityStyle(context, alert.severity);
 
     return Opacity(
       opacity: acknowledged ? 0.6 : 1,
@@ -75,13 +75,13 @@ class _AlertCardState extends State<AlertCard> {
         padding: const EdgeInsets.all(FurFeelTokens.space4),
         decoration: BoxDecoration(
           color: alert.severity == 'critical' && !acknowledged
-              ? FurFeelTokens.statusHighBg
-              : FurFeelTokens.surfaceAlt,
+              ? context.ff.statusHighBg
+              : context.ff.surfaceAlt,
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
           border: Border(
             left: BorderSide(
               width: 4,
-              color: acknowledged ? FurFeelTokens.hairline : severity.fg,
+              color: acknowledged ? context.ff.hairline : severity.fg,
             ),
           ),
         ),
@@ -94,13 +94,13 @@ class _AlertCardState extends State<AlertCard> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: acknowledged ? FurFeelTokens.surface : severity.bg,
+                color: acknowledged ? context.ff.surface : severity.bg,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 alertTypeIcon(alert.type),
                 size: 20,
-                color: acknowledged ? FurFeelTokens.inkMuted : severity.fg,
+                color: acknowledged ? context.ff.inkMuted : severity.fg,
               ),
             ),
             const SizedBox(width: FurFeelTokens.space3),
@@ -118,7 +118,7 @@ class _AlertCardState extends State<AlertCard> {
                           style: TextStyle(
                             fontSize: FurFeelTokens.typeCaptionSize,
                             fontWeight: FontWeight.w600,
-                            color: FurFeelTokens.inkMuted,
+                            color: context.ff.inkMuted,
                           ),
                         ),
                       ),
@@ -129,7 +129,7 @@ class _AlertCardState extends State<AlertCard> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: acknowledged ? FurFeelTokens.surface : severity.bg,
+                          color: acknowledged ? context.ff.surface : severity.bg,
                           borderRadius:
                               BorderRadius.circular(FurFeelTokens.radiusPill),
                         ),
@@ -139,7 +139,7 @@ class _AlertCardState extends State<AlertCard> {
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: acknowledged
-                                ? FurFeelTokens.inkMuted
+                                ? context.ff.inkMuted
                                 : severity.fg,
                           ),
                         ),
@@ -151,7 +151,7 @@ class _AlertCardState extends State<AlertCard> {
                     alert.message,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: FurFeelTokens.ink,
+                      color: context.ff.ink,
                     ),
                   ),
                   // Owner-delight pass: a simple "what you can do" per alert
@@ -162,14 +162,14 @@ class _AlertCardState extends State<AlertCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.tips_and_updates_outlined,
-                            size: 16, color: FurFeelTokens.warm),
+                            size: 16, color: context.ff.warm),
                         const SizedBox(width: FurFeelTokens.space2),
                         Expanded(
                           child: Text(
                             _tipFor(alert.type)!,
                             style: TextStyle(
                               fontSize: FurFeelTokens.typeCaptionSize,
-                              color: FurFeelTokens.ink,
+                              color: context.ff.ink,
                             ),
                           ),
                         ),
@@ -183,8 +183,8 @@ class _AlertCardState extends State<AlertCard> {
                       child: TextButton(
                         onPressed: _busy ? null : _acknowledge,
                         style: TextButton.styleFrom(
-                          backgroundColor: FurFeelTokens.surface,
-                          foregroundColor: FurFeelTokens.brandStrong,
+                          backgroundColor: context.ff.surface,
+                          foregroundColor: context.ff.brandStrong,
                           minimumSize: const Size(0, FurFeelTokens.touchTargetMin),
                           padding: const EdgeInsets.symmetric(
                               horizontal: FurFeelTokens.space4),

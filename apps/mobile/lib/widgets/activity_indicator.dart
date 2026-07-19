@@ -24,7 +24,7 @@ class ActivityIndicator extends StatelessWidget {
     final icon = Icon(
       muted ? Icons.sensors_off_outlined : Icons.pets,
       size: size,
-      color: muted ? FurFeelTokens.inkMuted : FurFeelTokens.brand,
+      color: muted ? context.ff.inkMuted : context.ff.brand,
     );
     if (context.reduceMotion) return icon;
 

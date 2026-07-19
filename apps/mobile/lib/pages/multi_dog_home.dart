@@ -147,7 +147,7 @@ class DogOverviewCard extends StatelessWidget {
 
     return PressScale(
       child: Material(
-        color: FurFeelTokens.surface,
+        color: context.ff.surface,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
         child: InkWell(
           onTap: onTap,
@@ -155,7 +155,7 @@ class DogOverviewCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(FurFeelTokens.space4),
             decoration: BoxDecoration(
-              border: Border.all(color: FurFeelTokens.hairline),
+              border: Border.all(color: context.ff.hairline),
               borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
               boxShadow: FurFeelTokens.shadowCard,
             ),
@@ -165,8 +165,8 @@ class DogOverviewCard extends StatelessWidget {
                   dog: dog,
                   repository: repository,
                   backgroundColor: level != null
-                      ? stressLevelSoftBg(level)
-                      : FurFeelTokens.brandSoft,
+                      ? stressLevelSoftBg(context, level)
+                      : context.ff.brandSoft,
                 ),
                 const SizedBox(width: FurFeelTokens.space3),
                 Expanded(
@@ -198,11 +198,11 @@ class DogOverviewCard extends StatelessWidget {
                   Text(
                     'No data yet',
                     style: textTheme.bodySmall?.copyWith(
-                      color: FurFeelTokens.inkMuted,
+                      color: context.ff.inkMuted,
                     ),
                   ),
                 const SizedBox(width: FurFeelTokens.space2),
-                Icon(Icons.chevron_right, size: 18, color: FurFeelTokens.inkMuted),
+                Icon(Icons.chevron_right, size: 18, color: context.ff.inkMuted),
               ],
             ),
           ),

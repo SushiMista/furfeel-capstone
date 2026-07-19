@@ -49,9 +49,9 @@ class SettingsGroup extends StatelessWidget {
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: FurFeelTokens.surface,
+            color: context.ff.surface,
             borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-            border: Border.all(color: FurFeelTokens.hairline),
+            border: Border.all(color: context.ff.hairline),
           ),
           child: Column(
             children: [
@@ -62,7 +62,7 @@ class SettingsGroup extends StatelessWidget {
                     thickness: 1,
                     // Inset past the leading tile so hairlines align with text.
                     indent: 60,
-                    color: FurFeelTokens.hairline,
+                    color: context.ff.hairline,
                   ),
                 child,
               ],
@@ -119,7 +119,7 @@ class SettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final titleColor = destructive ? FurFeelTokens.statusHighFg : FurFeelTokens.ink;
+    final titleColor = destructive ? context.ff.statusHighFg : context.ff.ink;
 
     Widget? lead = leading;
     if (lead == null && icon != null) {
@@ -128,14 +128,14 @@ class SettingsRow extends StatelessWidget {
         height: 30,
         decoration: BoxDecoration(
           color: iconBackground ??
-              (destructive ? FurFeelTokens.statusHighBg : FurFeelTokens.brandSoft),
+              (destructive ? context.ff.statusHighBg : context.ff.brandSoft),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           icon,
           size: 18,
           color: iconColor ??
-              (destructive ? FurFeelTokens.statusHighFg : FurFeelTokens.brand),
+              (destructive ? context.ff.statusHighFg : context.ff.brand),
         ),
       );
     }
@@ -176,7 +176,7 @@ class SettingsRow extends StatelessWidget {
             ),
             ?trailing,
             if (onTap != null && showChevron)
-              Icon(Icons.chevron_right, size: 20, color: FurFeelTokens.inkMuted),
+              Icon(Icons.chevron_right, size: 20, color: context.ff.inkMuted),
           ],
         ),
       ),

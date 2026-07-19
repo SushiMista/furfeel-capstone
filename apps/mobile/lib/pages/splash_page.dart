@@ -12,7 +12,7 @@ class SplashPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reduce = MediaQuery.of(context).disableAnimations;
-    Widget paw = Icon(Icons.pets, size: 64, color: FurFeelTokens.brand);
+    Widget paw = Icon(Icons.pets, size: 64, color: context.ff.brand);
     if (!reduce) {
       paw = paw
           .animate(onPlay: (c) => c.repeat(reverse: true))
@@ -34,7 +34,7 @@ class SplashPage extends StatelessWidget {
             Text(
               'FurFeel',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: FurFeelTokens.brandInk,
+                    color: context.ff.brandInk,
                     fontWeight: FontWeight.w800,
                   ),
             ),
@@ -44,7 +44,7 @@ class SplashPage extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
-                  ?.copyWith(color: FurFeelTokens.inkMuted),
+                  ?.copyWith(color: context.ff.inkMuted),
             ),
           ],
         ),
