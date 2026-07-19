@@ -118,6 +118,8 @@ Per-dog resting reference values used by the classifier. Optional; classifier fa
 | ingest_key_hash | text | null (hashed device secret for telemetry auth) |
 | created_at | timestamptz | not null, default now() |
 
+> **`devices` uses COLUMN-level select grants**, not table-wide (table select was revoked so `ingest_key_hash` is never client-readable). **Any new client-readable column must be added to that grant list**, or every client query naming it fails with a permission error. This bit us once: `battery_percent` was missing from the grant and Home couldn't load (fixed in `20260718090000_grant_devices_battery_select`). Currently granted to `authenticated`: `id, dog_id, device_code, status, last_seen_at, firmware_version, created_at, battery_percent`.
+
 ### telemetry_readings
 High-volume table. Index on `(dog_id, captured_at desc)` and `(device_id, captured_at desc)`.
 

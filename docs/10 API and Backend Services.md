@@ -10,7 +10,13 @@ tags: [furfeel, api, backend]
 # API and Backend Services
 
 ## Backend Platform
-Supabase is the backend platform: Auth, PostgreSQL, Realtime, Storage, and Edge Functions. Most app reads/writes go through the **Supabase client + RLS** rather than a custom REST layer. Edge Functions cover the jobs that need server-side logic: **`telemetry-intake`** (validate → store → classify → alert → offline-recovery) and **`delete-account`** (deletes the caller's own account; refuses if monitoring history exists, per ADR-003). Aggregations and privileged writes are Postgres RPCs (see below). The endpoints below describe the intended contract; RLS-backed client queries satisfy most of them.
+Supabase is the backend platform: Auth, PostgreSQL, Realtime, Storage, and Edge Functions. Most app reads/writes go through the **Supabase client + RLS** rather than a custom REST layer. Edge Functions cover the jobs that need server-side logic:
+- **`telemetry-intake`** — validate → store raw → classify (rule-v1) → alerts (incl. low-battery) → device-offline recovery.
+- **`delete-account`** — deletes the caller's own account; refuses if monitoring history exists (ADR-003).
+- **`admin-create-user`** — admin-only account creation, pre-confirmed (`email_confirm: true`) with role + clinic set in one call; re-checks the caller is `admin` server-side. (Self-signup in the apps still requires confirmation.)
+- **`admin-delete-user`** — admin-only deletion; refuses self-deletion and users who still own dogs or have linked records.
+
+Aggregations and privileged writes are Postgres RPCs (see below). The endpoints below describe the intended contract; RLS-backed client queries satisfy most of them.
 
 ## Conventions
 - Auth: end-user calls carry the Supabase JWT (`Authorization: Bearer <token>`). Device telemetry carries a device ingest secret, not a user JWT.

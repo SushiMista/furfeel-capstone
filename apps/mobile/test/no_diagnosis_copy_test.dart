@@ -26,6 +26,12 @@ void main() {
     'lib/insights/owner_moments.dart',
     'lib/widgets/setup_checklist_card.dart',
     'lib/widgets/day_timeline.dart',
+    // Improvement pass 2026-07-19: error copy, demo data, offline banner,
+    // full-export scaffolding.
+    'lib/util/errors.dart',
+    'lib/util/full_export.dart',
+    'lib/data/demo_repository.dart',
+    'lib/pages/root_shell.dart',
   ];
 
   // Clinical / causal language that must never appear in owner copy.
