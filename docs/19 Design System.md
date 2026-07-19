@@ -49,17 +49,20 @@ Put these in `packages/shared/design_tokens.json`; generate the dashboard CSS va
 ### Owner-app warmth (Design 3 accent layer)
 | Token | Hex | Use |
 |---|---|---|
-| `warm` | `#F59E0B` | friendly highlights, streaks, encouragement |
+| `warm` | `#9A6407` | friendly highlights, streaks, encouragement (darkened 2026-07-19 so warm **text** passes 4.5:1 on `warm-soft` and white — §9) |
 | `warm-soft` | `#FEF3E2` | warm tinted cards on the owner app only |
 
 ### Stress status ramp (accessible, one canonical ramp)
 Pair color with **word + dot/icon** always — never color alone.
+
+> Contrast-verified 2026-07-19: every `fg` below reads at **≥ 4.5:1** on its soft bg *and* on white/`bg` (the §9 requirement — the original brighter shades failed as text). CI enforces this: `apps/dashboard/tests/contrast.test.ts` recomputes the ratios from `design_tokens.json` on every run.
+
 | Level | text/icon | soft bg | notes |
 |---|---|---|---|
-| `calm` | `#0F9D8C` teal-green | `#E6F6F3` | reassuring, "normal" |
-| `mild` | `#CA8A04` amber | `#FBF3D6` | gentle heads-up |
-| `moderate` | `#EA7317` orange | `#FCEBD9` | attention |
-| `high` | `#DC2626` red | `#FBE4E2` | urgent (dashboard uses full red; owner app may soften to coral `#E5533D` for a less alarming feel — both from tokens) |
+| `calm` | `#0C7C6F` teal-green | `#E6F6F3` | reassuring, "normal" |
+| `mild` | `#956603` amber | `#FBF3D6` | gentle heads-up |
+| `moderate` | `#A85311` orange | `#FCEBD9` | attention |
+| `high` | `#CA2323` red | `#FBE4E2` | urgent (dashboard uses full red; owner app may soften to coral `#B74231` for a less alarming feel — both from tokens) |
 
 ## 3. Typography
 - **Font:** **Inter** across both surfaces (clean, neutral, excellent at small sizes for dense clinical data; pairs natively with shadcn/Tremor). Flutter via `google_fonts` (Inter). Numbers use tabular figures for aligned vitals.
