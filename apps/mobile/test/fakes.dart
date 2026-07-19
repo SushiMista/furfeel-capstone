@@ -19,6 +19,7 @@ class FakeRepository implements FurFeelRepository {
     this.clinics = const [],
     this.dailySummaries = const [],
     this.hourlyPattern = const [],
+    this.throwOnFetch = false,
   }) : dogs = List.of(dogs);
 
   List<Dog> dogs;
@@ -35,6 +36,13 @@ class FakeRepository implements FurFeelRepository {
   List<DailyStressSummary> dailySummaries;
   List<HourlyStressBucket> hourlyPattern;
 
+  /// Offline-cache tests: every fetch throws like a dead network.
+  bool throwOnFetch;
+
+  void _maybeThrow() {
+    if (throwOnFetch) throw Exception('SocketException: Failed host lookup');
+  }
+
   int subscribeCalls = 0;
   final acknowledgedIds = <String>[];
   final registeredPushTokens = <(String, String)>[];
@@ -48,7 +56,10 @@ class FakeRepository implements FurFeelRepository {
   Future<Dog?> fetchFirstDog() async => dogs.isEmpty ? null : dogs.first;
 
   @override
-  Future<List<Dog>> fetchDogs() async => List.of(dogs);
+  Future<List<Dog>> fetchDogs() async {
+    _maybeThrow();
+    return List.of(dogs);
+  }
 
   @override
   Future<Dog> createDog(DogDraft draft) async {
@@ -254,7 +265,10 @@ class FakeRepository implements FurFeelRepository {
   }
 
   @override
-  Future<bool> hasAcceptedConsent(String policyVersion) async => consentAccepted;
+  Future<bool> hasAcceptedConsent(String policyVersion) async {
+    _maybeThrow();
+    return consentAccepted;
+  }
 
   @override
   Future<void> acceptConsent(String policyVersion) async {

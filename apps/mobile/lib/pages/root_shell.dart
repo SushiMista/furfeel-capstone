@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/furfeel_repository.dart';
 import '../data/push_registration.dart';
 import '../data/settings_controller.dart';
+import '../data/status_cache.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../widgets/floating_nav_bar.dart';
@@ -10,6 +12,7 @@ import '../widgets/furfeel_logo.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/skeletons.dart';
 import '../util/errors.dart';
+import '../util/friendly_time.dart';
 import '../util/perf.dart';
 import 'alerts_tab.dart';
 import 'consent_page.dart';
@@ -59,6 +62,10 @@ class _RootShellState extends State<RootShell> {
   List<HourlyStressBucket> _hourlyPattern = [];
   bool _loading = true;
   String? _error;
+
+  /// Non-null while showing the offline last-known snapshot (docs/04):
+  /// the timestamp the cache was written, surfaced in the banner.
+  DateTime? _staleSince;
   Unsubscribe? _unsubscribe;
 
   Dog? get _selectedDog {
@@ -86,15 +93,29 @@ class _RootShellState extends State<RootShell> {
     super.dispose();
   }
 
+  static String get _consentCacheKey =>
+      'furfeel_consent_confirmed_$kConsentPolicyVersion';
+
   Future<void> _checkConsent() async {
     try {
       final accepted =
           await widget.repository.hasAcceptedConsent(kConsentPolicyVersion);
+      if (accepted) {
+        // Remember the CONFIRMED acceptance so an offline cold start can show
+        // the cached last-known status instead of dead-ending at the gate.
+        // Only server-confirmed acceptances are cached — never an assumption.
+        SharedPreferences.getInstance()
+            .then((p) => p.setBool(_consentCacheKey, true));
+      }
       if (mounted) setState(() => _consented = accepted);
     } catch (_) {
-      // Can't verify (offline?): show the gate — monitoring data must not
-      // render before consent is confirmed (docs/12). Accepting retries.
-      if (mounted) setState(() => _consented = false);
+      // Can't verify (offline?). A previously CONFIRMED acceptance for this
+      // exact policy version still counts (consents are append-only records);
+      // otherwise show the gate — monitoring data must not render before
+      // consent is confirmed (docs/12). Accepting retries.
+      final cached =
+          (await SharedPreferences.getInstance()).getBool(_consentCacheKey);
+      if (mounted) setState(() => _consented = cached == true);
     }
   }
 
@@ -111,6 +132,22 @@ class _RootShellState extends State<RootShell> {
       if (dog != null) await _selectDog(dog.id);
     } catch (e) {
       if (!mounted) return;
+      // Offline resilience: fall back to the last-known snapshot (clearly
+      // bannered as stale) instead of an error screen, when we have one.
+      final cached = await StatusCache.load();
+      if (!mounted) return;
+      if (cached != null && (_dogs == null || _dogs!.isEmpty)) {
+        setState(() {
+          _dogs = cached.dogs;
+          _selectedDogId = cached.selectedDogId ?? cached.dogs.firstOrNull?.id;
+          _latestReading = cached.reading;
+          _latestClassification = cached.classification;
+          _staleSince = cached.savedAt;
+          _loading = false;
+          _error = null;
+        });
+        return;
+      }
       setState(() {
         _loading = false;
         _error = loadErrorMessage(e, 'your dogs');
@@ -165,7 +202,15 @@ class _RootShellState extends State<RootShell> {
         _vetNotes = results[7] as List<VetNoteFeedItem>;
         _loading = false;
         _error = null;
+        _staleSince = null;
       });
+      // Fire-and-forget: persist the last-known snapshot for offline opens.
+      StatusCache.save(
+        dogs: _dogs ?? const [],
+        selectedDogId: _selectedDogId,
+        reading: _latestReading,
+        classification: _latestClassification,
+      );
       _unsubscribe ??= widget.repository.subscribeToDog(
         dogId,
         onReading: (reading) {
@@ -193,6 +238,18 @@ class _RootShellState extends State<RootShell> {
       );
     } catch (e) {
       if (!mounted || _selectedDogId != dogId) return;
+      final cached = await StatusCache.load();
+      if (!mounted || _selectedDogId != dogId) return;
+      if (cached != null && cached.reading?.dogId == dogId && _latestReading == null) {
+        setState(() {
+          _latestReading = cached.reading;
+          _latestClassification = cached.classification;
+          _staleSince = cached.savedAt;
+          _loading = false;
+          _error = null;
+        });
+        return;
+      }
       setState(() {
         _loading = false;
         _error = loadErrorMessage(e, 'your dog');
@@ -292,7 +349,12 @@ class _RootShellState extends State<RootShell> {
             ),
         ],
       ),
-      body: _buildBody(dog),
+      body: _staleSince == null
+          ? _buildBody(dog)
+          : Column(children: [
+              _OfflineBanner(since: _staleSince!),
+              Expanded(child: _buildBody(dog)),
+            ]),
       // Floating pill bar (modern-minimal): Scaffold reserves exactly the
       // bar's own rendered height (margin + pill), so tab content never
       // needs manual bottom padding -- the page background simply shows
@@ -712,4 +774,43 @@ class _DogRow extends StatelessWidget {
   }
 }
 
+/// Offline last-known-reading banner (docs/04): word + icon, warm tint —
+/// honest about staleness, never an error screen when we have data to show.
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner({required this.since});
 
+  final DateTime since;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.ff.warmSoft,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: FurFeelTokens.space4,
+            vertical: FurFeelTokens.space2,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.cloud_off_outlined, size: 18, color: context.ff.warm),
+              const SizedBox(width: FurFeelTokens.space2),
+              Expanded(
+                child: Text(
+                  'Showing last known reading from '
+                  '${friendlyTimestamp(since)} — pull to refresh.',
+                  style: TextStyle(
+                    color: context.ff.warm,
+                    fontSize: FurFeelTokens.typeCaptionSize,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
