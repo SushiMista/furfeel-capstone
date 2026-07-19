@@ -46,7 +46,13 @@ Four tabs, offered to the `admin` role only as UX. RLS (`users_update_admin` / `
 Every delete in the UI routes through a shared confirmation dialog (`ConfirmDeleteDialog`) — the one Admin action that can't be undone doesn't fire on a single click.
 
 ## Alerts queue
-Triage list grouped by severity; acknowledge (sets `acknowledged_by`/`acknowledged_at`); device-offline + stress alerts.
+Triage list grouped by severity; acknowledge (sets `acknowledged_by`/`acknowledged_at`); device-offline + stress alerts. **Bulk-acknowledge** (2026-07-19): "Acknowledge all open (n)" flips every open alert in one guarded update (same open-status race guard + RLS as the per-card button).
+
+## Monitoring board filters (2026-07-19)
+Search by dog/breed plus **saved quick filters** — All / Needs attention / Offline devices / Moderate / High — persisted per browser (localStorage) like the grid↔table toggle.
+
+## Shift handover (2026-07-19)
+Sidebar page `/handover`: one printable view of the last 8/12/24 h — every monitored dog with current stress pill, harness status, open-alert count, and the window's alert timeline (handled ones marked); dogs with events sort first. Print / save PDF reuses the report print stylesheet, so it also serves as the clinic-period report.
 
 ## MVP priority order
 Board (done) → Dog detail (done) → Alerts queue (done) → Vet notes (done) → Reports (done) → Vet Review media + confirm/override (done) → Admin incl. add-user + System Health (done).

@@ -37,8 +37,14 @@ tags: [furfeel, security, privacy]
 - [x] Will owner-submitted photos/videos be included in MVP? Decision: supplementary assessment/communication only, not classifier input.
 - [x] Does the thesis require formal consent wording for test participants? Decision: in-app data-collection consent implemented (see above); formal thesis-participant wording still needs adviser/vet review.
 - [ ] How long should telemetry be retained?
-- [ ] Can data be exported for research? (Owner-initiated CSV/PDF export of their own dog's data shipped in the app; research export is a separate decision.)
+- [x] Can the owner download their data? **Yes — "Download everything (JSON)"** (Detailed Log, 2026-07-19): the complete per-dog archive of every record the owner can read under RLS, paged past the row cap; media as metadata (paths), not bytes. Research export remains a separate decision.
 - [ ] Should telemetry ingest be blocked server-side for un-consented owners?
+
+## Security test evidence (2026-07-19)
+- **Static RLS audit** (`services/edge/rls_audit/policy_audit.test.ts`, runs in plain CI): RLS enabled on all 16 tables, every table has policies (readable policy matrix in the output), no policy targets `anon`, storage buckets private, `ingest_key_hash` never client-granted.
+- **Live cross-tenant proof** (`rls_live.test.ts`, opt-in with `RLS_LIVE=1` + keys): throwaway users/clinics/dogs verify owner/clinic/anon isolation, owners can't write `vet_notes`/`stress_labels`, consents are own-row append-only, and media storage follows owner-or-clinic access. Cleans up after itself.
+- **Devices column-grant CI guard** (`apps/dashboard/tests/devicesGrant.test.ts`): client column lists must be covered by the migrations' column-level grants; `select('*')` on devices is banned.
+- **Offline consent cache:** the app caches only a **server-confirmed** acceptance of the current policy version so an offline cold start can show cached data; unconfirmed users still hit the gate offline.
 
 ## Related
 - [[03 User Roles and Permissions]]
