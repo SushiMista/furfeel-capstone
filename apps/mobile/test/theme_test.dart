@@ -4,7 +4,10 @@ import 'package:furfeel_mobile/theme/furfeel_theme.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 
 void main() {
-  test('light and dark themes carry their FurFeelPalette extension', () {
+  // testWidgets, not test: buildFurFeelTheme touches google_fonts, which needs
+  // the test binding to stub font fetching.
+  testWidgets('light and dark themes carry their FurFeelPalette extension',
+      (tester) async {
     expect(buildFurFeelTheme().extension<FurFeelPalette>(), FurFeelPalette.light);
     expect(buildFurFeelTheme(dark: true).extension<FurFeelPalette>(),
         FurFeelPalette.dark);
