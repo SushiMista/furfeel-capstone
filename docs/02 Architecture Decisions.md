@@ -134,3 +134,34 @@ Linked notes:
 - [[04 Mobile App Design]]
 - [[09 Database Schema]]
 - [[12 Security and Privacy]]
+
+## ADR-012: Flutter Theming via ThemeExtension (FurFeelPalette)
+Status: Accepted (2026-07-19)
+
+Decision: The mobile color tokens are a Material `ThemeExtension` (`FurFeelPalette`, generated from `design_tokens.json` with `light`/`dark` instances, `copyWith`, `lerp`) registered on `ThemeData.extensions`. Widgets read colors through `context.ff`; `MaterialApp` receives `theme` + `darkTheme` + `themeMode`, so light/dark/system switching is Flutter's own mechanism. The previous `FurFeelTokens.isDark` mutable static and full-tree rebuild are removed. Non-color tokens (spacing, radius, type, motion) stay compile-time consts on `FurFeelTokens`.
+
+Reason: Theme now flows through context (per-subtree theming possible, e.g. a forced-light PDF preview), no global mutable state, and `lerp` gives free cross-fade on theme change. Helpers that return colors take a `BuildContext` (or use `FurFeelPalette.light` explicitly, as the print-oriented PDF exporter does).
+
+Linked notes:
+- [[19 Design System]]
+
+## ADR-013: Classifier-Derived Codegen for Client Thresholds
+Status: Accepted (2026-07-19)
+
+Decision: Client-side copies of classifier thresholds are code-generated, never hand-mirrored. `generate_classifier_bands.mjs` emits `apps/mobile/lib/insights/biometric_bands.g.dart` from `classifier_config.json`; the Elevated/High status-band floors are derived from the scoring tiers themselves (tier 1 min → Elevated, tier 2 min → High), and only the app-specific Low floors are new config (`biometric_status_bands`). A staleness test re-derives every constant from the JSON in CI.
+
+Reason: The bands can no longer drift from what actually scores (retired QA assumption 4); a vet tuning the config only touches one file, and CI fails until the generated file is refreshed.
+
+Linked notes:
+- [[08 AI Classification Pipeline]]
+
+## ADR-014: Demo Mode as a Local Repository Implementation
+Status: Accepted (2026-07-19)
+
+Decision: Demo mode is a second implementation of the existing `FurFeelRepository` interface (`DemoRepository`) with a deterministic generated week of sample telemetry, running entirely in memory — no demo account, no seeded server data, no network. The real `RootShell` renders it behind a persistent "Demo mode — sample data" banner; writes throw friendly read-only errors; the consent gate auto-passes because it protects real monitoring data, not synthetic samples.
+
+Reason: Zero server surface (no demo credentials to leak, no RLS special cases, no cleanup jobs), works offline for defense demos, and exercises the exact production UI code paths.
+
+Linked notes:
+- [[04 Mobile App Design]]
+- [[12 Security and Privacy]]

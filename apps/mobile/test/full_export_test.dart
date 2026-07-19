@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/demo_repository.dart';
-import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/util/full_export.dart';
 
 /// Step 14: the "download everything" archive (docs/12 privacy story).

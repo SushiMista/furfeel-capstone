@@ -30,6 +30,7 @@ tags: [furfeel, architecture, development-guide]
 - [[16 MVP Development Plan]]
 - [[17 Technology Stack]]
 - [[18 Repository Structure]]
+- [[19 Design System]]
 
 ## Source Brain Links
 - [[00 FurFeel Project Bible]]
