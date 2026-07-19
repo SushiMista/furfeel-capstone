@@ -133,6 +133,11 @@ class _FloatingNavItem extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       destination.label,
+                      // A11y: labels scale with dynamic type but cap at 1.3×
+                      // inside the fixed-height bar (Material nav-bar guidance)
+                      // — the tab still reads bigger, the bar never overflows.
+                      textScaler: MediaQuery.textScalerOf(context)
+                          .clamp(maxScaleFactor: 1.3),
                       style: TextStyle(
                         fontSize: FurFeelTokens.typeLabelSize,
                         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,

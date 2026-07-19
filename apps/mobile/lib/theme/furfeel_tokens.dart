@@ -67,17 +67,17 @@ class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
     brandInk: Color(0xFF1E3A8A),
     brandSoft: Color(0xFFEAF1FE),
     accent: Color(0xFF14B8A6),
-    warm: Color(0xFFF59E0B),
+    warm: Color(0xFF9A6407),
     warmSoft: Color(0xFFFEF3E2),
-    statusCalmFg: Color(0xFF0F9D8C),
+    statusCalmFg: Color(0xFF0C7C6F),
     statusCalmBg: Color(0xFFE6F6F3),
-    statusMildFg: Color(0xFFCA8A04),
+    statusMildFg: Color(0xFF956603),
     statusMildBg: Color(0xFFFBF3D6),
-    statusModerateFg: Color(0xFFEA7317),
+    statusModerateFg: Color(0xFFA85311),
     statusModerateBg: Color(0xFFFCEBD9),
-    statusHighFg: Color(0xFFDC2626),
+    statusHighFg: Color(0xFFCA2323),
     statusHighBg: Color(0xFFFBE4E2),
-    statusHighOwner: Color(0xFFE5533D),
+    statusHighOwner: Color(0xFFB74231),
   );
 
   static const dark = FurFeelPalette(

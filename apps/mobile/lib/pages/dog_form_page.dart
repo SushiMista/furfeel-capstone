@@ -195,14 +195,19 @@ class _DogFormPageState extends State<DogFormPage> {
               child: InkWell(
                 onTap: _saving ? null : _pickPhoto,
                 borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundColor: context.ff.brandSoft,
-                  child: _photo != null
-                      ? Icon(Icons.check_circle_outline,
-                          size: 32, color: context.ff.brand)
-                      : Icon(Icons.add_a_photo_outlined,
-                          size: 28, color: context.ff.brand),
+                // A11y: icon-only control needs a spoken name.
+                child: Semantics(
+                  label: _photo != null ? 'Change photo' : 'Add a photo',
+                  button: true,
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: context.ff.brandSoft,
+                    child: _photo != null
+                        ? Icon(Icons.check_circle_outline,
+                            size: 32, color: context.ff.brand)
+                        : Icon(Icons.add_a_photo_outlined,
+                            size: 28, color: context.ff.brand),
+                  ),
                 ),
               ),
             ),
