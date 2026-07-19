@@ -33,11 +33,16 @@ class RootShell extends StatefulWidget {
     required this.repository,
     required this.onSignOut,
     this.userEmail,
+    this.demo = false,
   });
 
   final FurFeelRepository repository;
   final Future<void> Function() onSignOut;
   final String? userEmail;
+
+  /// Demo mode (docs/04): sample-data banner on every tab; no push
+  /// registration; sign out just leaves the demo.
+  final bool demo;
 
   @override
   State<RootShell> createState() => _RootShellState();
@@ -84,7 +89,7 @@ class _RootShellState extends State<RootShell> {
     });
     // In-app registration path for push (docs/04). No tokenProvider yet: the
     // FCM/APNs credential wiring is a human step — see data/push_registration.dart.
-    registerPushTokenIfAvailable(widget.repository);
+    if (!widget.demo) registerPushTokenIfAvailable(widget.repository);
   }
 
   @override
@@ -349,12 +354,17 @@ class _RootShellState extends State<RootShell> {
             ),
         ],
       ),
-      body: _staleSince == null
-          ? _buildBody(dog)
-          : Column(children: [
-              _OfflineBanner(since: _staleSince!),
+      body: widget.demo
+          ? Column(children: [
+              const _DemoBanner(),
               Expanded(child: _buildBody(dog)),
-            ]),
+            ])
+          : _staleSince == null
+              ? _buildBody(dog)
+              : Column(children: [
+                  _OfflineBanner(since: _staleSince!),
+                  Expanded(child: _buildBody(dog)),
+                ]),
       // Floating pill bar (modern-minimal): Scaffold reserves exactly the
       // bar's own rendered height (margin + pill), so tab content never
       // needs manual bottom padding -- the page background simply shows
@@ -802,6 +812,43 @@ class _OfflineBanner extends StatelessWidget {
                   '${friendlyTimestamp(since)} — pull to refresh.',
                   style: TextStyle(
                     color: context.ff.warm,
+                    fontSize: FurFeelTokens.typeCaptionSize,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Demo-mode banner: every screen says the data is a sample (step 10).
+class _DemoBanner extends StatelessWidget {
+  const _DemoBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.ff.brandSoft,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: FurFeelTokens.space4,
+            vertical: FurFeelTokens.space2,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.science_outlined, size: 18, color: context.ff.brand),
+              const SizedBox(width: FurFeelTokens.space2),
+              Expanded(
+                child: Text(
+                  'Demo mode — sample data, not a real dog.',
+                  style: TextStyle(
+                    color: context.ff.brand,
                     fontSize: FurFeelTokens.typeCaptionSize,
                     fontWeight: FontWeight.w600,
                   ),
