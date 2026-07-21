@@ -72,4 +72,56 @@ void main() {
         [('media-1', 'Thank you! He calmed down after dinner.')]);
     expect(find.text('Thank you! He calmed down after dinner.'), findsOneWidget);
   });
+
+  testWidgets('owner can edit and delete their own reply, but not the vet review',
+      (tester) async {
+    final repo = FakeRepository()
+      ..mediaMessages = [
+        MediaMessage(
+          id: 'm1',
+          mediaSubmissionId: 'media-1',
+          authorUserId: 'user-1', // the owner, same as _dog.ownerUserId
+          body: 'He seems better now',
+          createdAt: DateTime(2026, 7, 16, 11),
+        ),
+      ];
+    await tester.pumpWidget(MaterialApp(
+      home: MediaThreadPage(
+        repository: repo,
+        dog: _dog,
+        submission: submission(reviewNote: 'All looks fine', reviewedAt: DateTime(2026, 7, 16)),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // The clinic's review bubble has no long-press menu.
+    await tester.longPress(find.text('All looks fine'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit'), findsNothing);
+
+    // The owner's own reply does.
+    await tester.longPress(find.text('He seems better now'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Delete'), findsOneWidget);
+
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'He seems much better now');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('He seems much better now'), findsOneWidget);
+    expect(find.text('He seems better now'), findsNothing);
+
+    await tester.longPress(find.text('He seems much better now'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    // Confirm dialog.
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('He seems much better now'), findsNothing);
+  });
 }
