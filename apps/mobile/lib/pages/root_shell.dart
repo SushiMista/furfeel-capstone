@@ -14,6 +14,7 @@ import '../widgets/skeletons.dart';
 import '../util/errors.dart';
 import '../util/friendly_time.dart';
 import '../util/perf.dart';
+import '../widgets/alert_card.dart';
 import 'alerts_tab.dart';
 import 'consent_page.dart';
 import 'dog_form_page.dart';
@@ -272,9 +273,34 @@ class _RootShellState extends State<RootShell> {
       return;
     }
     if (_tab == 1) return; // already looking at Alerts
+    // Word + icon (docs/19): the same severity glyph + label the Alerts tab
+    // uses, so a toast never leans on color alone to say how urgent this is.
+    final severity = alertSeverityStyle(context, alert.severity);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(alert.message),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(alertTypeIcon(alert.type), size: 20, color: severity.fg),
+            const SizedBox(width: FurFeelTokens.space2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    severity.label,
+                    style: TextStyle(
+                      fontSize: FurFeelTokens.typeCaptionSize,
+                      fontWeight: FontWeight.w700,
+                      color: severity.fg,
+                    ),
+                  ),
+                  Text(alert.message),
+                ],
+              ),
+            ),
+          ],
+        ),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 6),
         action: SnackBarAction(
@@ -426,6 +452,8 @@ class _RootShellState extends State<RootShell> {
               guidance: _guidance,
               vetNotes: _vetNotes,
               onRefresh: _refresh,
+              dogsCount: _dogs?.length ?? 1,
+              alerts: _alerts,
             ),
       1 => AlertsTab(
           dog: dog,
