@@ -165,3 +165,15 @@ Reason: Zero server surface (no demo credentials to leak, no RLS special cases, 
 Linked notes:
 - [[04 Mobile App Design]]
 - [[12 Security and Privacy]]
+
+## ADR-015: Per-Dog Classifier Thresholds on `dog_baselines`, Not a New Table
+Status: Accepted (2026-07-21)
+
+Decision: A vet can override this dog's score→level cut points via three new nullable columns on the existing `dog_baselines` row (`threshold_mild_min`, `threshold_moderate_min`, `threshold_high_min`) rather than a new table. Three cut points, not four (min, max) pairs — calm is implicit below `threshold_mild_min`, and each level's max is simply the next level's min, so the boundaries can't drift out of sync. NULL means "use `classifier_config.json`'s `level_thresholds`," resolved per-field exactly like the existing resting-value baseline columns (`services/edge/telemetry-intake/baselines.ts`'s `resolveLevelThresholds`, mirroring `resolveBaselines`). No new RLS: `dog_baselines_select/insert/update` already gate on `is_clinic_member(dog_id)` for these same rows.
+
+Reason: `dog_baselines` is already per-dog, already clinic-scoped, and already read on every classification — reusing it avoids a second table, a second set of policies, and a second resolver mechanism for what is conceptually the same kind of override (a per-dog number that falls back to a global default).
+
+Linked notes:
+- [[08 AI Classification Pipeline]]
+- [[09 Database Schema]]
+- [[05 Veterinary Dashboard Design]]
