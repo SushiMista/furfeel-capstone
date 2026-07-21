@@ -116,6 +116,42 @@ class _ObservationPageState extends State<ObservationPage> {
     }
   }
 
+  /// Delete is irreversible (docs/04 module 5 CRUD) — confirm first, same
+  /// pattern as the account-deletion confirm elsewhere in the app.
+  Future<void> _deleteSubmission(MediaSubmission submission) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this observation?'),
+        content: const Text(
+          'This removes the photo or video and its conversation for good — '
+          'your clinic will no longer be able to see it. This can\'t be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Delete', style: TextStyle(color: context.ff.statusHighOwner)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.repository.deleteMediaSubmission(submission);
+      if (!mounted) return;
+      setState(() => _submissions = _submissions.where((s) => s.id != submission.id).toList());
+    } catch (err) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(actionErrorMessage(err, 'Deleting'))),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -258,7 +294,10 @@ class _ObservationPageState extends State<ObservationPage> {
                                     ),
                                   )
                                   .then((_) => _load()),
-                              child: _SubmissionTile(submission: s),
+                              child: _SubmissionTile(
+                                submission: s,
+                                onDelete: () => _deleteSubmission(s),
+                              ),
                             ),
                           ],
                         ],
@@ -272,9 +311,10 @@ class _ObservationPageState extends State<ObservationPage> {
 }
 
 class _SubmissionTile extends StatelessWidget {
-  const _SubmissionTile({required this.submission});
+  const _SubmissionTile({required this.submission, required this.onDelete});
 
   final MediaSubmission submission;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -297,6 +337,12 @@ class _SubmissionTile extends StatelessWidget {
                   friendlyTimestamp(submission.createdAt),
                   style: textTheme.bodySmall,
                 ),
+              ),
+              IconButton(
+                tooltip: 'Delete',
+                onPressed: onDelete,
+                icon: Icon(Icons.delete_outline, size: 18, color: context.ff.inkMuted),
+                visualDensity: VisualDensity.compact,
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
