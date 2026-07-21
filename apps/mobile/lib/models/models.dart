@@ -241,6 +241,7 @@ class MediaMessage {
     required this.body,
     required this.createdAt,
     this.authorName,
+    this.authorAvatarPath,
   });
 
   final String id;
@@ -249,6 +250,7 @@ class MediaMessage {
   final String body;
   final DateTime createdAt;
   final String? authorName;
+  final String? authorAvatarPath;
 
   factory MediaMessage.fromMap(Map<String, dynamic> map) => MediaMessage(
         id: map['id'] as String,
@@ -257,6 +259,7 @@ class MediaMessage {
         body: map['body'] as String,
         createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
         authorName: (map['author'] as Map<String, dynamic>?)?['name'] as String?,
+        authorAvatarPath: (map['author'] as Map<String, dynamic>?)?['avatar_path'] as String?,
       );
 }
 
@@ -301,6 +304,10 @@ class MediaSubmission {
     this.note,
     this.reviewedAt,
     this.reviewNote,
+    this.submitterName,
+    this.submitterAvatarPath,
+    this.reviewerName,
+    this.reviewerAvatarPath,
   });
 
   final String id;
@@ -311,6 +318,15 @@ class MediaSubmission {
   final String? note;
   final DateTime? reviewedAt;
   final String? reviewNote;
+
+  /// Sender identity for the thread's opening bubble (docs/04 module 5:
+  /// chat-style profiles) — the owner who submitted this observation.
+  final String? submitterName;
+  final String? submitterAvatarPath;
+
+  /// Sender identity for the review bubble — the clinician who reviewed it.
+  final String? reviewerName;
+  final String? reviewerAvatarPath;
 
   bool get isReviewed => reviewedAt != null;
 
@@ -325,6 +341,12 @@ class MediaSubmission {
             ? null
             : DateTime.parse(map['reviewed_at'] as String).toLocal(),
         reviewNote: map['review_note'] as String?,
+        submitterName: (map['submitter'] as Map<String, dynamic>?)?['name'] as String?,
+        submitterAvatarPath:
+            (map['submitter'] as Map<String, dynamic>?)?['avatar_path'] as String?,
+        reviewerName: (map['reviewer'] as Map<String, dynamic>?)?['name'] as String?,
+        reviewerAvatarPath:
+            (map['reviewer'] as Map<String, dynamic>?)?['avatar_path'] as String?,
       );
 }
 
