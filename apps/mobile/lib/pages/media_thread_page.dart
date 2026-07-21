@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/friendly_time.dart';
 import '../util/errors.dart';
+import '../widgets/name_avatar.dart';
 
 /// One submission's conversation (QA item 12): the photo/video, the owner's
 /// note, the clinic's review, and a back-and-forth reply thread
@@ -88,6 +89,75 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
     }
   }
 
+  /// Full CRUD (docs/04 module 5): edit your own reply's text.
+  Future<void> _editMessage(MediaMessage message) async {
+    final controller = TextEditingController(text: message.body);
+    final newBody = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit message'),
+        content: TextField(controller: controller, maxLines: 4, autofocus: true),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    // Not disposed here: the dialog's TextField is still mounted during its
+    // exit animation when this Future resolves, so an immediate dispose()
+    // crashes it mid-transition. It's a one-shot local controller — letting
+    // it go out of scope is safe.
+    if (newBody == null || newBody.isEmpty || !mounted) return;
+    try {
+      final updated = await widget.repository.updateMediaMessage(message.id, newBody);
+      if (!mounted) return;
+      setState(() {
+        _messages = [for (final m in _messages) if (m.id == message.id) updated else m];
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(actionErrorMessage(e, 'Saving'))));
+    }
+  }
+
+  /// Delete is irreversible — confirm first.
+  Future<void> _deleteMessage(MediaMessage message) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this message?'),
+        content: const Text('This can\'t be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Delete', style: TextStyle(color: context.ff.statusHighOwner)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.repository.deleteMediaMessage(message.id);
+      if (!mounted) return;
+      setState(() => _messages = _messages.where((m) => m.id != message.id).toList());
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(actionErrorMessage(e, 'Deleting'))));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -156,18 +226,24 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
                   ),
                   const SizedBox(height: FurFeelTokens.space4),
 
-                  // Thread: owner note, clinic review, then replies in order.
+                  // Thread: owner note, clinic review, then replies in order —
+                  // a messaging thread (docs/04 module 5), sender avatar +
+                  // name, bubbles aligned by author.
                   if (submission.note != null)
                     _Bubble(
                       mine: true,
-                      author: 'You',
+                      author: submission.submitterName ?? 'You',
+                      avatarPath: submission.submitterAvatarPath,
+                      repository: widget.repository,
                       body: submission.note!,
                       timestamp: submission.createdAt,
                     ),
                   if (submission.reviewNote != null)
                     _Bubble(
                       mine: false,
-                      author: 'Your care team',
+                      author: submission.reviewerName ?? 'Your care team',
+                      avatarPath: submission.reviewerAvatarPath,
+                      repository: widget.repository,
                       body: submission.reviewNote!,
                       timestamp: submission.reviewedAt,
                     )
@@ -189,8 +265,18 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
                       author: message.authorUserId == widget.dog.ownerUserId
                           ? 'You'
                           : (message.authorName ?? 'Your care team'),
+                      avatarPath: message.authorAvatarPath,
+                      repository: widget.repository,
                       body: message.body,
                       timestamp: message.createdAt,
+                      // Full CRUD (docs/04 module 5): only your own replies —
+                      // never the clinic's — are editable/deletable.
+                      onEdit: message.authorUserId == widget.dog.ownerUserId
+                          ? () => _editMessage(message)
+                          : null,
+                      onDelete: message.authorUserId == widget.dog.ownerUserId
+                          ? () => _deleteMessage(message)
+                          : null,
                     ),
                 ],
               ),
@@ -241,46 +327,106 @@ class _MediaThreadPageState extends State<MediaThreadPage> {
   }
 }
 
+/// One message, Messenger-style: sender avatar beside a bubble aligned to
+/// their side, name + timestamp inside.
 class _Bubble extends StatelessWidget {
   const _Bubble({
     required this.mine,
     required this.author,
     required this.body,
+    required this.repository,
+    this.avatarPath,
     this.timestamp,
+    this.onEdit,
+    this.onDelete,
   });
 
   final bool mine;
   final String author;
   final String body;
+  final String? avatarPath;
+  final FurFeelRepository repository;
   final DateTime? timestamp;
+
+  /// Full CRUD (docs/04 module 5): non-null only for your own replies —
+  /// long-press to edit or delete, Messenger-style. Null for the submission
+  /// note and the clinic's review, which aren't editable here.
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  void _showActions(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onEdit?.call();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: context.ff.statusHighOwner),
+              title: Text('Delete', style: TextStyle(color: context.ff.statusHighOwner)),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onDelete?.call();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: FurFeelTokens.space3),
-        padding: const EdgeInsets.all(FurFeelTokens.space3),
-        constraints: const BoxConstraints(maxWidth: 300),
-        decoration: BoxDecoration(
-          color: mine ? context.ff.brandSoft : context.ff.surfaceAlt,
-          borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(author,
-                style: textTheme.labelSmall?.copyWith(color: context.ff.inkMuted)),
-            const SizedBox(height: 2),
-            Text(body, style: textTheme.bodyMedium),
-            if (timestamp != null) ...[
+    final avatar = NameAvatar(
+      name: author,
+      avatarPath: avatarPath,
+      repository: repository,
+      radius: 14,
+    );
+    final editable = onEdit != null || onDelete != null;
+    final bubble = Flexible(
+      child: GestureDetector(
+        onLongPress: editable ? () => _showActions(context) : null,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: FurFeelTokens.space3),
+          padding: const EdgeInsets.all(FurFeelTokens.space3),
+          constraints: const BoxConstraints(maxWidth: 260),
+          decoration: BoxDecoration(
+            color: mine ? context.ff.brandSoft : context.ff.surfaceAlt,
+            borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(author,
+                  style: textTheme.labelSmall?.copyWith(color: context.ff.inkMuted)),
               const SizedBox(height: 2),
-              Text(friendlyTimestamp(timestamp!), style: textTheme.bodySmall),
+              Text(body, style: textTheme.bodyMedium),
+              if (timestamp != null) ...[
+                const SizedBox(height: 2),
+                Text(friendlyTimestamp(timestamp!), style: textTheme.bodySmall),
+              ],
             ],
-          ],
+          ),
         ),
       ),
+    );
+
+    return Row(
+      mainAxisAlignment: mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: mine
+          ? [bubble, const SizedBox(width: FurFeelTokens.space2), avatar]
+          : [avatar, const SizedBox(width: FurFeelTokens.space2), bubble],
     );
   }
 }
