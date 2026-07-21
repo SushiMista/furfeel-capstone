@@ -4,6 +4,7 @@ import '../data/furfeel_repository.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/friendly_time.dart';
+import 'name_avatar.dart';
 
 /// ADDED (QA): clinician note shown inline on Home — the doctor's photo, name,
 /// timestamp, and comment, no navigation required. New notes arrive live via
@@ -17,13 +18,6 @@ class VetNoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final initial =
-        note.authorName.trim().isEmpty ? '?' : note.authorName.trim()[0].toUpperCase();
-    final placeholder = Text(
-      initial,
-      style: TextStyle(fontWeight: FontWeight.w700, color: context.ff.brand),
-    );
-    final avatarPath = note.authorAvatarPath;
 
     return Card(
       child: Padding(
@@ -33,24 +27,11 @@ class VetNoteCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                if (avatarPath == null)
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: context.ff.brandSoft,
-                    child: placeholder,
-                  )
-                else
-                  FutureBuilder<String>(
-                    future: repository.getSignedAvatarUrl(avatarPath),
-                    builder: (context, snapshot) => CircleAvatar(
-                      radius: 18,
-                      backgroundColor: context.ff.brandSoft,
-                      foregroundImage: snapshot.data == null
-                          ? null
-                          : NetworkImage(snapshot.data!),
-                      child: placeholder,
-                    ),
-                  ),
+                NameAvatar(
+                  name: note.authorName,
+                  avatarPath: note.authorAvatarPath,
+                  repository: repository,
+                ),
                 const SizedBox(width: FurFeelTokens.space3),
                 Expanded(
                   child: Column(
