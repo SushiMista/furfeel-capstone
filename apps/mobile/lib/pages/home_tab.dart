@@ -13,6 +13,7 @@ import '../util/motion.dart';
 import '../widgets/activity_indicator.dart';
 import '../widgets/day_timeline.dart';
 import '../widgets/dog_avatar.dart';
+import '../widgets/overview_stats_card.dart';
 import '../widgets/setup_checklist_card.dart';
 import '../widgets/stress_pill.dart';
 import '../widgets/vet_note_card.dart';
@@ -21,6 +22,16 @@ import 'dog_form_page.dart';
 import 'observation_page.dart';
 import 'vet_review_page.dart';
 import 'vital_detail_page.dart';
+
+/// Finds the daily summary for one calendar day, or null when there's none.
+DailyStressSummary? _summaryForDay(List<DailyStressSummary> daily, DateTime day) {
+  for (final d in daily) {
+    if (d.day.year == day.year && d.day.month == day.month && d.day.day == day.day) {
+      return d;
+    }
+  }
+  return null;
+}
 
 /// Owner home (docs/04 module 1): "how is my dog right now, and what should I
 /// do?" — status hero, today-so-far calm stat, care insights for the current
@@ -38,6 +49,8 @@ class HomeTab extends StatefulWidget {
     required this.guidance,
     required this.vetNotes,
     required this.onRefresh,
+    required this.dogsCount,
+    required this.alerts,
   });
 
   final FurFeelRepository repository;
@@ -50,12 +63,63 @@ class HomeTab extends StatefulWidget {
   final List<VetNoteFeedItem> vetNotes;
   final Future<void> Function() onRefresh;
 
+  /// Total dogs on this account and this dog's own alerts — both already
+  /// loaded by RootShell, just plumbed through for the overview card below.
+  final int dogsCount;
+  final List<Alert> alerts;
+
   @override
   State<HomeTab> createState() => _HomeTabState();
 }
 
 class _HomeTabState extends State<HomeTab> {
   int _selectedTabIndex = 0;
+
+  /// Same five stats as the dashboard's clinic KPI row, scoped to this
+  /// account (docs/04 Home): only ever 1 dog here, so it mostly restates
+  /// today's status hero as a scannable strip.
+  List<OverviewStat> _overviewStats() {
+    final today = _summaryForDay(widget.daily, DateTime.now());
+    final calmToday = today?.calmShare;
+    final needsAttention =
+        widget.classification != null && widget.classification!.stressLevel != StressLevel.calm
+            ? 1
+            : 0;
+    final openAlerts = widget.alerts.where((a) => a.isOpen).length;
+    final devicesOffline = widget.device?.status == 'offline' ? 1 : 0;
+
+    return [
+      OverviewStat(
+        label: 'Dogs monitored',
+        value: '${widget.dogsCount}',
+        icon: Icons.pets,
+      ),
+      if (calmToday != null)
+        OverviewStat(
+          label: 'Calm today',
+          value: '${(calmToday * 100).round()}%',
+          icon: Icons.favorite_outline,
+        ),
+      OverviewStat(
+        label: 'Needs attention',
+        value: '$needsAttention',
+        icon: Icons.monitor_heart_outlined,
+        attention: needsAttention > 0,
+      ),
+      OverviewStat(
+        label: 'Open alerts',
+        value: '$openAlerts',
+        icon: Icons.notifications_outlined,
+        attention: openAlerts > 0,
+      ),
+      OverviewStat(
+        label: 'Devices offline',
+        value: '$devicesOffline',
+        icon: Icons.wifi_off,
+        attention: devicesOffline > 0,
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +150,10 @@ class _HomeTabState extends State<HomeTab> {
         children: [
           // ADDED: personalized greeting by name + time of day (docs/04).
           const _Greeting(),
+          const SizedBox(height: FurFeelTokens.space3),
+          // At-a-glance overview strip (mirrors the dashboard's clinic KPI
+          // row) — built entirely from data RootShell already loaded.
+          OverviewStatsCard(stats: _overviewStats()).entrance(context),
           const SizedBox(height: FurFeelTokens.space3),
           if (widget.dog.isBirthday(DateTime.now())) ...[
             _BirthdayBanner(dog: widget.dog).entrance(context),
@@ -491,17 +559,8 @@ class _TodaySoFar extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
 
-    DailyStressSummary? forDay(DateTime day) {
-      for (final d in daily) {
-        if (d.day.year == day.year && d.day.month == day.month && d.day.day == day.day) {
-          return d;
-        }
-      }
-      return null;
-    }
-
-    final todayShare = forDay(today)?.calmShare;
-    final yesterdayShare = forDay(yesterday)?.calmShare;
+    final todayShare = _summaryForDay(daily, today)?.calmShare;
+    final yesterdayShare = _summaryForDay(daily, yesterday)?.calmShare;
     if (todayShare == null) return const SizedBox.shrink();
 
     final delta = yesterdayShare == null ? null : todayShare - yesterdayShare;
