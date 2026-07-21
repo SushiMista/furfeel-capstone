@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/pages/root_shell.dart';
+import 'package:furfeel_mobile/widgets/overview_stats_card.dart';
 
 import 'fakes.dart';
 
@@ -138,7 +139,14 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    expect(find.text('1'), findsOneWidget); // open-alert badge on the tab
+    // Open-alert badge on the tab (scoped: the new overview card also shows
+    // a "1" for dogs monitored and open alerts).
+    expect(
+      find.descendant(of: find.byType(Badge), matching: find.text('1')),
+      findsOneWidget,
+    );
+    // Overview card mirrors the same open-alert count.
+    expect(find.widgetWithText(OverviewStatsCard, 'Open alerts'), findsOneWidget);
 
     await tester.tap(find.text('Alerts'));
     await tester.pumpAndSettle();
