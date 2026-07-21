@@ -3,7 +3,7 @@ import { verifyDeviceKey } from "../_shared/device-auth.ts";
 import { classifyStress, defaultConfig } from "../classifier/index.ts";
 import { alertTypeForStressLevel, decideAlert, decideBatteryAlert } from "../alerts/index.ts";
 import { parseTelemetryRequestBody, sanitizeTelemetry } from "./validation.ts";
-import { resolveBaselines } from "./baselines.ts";
+import { resolveBaselines, resolveLevelThresholds } from "./baselines.ts";
 import type { DogBaselinesRow } from "./baselines.ts";
 
 function jsonResponse(body: unknown, status: number): Response {
@@ -97,7 +97,10 @@ async function handleTelemetry(req: Request): Promise<Response> {
 
     const { data: baselineRow, error: baselineError } = await supabase
       .from("dog_baselines")
-      .select("resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c")
+      .select(
+        "resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c, " +
+          "threshold_mild_min, threshold_moderate_min, threshold_high_min",
+      )
       .eq("dog_id", device.dog_id)
       .maybeSingle();
 
@@ -106,7 +109,12 @@ async function handleTelemetry(req: Request): Promise<Response> {
       return errorResponse("internal_error", "failed to look up dog baselines", 500);
     }
 
-    const baselines = resolveBaselines(baselineRow as DogBaselinesRow | null);
+    const typedBaselineRow = baselineRow as DogBaselinesRow | null;
+    const baselines = resolveBaselines(typedBaselineRow);
+    // Per-dog score->level thresholds (docs/08): NULL columns fall back to
+    // the global defaults, same shape as the baseline resolver above.
+    const levelThresholds = resolveLevelThresholds(typedBaselineRow);
+    const config = { ...defaultConfig, level_thresholds: levelThresholds };
 
     const { data: recentRows, error: recentError } = await supabase
       .from("stress_classifications")
@@ -126,7 +134,7 @@ async function handleTelemetry(req: Request): Promise<Response> {
       .filter((s: number | null): s is number => s !== null)
       .reverse();
 
-    const classification = classifyStress(sanitized.features, baselines, recentScores);
+    const classification = classifyStress(sanitized.features, baselines, recentScores, config);
 
     // Raw payload stored verbatim regardless of validity (ADR-003: raw before classification).
     const { data: readingRow, error: readingError } = await supabase
