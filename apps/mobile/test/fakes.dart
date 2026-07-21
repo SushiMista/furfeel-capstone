@@ -265,6 +265,29 @@ class FakeRepository implements FurFeelRepository {
   }
 
   @override
+  Future<MediaMessage> updateMediaMessage(String messageId, String body) async {
+    final updated = mediaMessages.firstWhere((m) => m.id == messageId);
+    final edited = MediaMessage(
+      id: updated.id,
+      mediaSubmissionId: updated.mediaSubmissionId,
+      authorUserId: updated.authorUserId,
+      body: body,
+      createdAt: updated.createdAt,
+      authorName: updated.authorName,
+      authorAvatarPath: updated.authorAvatarPath,
+    );
+    mediaMessages = [
+      for (final m in mediaMessages) if (m.id == messageId) edited else m,
+    ];
+    return edited;
+  }
+
+  @override
+  Future<void> deleteMediaMessage(String messageId) async {
+    mediaMessages = mediaMessages.where((m) => m.id != messageId).toList();
+  }
+
+  @override
   Future<bool> hasAcceptedConsent(String policyVersion) async {
     _maybeThrow();
     return consentAccepted;
@@ -299,6 +322,14 @@ class FakeRepository implements FurFeelRepository {
     );
     mediaSubmissions = [submission, ...mediaSubmissions];
     return submission;
+  }
+
+  final deletedMediaSubmissionIds = <String>[];
+
+  @override
+  Future<void> deleteMediaSubmission(MediaSubmission submission) async {
+    deletedMediaSubmissionIds.add(submission.id);
+    mediaSubmissions = mediaSubmissions.where((s) => s.id != submission.id).toList();
   }
 
   @override
