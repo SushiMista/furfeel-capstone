@@ -1,7 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../util/motion.dart';
 import 'furfeel_tokens.dart';
+
+/// Material 3 fade-through (docs/19 §5a) for every Navigator.push, app-wide —
+/// set once here so no route has to opt in individually. Built entirely on
+/// Flutter's own FadeTransition: the incoming page fades in over the back
+/// 70% of the transition while the page it's covering fades out over the
+/// front 30%, which is what "fade-through" — as opposed to a slide or a
+/// straight cross-fade — actually means. Collapses to an instant swap under
+/// reduced motion via the same context.reduceMotion helper every other
+/// animation in the app routes through.
+class _FadeThroughPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _FadeThroughPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (context.reduceMotion) return child;
+
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: const Interval(0.3, 1)),
+      child: FadeTransition(
+        opacity: Tween<double>(begin: 1, end: 0).animate(
+          CurvedAnimation(parent: secondaryAnimation, curve: const Interval(0, 0.3)),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
 
 /// App-wide theme derived from the shared design tokens (docs/19 Design Guide):
 /// blue + white brand, Material 3, Inter — approachable and reassuring on the
@@ -139,5 +173,11 @@ ThemeData buildFurFeelTheme({bool dark = false}) {
       ),
     ),
     dividerColor: p.hairline,
+    pageTransitionsTheme: PageTransitionsTheme(
+      builders: {
+        for (final platform in TargetPlatform.values)
+          platform: const _FadeThroughPageTransitionsBuilder(),
+      },
+    ),
   );
 }
