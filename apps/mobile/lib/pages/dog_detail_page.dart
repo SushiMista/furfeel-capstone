@@ -11,10 +11,19 @@ import 'home_tab.dart';
 /// Self-loading: fetches the same data RootShell keeps for the selected dog
 /// and renders the exact same rich Home content, plus live updates.
 class DogDetailPage extends StatefulWidget {
-  const DogDetailPage({super.key, required this.repository, required this.dog});
+  const DogDetailPage({
+    super.key,
+    required this.repository,
+    required this.dog,
+    required this.dogsCount,
+  });
 
   final FurFeelRepository repository;
   final Dog dog;
+
+  /// Total dogs on this account — the caller (MultiDogHomeTab) already has
+  /// this list; passed through for the overview card, no extra query.
+  final int dogsCount;
 
   @override
   State<DogDetailPage> createState() => _DogDetailPageState();
@@ -27,6 +36,7 @@ class _DogDetailPageState extends State<DogDetailPage> {
   Device? _device;
   List<CareGuidance> _guidance = const [];
   List<VetNoteFeedItem> _vetNotes = const [];
+  List<Alert> _alerts = const [];
   bool _loading = true;
   String? _error;
   Unsubscribe? _unsubscribe;
@@ -63,6 +73,7 @@ class _DogDetailPageState extends State<DogDetailPage> {
         repo.fetchDeviceForDog(dogId),
         repo.fetchCareGuidance(),
         repo.fetchVetNoteFeed(dogId),
+        repo.fetchAlerts(dogId, limit: 100),
       ]);
       if (!mounted) return;
       setState(() {
@@ -72,6 +83,7 @@ class _DogDetailPageState extends State<DogDetailPage> {
         _device = results[3] as Device?;
         _guidance = results[4] as List<CareGuidance>;
         _vetNotes = results[5] as List<VetNoteFeedItem>;
+        _alerts = results[6] as List<Alert>;
         _loading = false;
         _error = null;
       });
@@ -104,6 +116,8 @@ class _DogDetailPageState extends State<DogDetailPage> {
               guidance: _guidance,
               vetNotes: _vetNotes,
               onRefresh: _load,
+              dogsCount: widget.dogsCount,
+              alerts: _alerts,
             ),
     );
   }
