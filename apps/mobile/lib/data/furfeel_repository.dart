@@ -108,6 +108,11 @@ abstract class FurFeelRepository {
   Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId);
   Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body);
 
+  /// Full CRUD on the owner's own messages only — RLS rejects anyone else's
+  /// (media_messages_update_author / _delete_author, author_user_id = auth.uid()).
+  Future<MediaMessage> updateMediaMessage(String messageId, String body);
+  Future<void> deleteMediaMessage(String messageId);
+
   // ---- Data-collection consent (docs/12) ----
   Future<bool> hasAcceptedConsent(String policyVersion);
   Future<void> acceptConsent(String policyVersion);
@@ -121,6 +126,11 @@ abstract class FurFeelRepository {
     required String mediaType, // 'image' | 'video'
     String? note,
   });
+
+  /// Deletes a submission the caller owns, including its storage object
+  /// (media_delete_owner RLS: submitted_by_user_id = auth.uid() — a clinic
+  /// member can never delete an owner's media).
+  Future<void> deleteMediaSubmission(MediaSubmission submission);
 
   /// Registers/refreshes a push token for the signed-in user (docs/04
   /// notifications). Delivery wiring (FCM/APNs credentials) is server-side.
@@ -549,7 +559,7 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   }
 
   static const _mediaMessageColumns =
-      'id, media_submission_id, author_user_id, body, created_at';
+      'id, media_submission_id, author_user_id, body, created_at, author:users(name, avatar_path)';
 
   @override
   Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId) async {
@@ -576,6 +586,22 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   }
 
   @override
+  Future<MediaMessage> updateMediaMessage(String messageId, String body) async {
+    final row = await _client
+        .from('media_messages')
+        .update({'body': body.trim()})
+        .eq('id', messageId)
+        .select(_mediaMessageColumns)
+        .single();
+    return MediaMessage.fromMap(row);
+  }
+
+  @override
+  Future<void> deleteMediaMessage(String messageId) async {
+    await _client.from('media_messages').delete().eq('id', messageId);
+  }
+
+  @override
   Future<bool> hasAcceptedConsent(String policyVersion) async {
     final rows = await _client
         .from('consents')
@@ -596,7 +622,9 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   }
 
   static const _mediaColumns =
-      'id, dog_id, storage_path, media_type, note, reviewed_at, review_note, created_at';
+      'id, dog_id, storage_path, media_type, note, reviewed_at, review_note, created_at, '
+      'submitter:users!media_submissions_submitted_by_user_id_fkey(name, avatar_path), '
+      'reviewer:users!media_submissions_reviewed_by_user_id_fkey(name, avatar_path)';
 
   @override
   Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50}) async {
@@ -633,6 +661,17 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
         .select(_mediaColumns)
         .single();
     return MediaSubmission.fromMap(row);
+  }
+
+  @override
+  Future<void> deleteMediaSubmission(MediaSubmission submission) async {
+    // The row is the source of truth for what the owner sees — delete it
+    // first. The storage object is best-effort cleanup after: if it fails,
+    // a leftover blob isn't worth surfacing a failed delete to the owner.
+    await _client.from('media_submissions').delete().eq('id', submission.id);
+    try {
+      await _client.storage.from('media').remove([submission.storagePath]);
+    } catch (_) {}
   }
 
   @override
