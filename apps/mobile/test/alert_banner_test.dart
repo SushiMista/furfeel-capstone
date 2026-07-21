@@ -46,6 +46,13 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.textContaining('Biscuit seems quite stressed'), findsOneWidget);
+    // Severity as word + icon (docs/19), never color alone.
+    expect(find.descendant(of: find.byType(SnackBar), matching: find.text('Critical')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(SnackBar), matching: find.byIcon(Icons.warning_amber_rounded)),
+        findsOneWidget);
 
     await tester.tap(find.text('View'));
     await tester.pumpAndSettle();
