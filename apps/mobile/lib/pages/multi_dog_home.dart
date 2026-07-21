@@ -6,6 +6,7 @@ import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/motion.dart';
 import '../widgets/dog_avatar.dart';
+import '../widgets/overview_stats_card.dart';
 import '../widgets/skeletons.dart';
 import '../widgets/stress_pill.dart';
 import 'dog_detail_page.dart';
@@ -70,6 +71,13 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
         children: [
           const _PackGreeting(),
           const SizedBox(height: FurFeelTokens.space3),
+          // At-a-glance overview strip (mirrors the dashboard's clinic KPI
+          // row) — built from the same per-dog overviews already fetched
+          // above; no extra query.
+          if (overviews != null) ...[
+            OverviewStatsCard(stats: _overviewStats(overviews)).entrance(context),
+            const SizedBox(height: FurFeelTokens.space3),
+          ],
           if (overviews == null)
             Padding(
               padding: const EdgeInsets.all(FurFeelTokens.space5),
@@ -88,6 +96,7 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
                           builder: (_) => DogDetailPage(
                             repository: widget.repository,
                             dog: overview.dog,
+                            dogsCount: widget.dogs.length,
                           ),
                         ),
                       )
@@ -98,6 +107,52 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
       ),
     );
   }
+}
+
+/// Pack-wide stats (mirrors the dashboard's clinic KPI row), all derived
+/// from the per-dog [DogOverview]s already fetched by [_MultiDogHomeTabState._load].
+List<OverviewStat> _overviewStats(List<DogOverview> overviews) {
+  final needsAttention = overviews
+      .where((o) => o.classification != null && o.classification!.stressLevel != StressLevel.calm)
+      .length;
+  final devicesOffline = overviews.where((o) => o.device?.status == 'offline').length;
+  final withWellness = overviews.where((o) => o.wellness != null).toList();
+  final calmToday = withWellness.isEmpty
+      ? null
+      : withWellness.map((o) => o.wellness!.calmPercent).reduce((a, b) => a + b) /
+          withWellness.length;
+  // "Today" not "open": dog_wellness_score counts alerts raised today, not
+  // current open/ack status (that needs a per-dog alerts query we don't have
+  // here) — label it honestly rather than borrowing the dashboard's wording.
+  final alertsToday = overviews.fold<int>(0, (sum, o) => sum + (o.wellness?.alertCount ?? 0));
+
+  return [
+    OverviewStat(label: 'Dogs monitored', value: '${overviews.length}', icon: Icons.pets),
+    if (calmToday != null)
+      OverviewStat(
+        label: 'Calm today',
+        value: '${calmToday.round()}%',
+        icon: Icons.favorite_outline,
+      ),
+    OverviewStat(
+      label: 'Needs attention',
+      value: '$needsAttention',
+      icon: Icons.monitor_heart_outlined,
+      attention: needsAttention > 0,
+    ),
+    OverviewStat(
+      label: 'Alerts today',
+      value: '$alertsToday',
+      icon: Icons.notifications_outlined,
+      attention: alertsToday > 0,
+    ),
+    OverviewStat(
+      label: 'Devices offline',
+      value: '$devicesOffline',
+      icon: Icons.wifi_off,
+      attention: devicesOffline > 0,
+    ),
+  ];
 }
 
 class _PackGreeting extends StatelessWidget {
