@@ -56,4 +56,39 @@ void main() {
     expect(find.text('Awaiting review'), findsOneWidget);
     expect(find.textContaining('mild separation stress'), findsOneWidget);
   });
+
+  testWidgets('owner can delete their own submission after confirming',
+      (tester) async {
+    final submission = MediaSubmission(
+      id: 'm1',
+      dogId: 'dog-1',
+      storagePath: 'dogs/dog-1/obs-1.jpg',
+      mediaType: 'image',
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+      note: 'Pacing near the door',
+    );
+    final repo = FakeRepository(mediaSubmissions: [submission]);
+    await tester.pumpWidget(
+        MaterialApp(home: ObservationPage(repository: repo, dog: _dog)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pacing near the door'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Delete'));
+    await tester.pumpAndSettle();
+    // Confirm dialog — irreversible, so it must not delete on the first tap.
+    expect(find.textContaining('can\'t be undone'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(repo.deletedMediaSubmissionIds, isEmpty);
+    expect(find.text('Pacing near the door'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(repo.deletedMediaSubmissionIds, ['m1']);
+    expect(find.text('Pacing near the door'), findsNothing);
+  });
 }
