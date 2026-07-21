@@ -18,6 +18,7 @@ import { StressTimeline } from "../../components/StressTimeline.tsx";
 import { StressLevelBadge } from "../../components/StressLevelBadge.tsx";
 import { AlertCard } from "../../components/AlertCard.tsx";
 import { VetNotes } from "../../components/VetNotes.tsx";
+import { ThresholdEditor } from "../../components/ThresholdEditor.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
@@ -38,6 +39,7 @@ const TABS = [
   { id: "telemetry", label: "Live telemetry" },
   { id: "stress", label: "Stress history" },
   { id: "notes", label: "Vet notes" },
+  { id: "thresholds", label: "Thresholds" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
@@ -290,6 +292,8 @@ export function DogDetail() {
       )}
 
       {tab === "notes" && <VetNotes dogId={dog.id} />}
+
+      {tab === "thresholds" && <ThresholdEditor dogId={dog.id} />}
     </div>
   );
 }
