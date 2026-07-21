@@ -3,6 +3,7 @@ import type {
   Alert,
   Device,
   Dog,
+  DogBaselines,
   MediaSubmission,
   StressClassification,
   StressLabel,
@@ -42,6 +43,49 @@ export async function fetchDog(client: SupabaseClient, dogId: string): Promise<D
   const { data, error } = await client.from("dogs").select("*").eq("id", dogId).maybeSingle();
   if (error) throw error;
   return data as unknown as Dog | null;
+}
+
+const DOG_BASELINES_COLUMNS =
+  "id, dog_id, resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c, " +
+  "threshold_mild_min, threshold_moderate_min, threshold_high_min, updated_at";
+
+/** 0-or-1 row per dog (docs/08); null means every field falls back to the
+ * global defaults in classifier_config.json. */
+export async function fetchDogBaselines(
+  client: SupabaseClient,
+  dogId: string,
+): Promise<DogBaselines | null> {
+  const { data, error } = await client
+    .from("dog_baselines")
+    .select(DOG_BASELINES_COLUMNS)
+    .eq("dog_id", dogId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as unknown as DogBaselines | null;
+}
+
+/** Per-dog threshold override (docs/08, step 2): a vet-only write in practice —
+ * dog_baselines_insert/update RLS gates on is_clinic_member(dog_id), so a vet
+ * outside this dog's clinic gets rejected by Postgres, not by this function.
+ * Pass null for a field to reset it to the global default. Only touches the
+ * three threshold columns -- resting_* baseline columns set elsewhere on the
+ * same row are left untouched (upsert only updates the columns given here). */
+export async function saveDogThresholds(
+  client: SupabaseClient,
+  dogId: string,
+  thresholds: {
+    threshold_mild_min: number | null;
+    threshold_moderate_min: number | null;
+    threshold_high_min: number | null;
+  },
+): Promise<DogBaselines> {
+  const { data, error } = await client
+    .from("dog_baselines")
+    .upsert({ dog_id: dogId, ...thresholds }, { onConflict: "dog_id" })
+    .select(DOG_BASELINES_COLUMNS)
+    .single();
+  if (error) throw error;
+  return data as unknown as DogBaselines;
 }
 
 async function fetchDeviceForDog(client: SupabaseClient, dogId: string): Promise<Device | null> {
