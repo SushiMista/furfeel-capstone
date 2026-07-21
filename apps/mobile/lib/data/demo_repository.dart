@@ -410,6 +410,12 @@ class DemoRepository implements FurFeelRepository {
   Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body) async =>
       throw const FurFeelDataException('Demo mode is read-only.');
   @override
+  Future<MediaMessage> updateMediaMessage(String messageId, String body) async =>
+      throw const FurFeelDataException('Demo mode is read-only.');
+  @override
+  Future<void> deleteMediaMessage(String messageId) async =>
+      throw const FurFeelDataException('Demo mode is read-only.');
+  @override
   Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50}) async =>
       List.of(_media);
   @override
@@ -422,6 +428,9 @@ class DemoRepository implements FurFeelRepository {
   }) async =>
       throw const FurFeelDataException(
           'Demo mode cannot upload media — create a free account to share observations.');
+  @override
+  Future<void> deleteMediaSubmission(MediaSubmission submission) async =>
+      throw const FurFeelDataException('Demo mode is read-only.');
 
   // ---- Consent: the gate protects real monitoring data; the demo is synthetic. ----
   @override
