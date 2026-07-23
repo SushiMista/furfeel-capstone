@@ -41,7 +41,7 @@ export function StressMixChart({ summary }: { summary: DailyStressSummaryRow[] }
       data={buildStressMixRows(summary)}
       index="day"
       categories={[...MIX_CATEGORIES]}
-      colors={["calm", "mild", "moderate", "high"]}
+      colors={["emerald", "amber", "orange", "rose"]}
       stack
       valueFormatter={(v) => `${v}%`}
       maxValue={100}
