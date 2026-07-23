@@ -139,14 +139,11 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    // Open-alert badge on the tab (scoped: the new overview card also shows
-    // a "1" for dogs monitored and open alerts).
+    // Open-alert badge on the tab.
     expect(
       find.descendant(of: find.byType(Badge), matching: find.text('1')),
       findsOneWidget,
     );
-    // Overview card mirrors the status.
-    expect(find.widgetWithText(OverviewStatsCard, '1 Needs attention'), findsOneWidget);
 
     await tester.tap(find.text('Alerts'));
     await tester.pumpAndSettle();

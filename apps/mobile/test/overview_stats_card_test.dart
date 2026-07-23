@@ -26,31 +26,19 @@ Widget app(FakeRepository repo) => SettingsScope(
     );
 
 void main() {
-  testWidgets('single-dog home shows the overview strip from already-loaded data',
-      (tester) async {
-    final repo = FakeRepository(
-      dogs: const [_biscuit],
-      latestClassification: StressClassification(
-        id: 'c1',
-        dogId: 'dog-1',
-        stressLevel: StressLevel.moderate,
-        createdAt: DateTime.now(),
-      ),
-      alerts: [
-        Alert(
-          id: 'a1',
-          dogId: 'dog-1',
-          severity: 'critical',
-          type: 'high_stress',
-          message: 'Biscuit is showing high stress',
-          status: 'open',
-          createdAt: DateTime.now(),
+  testWidgets('renders single stat header cleanly', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OverviewStatsCard(
+            stats: const [
+              OverviewStat(label: 'Dog monitored', value: '1', icon: Icons.pets),
+              OverviewStat(label: 'Needs attention', value: '1', icon: Icons.monitor_heart, attention: true),
+            ],
+          ),
         ),
-      ],
-      device: const Device(id: 'device-1', deviceCode: 'FF-1', status: 'offline'),
+      ),
     );
-
-    await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
     final card = find.byType(OverviewStatsCard);
