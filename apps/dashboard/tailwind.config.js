@@ -64,12 +64,16 @@ export default {
       },
     },
   },
-  // Tremor builds chart class names dynamically (e.g. stroke-brand-500), so the
-  // token color scales must be safelisted for the JIT compiler.
+  // Tremor builds chart class names dynamically (e.g. stroke-brand-500,
+  // fill-emerald-500), so both FurFeel's own token scales AND Tremor's own
+  // base-color keywords (charts pass real Tremor colors like "emerald"/
+  // "rose" since Tremor's `colors` prop only accepts its fixed color enum,
+  // not arbitrary names) must be safelisted for the JIT compiler -- neither
+  // is a literal string Tailwind's content scan can find in Tremor's bundle.
   safelist: [
     {
       pattern:
-        /^(bg|stroke|fill|text|border|ring)-(brand|accent|calm|mild|moderate|high|warm)-(50|100|200|300|400|500|600|700|800|900|950)$/,
+        /^(bg|stroke|fill|text|border|ring)-(brand|accent|calm|mild|moderate|high|warm|slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(50|100|200|300|400|500|600|700|800|900|950)$/,
       variants: ["hover", "ui-selected"],
     },
   ],

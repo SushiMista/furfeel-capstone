@@ -26,6 +26,28 @@
     outline: 2px solid var(--ff-brand);
     outline-offset: 2px;
   }
+
+  /* Fix for Tremor/Recharts SVG rect fill inheritance in stacked bar charts */
+  .recharts-bar rect {
+    fill: inherit !important;
+  }
+  .recharts-bar[class*="emerald"] rect,
+  .recharts-bar[class*="calm"] rect {
+    fill: var(--ff-status-calm-fg, #0C7C6F) !important;
+  }
+  .recharts-bar[class*="amber"] rect,
+  .recharts-bar[class*="mild"] rect {
+    fill: var(--ff-status-mild-fg, #956603) !important;
+  }
+  .recharts-bar[class*="orange"] rect,
+  .recharts-bar[class*="moderate"] rect {
+    fill: var(--ff-status-moderate-fg, #A85311) !important;
+  }
+  .recharts-bar[class*="rose"] rect,
+  .recharts-bar[class*="red"] rect,
+  .recharts-bar[class*="high"] rect {
+    fill: var(--ff-status-high-fg, #CA2323) !important;
+  }
 }
 
 @media print {
