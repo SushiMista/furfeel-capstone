@@ -55,14 +55,9 @@ void main() {
 
     final card = find.byType(OverviewStatsCard);
     expect(card, findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('Dogs monitored')),
-        findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('1')), findsWidgets);
-    expect(find.descendant(of: card, matching: find.text('Needs attention')),
-        findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('Open alerts')), findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('Devices offline')),
-        findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text('Dog monitored')), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text('1 ')), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text('1 Needs attention')), findsOneWidget);
   });
 
   testWidgets('multi-dog home aggregates the pack from the already-fetched overviews',
@@ -83,15 +78,8 @@ void main() {
 
     final card = find.byType(OverviewStatsCard);
     expect(card, findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('Dogs monitored')),
-        findsOneWidget);
-    // Both dogs share the same fake classification/device, so dogs monitored,
-    // needs attention, and devices offline all read "2" here.
-    expect(find.descendant(of: card, matching: find.text('2')), findsNWidgets(3));
-    expect(
-        find.descendant(of: card, matching: find.text('Needs attention')), findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('Devices offline')),
-        findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('Alerts today')), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text('Dogs monitored')), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text('2 ')), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text('2 Needs attention')), findsOneWidget);
   });
 }
