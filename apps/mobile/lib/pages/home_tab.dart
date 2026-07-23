@@ -77,50 +77,6 @@ class _HomeTabState extends State<HomeTab> {
 
   /// Same five stats as the dashboard's clinic KPI row, scoped to this
   /// account (docs/04 Home): only ever 1 dog here, so it mostly restates
-  /// today's status hero as a scannable strip.
-  List<OverviewStat> _overviewStats() {
-    final today = _summaryForDay(widget.daily, DateTime.now());
-    final calmToday = today?.calmShare;
-    final needsAttention =
-        widget.classification != null && widget.classification!.stressLevel != StressLevel.calm
-            ? 1
-            : 0;
-    final openAlerts = widget.alerts.where((a) => a.isOpen).length;
-    final devicesOffline = widget.device?.status == 'offline' ? 1 : 0;
-
-    return [
-      OverviewStat(
-        label: 'Dogs monitored',
-        value: '${widget.dogsCount}',
-        icon: Icons.pets,
-      ),
-      if (calmToday != null)
-        OverviewStat(
-          label: 'Calm today',
-          value: '${(calmToday * 100).round()}%',
-          icon: Icons.favorite_outline,
-        ),
-      OverviewStat(
-        label: 'Needs attention',
-        value: '$needsAttention',
-        icon: Icons.monitor_heart_outlined,
-        attention: needsAttention > 0,
-      ),
-      OverviewStat(
-        label: 'Open alerts',
-        value: '$openAlerts',
-        icon: Icons.notifications_outlined,
-        attention: openAlerts > 0,
-      ),
-      OverviewStat(
-        label: 'Devices offline',
-        value: '$devicesOffline',
-        icon: Icons.wifi_off,
-        attention: devicesOffline > 0,
-      ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final level = widget.classification?.stressLevel;
@@ -150,10 +106,6 @@ class _HomeTabState extends State<HomeTab> {
         children: [
           // ADDED: personalized greeting by name + time of day (docs/04).
           const _Greeting(),
-          const SizedBox(height: FurFeelTokens.space3),
-          // At-a-glance overview strip (mirrors the dashboard's clinic KPI
-          // row) — built entirely from data RootShell already loaded.
-          OverviewStatsCard(stats: _overviewStats()).entrance(context),
           const SizedBox(height: FurFeelTokens.space3),
           if (widget.dog.isBirthday(DateTime.now())) ...[
             _BirthdayBanner(dog: widget.dog).entrance(context),
