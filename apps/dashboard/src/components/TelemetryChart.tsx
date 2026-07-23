@@ -35,7 +35,7 @@ export function TelemetryChart({ readings }: { readings: TelemetryReading[] }) {
       data={buildTelemetryChartRows(readings)}
       index="time"
       categories={[HR_SERIES, RR_SERIES]}
-      colors={["high", "accent"]}
+      colors={["rose", "teal"]}
       curveType="monotone"
       showAnimation={false}
       yAxisWidth={36}
