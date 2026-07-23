@@ -145,8 +145,8 @@ void main() {
       find.descendant(of: find.byType(Badge), matching: find.text('1')),
       findsOneWidget,
     );
-    // Overview card mirrors the same open-alert count.
-    expect(find.widgetWithText(OverviewStatsCard, 'Open alerts'), findsOneWidget);
+    // Overview card mirrors the status.
+    expect(find.widgetWithText(OverviewStatsCard, '1 Needs attention'), findsOneWidget);
 
     await tester.tap(find.text('Alerts'));
     await tester.pumpAndSettle();
