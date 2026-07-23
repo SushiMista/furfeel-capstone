@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:fl_chart/fl_chart.dart';
@@ -353,6 +354,62 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
 String _dayLabel(DateTime t) =>
     '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
 
+/// Averages the values into at most [maxPoints] evenly spaced buckets.
+///
+/// Without this the chart plots one spot per reading: 24h of 10-second
+/// telemetry is ~8,600 points into ~350 logical pixels, roughly 25 points per
+/// pixel, which renders as a solid block of ink rather than a line you can
+/// read. Averaging per bucket keeps the shape of the trend while dropping the
+/// sampling noise that was filling the card.
+///
+/// x stays in original reading-index space (the bucket's midpoint), so the
+/// x-axis still spans the same range regardless of how much we thinned it.
+/// Null values are skipped; a bucket with no readings emits no spot rather
+/// than a fake zero (docs/07: missing fields are stored null, never replaced).
+List<FlSpot> downsampleToSpots(List<double?> values, {int maxPoints = 96}) {
+  if (values.isEmpty) return const [];
+  if (values.length <= maxPoints) {
+    final out = <FlSpot>[];
+    for (final (i, v) in values.indexed) {
+      if (v != null) out.add(FlSpot(i.toDouble(), v));
+    }
+    return out;
+  }
+
+  final bucketSize = values.length / maxPoints;
+  final out = <FlSpot>[];
+  for (var b = 0; b < maxPoints; b++) {
+    final start = (b * bucketSize).floor();
+    final end = math.min(((b + 1) * bucketSize).ceil(), values.length);
+    var sum = 0.0;
+    var count = 0;
+    for (var i = start; i < end; i++) {
+      final v = values[i];
+      if (v != null) {
+        sum += v;
+        count++;
+      }
+    }
+    if (count > 0) out.add(FlSpot((start + end - 1) / 2, sum / count));
+  }
+  return out;
+}
+
+/// Compact endpoint label for the chart's time axis: clock time when the whole
+/// range is one day, otherwise the date. Hand-rolled because `intl` isn't a
+/// dependency and this is two formats.
+String axisTimeLabel(DateTime t, {required bool sameDay}) {
+  if (sameDay) {
+    final hour12 = t.hour % 12 == 0 ? 12 : t.hour % 12;
+    return '$hour12:${t.minute.toString().padLeft(2, '0')} ${t.hour < 12 ? 'AM' : 'PM'}';
+  }
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${months[t.month - 1]} ${t.day}';
+}
+
 /// One vital's mini-dashboard: line chart over the range + min/avg/max chips.
 class _VitalChartCard extends StatelessWidget {
   const _VitalChartCard({
@@ -374,11 +431,8 @@ class _VitalChartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final spots = <FlSpot>[];
-    for (final (i, r) in readings.indexed) {
-      final v = pick(r);
-      if (v != null) spots.add(FlSpot(i.toDouble(), v));
-    }
+    // Thin the series before charting -- see downsampleToSpots for why.
+    final spots = downsampleToSpots([for (final r in readings) pick(r)]);
     final summary = vitalSummary(readings, pick);
 
     return Card(
@@ -407,58 +461,32 @@ class _VitalChartCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: FurFeelTokens.space3),
-            if (spots.length < 2)
+            if (spots.length < 2 || summary == null)
               Text('Not enough data in this period', style: textTheme.bodySmall)
-            else
-              SizedBox(
-                height: 120,
-                child: LineChart(
-                  LineChartData(
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: spots,
-                        color: color,
-                        barWidth: 2,
-                        isCurved: true,
-                        preventCurveOverShooting: true,
-                        isStrokeCapRound: true,
-                        dotData: const FlDotData(show: false),
-                      ),
-                    ],
-                    gridData: FlGridData(
-                      drawVerticalLine: false,
-                      getDrawingHorizontalLine: (value) =>
-                          FlLine(color: context.ff.hairline, strokeWidth: 1),
-                    ),
-                    titlesData: FlTitlesData(
-                      topTitles: const AxisTitles(),
-                      rightTitles: const AxisTitles(),
-                      bottomTitles: const AxisTitles(),
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 34,
-                          getTitlesWidget: (value, meta) => Text(
-                            meta.formattedValue,
-                            style: TextStyle(
-                              fontSize: FurFeelTokens.typeCaptionSize,
-                              color: context.ff.inkMuted,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    lineTouchData: const LineTouchData(enabled: false),
-                  ),
-                  duration: FurFeelTokens.motionSlow,
-                ),
+            else ...[
+              _BaselineChart(
+                spots: spots,
+                color: color,
+                summary: summary,
+                decimals: decimals,
               ),
+              const SizedBox(height: FurFeelTokens.space2),
+              _TimeAxis(readings: readings),
+            ],
             if (summary != null) ...[
               const SizedBox(height: FurFeelTokens.space3),
               Wrap(
                 spacing: FurFeelTokens.space4,
+                runSpacing: FurFeelTokens.space2,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
+                  // The two-tone fill needs naming -- shading alone never
+                  // carries meaning (docs/19: word + swatch, not color alone).
+                  _SwatchChip(color: color.withValues(alpha: 0.28), label: 'Above average'),
+                  _SwatchChip(
+                    color: context.ff.inkMuted.withValues(alpha: 0.16),
+                    label: 'Below average',
+                  ),
                   _StatChip(label: 'Low', value: summary.min.toStringAsFixed(decimals)),
                   _StatChip(
                       label: 'Average', value: summary.avg.toStringAsFixed(decimals)),
@@ -469,6 +497,186 @@ class _VitalChartCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Baseline chart (TradingView's "baseline" technique): one dashed reference
+/// line at this period's average, with the area between the line and that
+/// baseline shaded in two tones — one for the stretches running above average,
+/// another for below. That single reference is what turns a squiggle into a
+/// readable answer to "is this high or low *for this dog*", which a bare line
+/// with no baseline never answered.
+///
+/// Deliberately NOT green-above/red-below like a stock chart: above average
+/// isn't "bad" here (a dog that just played has a high heart rate and is
+/// perfectly fine), so the fills stay the vital's own hue vs. a neutral grey.
+/// Judging a reading is the classifier's job, not this chart's (CLAUDE.md:
+/// decision support, never diagnosis).
+class _BaselineChart extends StatelessWidget {
+  const _BaselineChart({
+    required this.spots,
+    required this.color,
+    required this.summary,
+    required this.decimals,
+  });
+
+  final List<FlSpot> spots;
+  final Color color;
+  final ({double min, double avg, double max}) summary;
+  final int decimals;
+
+  @override
+  Widget build(BuildContext context) {
+    // Headroom so the line and its fill never touch the card edges. Scaled to
+    // the value's own precision, so 0-1 motion and 3-digit bpm both breathe.
+    final step = math.pow(10, -decimals).toDouble();
+    final pad = math.max((summary.max - summary.min) * 0.18, step * 2);
+    final baseline = summary.avg;
+
+    return SizedBox(
+      height: 140,
+      child: LineChart(
+        LineChartData(
+          minY: summary.min - pad,
+          maxY: summary.max + pad,
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              color: color,
+              barWidth: 2,
+              isCurved: true,
+              preventCurveOverShooting: true,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              // fl_chart names these by which side of the LINE they fill, so
+              // clipping both at the baseline gives the two-tone split:
+              // "below the line, down to the average" = the above-average
+              // stretches, and vice versa. Naming reads backwards; the render
+              // is right.
+              belowBarData: BarAreaData(
+                show: true,
+                color: color.withValues(alpha: 0.28),
+                applyCutOffY: true,
+                cutOffY: baseline,
+              ),
+              aboveBarData: BarAreaData(
+                show: true,
+                color: context.ff.inkMuted.withValues(alpha: 0.16),
+                applyCutOffY: true,
+                cutOffY: baseline,
+              ),
+            ),
+          ],
+          extraLinesData: ExtraLinesData(
+            horizontalLines: [
+              HorizontalLine(
+                y: baseline,
+                color: context.ff.inkMuted,
+                strokeWidth: 1,
+                dashArray: const [4, 4],
+                label: HorizontalLineLabel(
+                  show: true,
+                  alignment: Alignment.topRight,
+                  padding: const EdgeInsets.only(bottom: 2),
+                  style: TextStyle(
+                    fontSize: FurFeelTokens.typeCaptionSize,
+                    fontWeight: FontWeight.w600,
+                    color: context.ff.inkMuted,
+                  ),
+                  labelResolver: (_) => 'avg ${baseline.toStringAsFixed(decimals)}',
+                ),
+              ),
+            ],
+          ),
+          // Grid lines would compete with the baseline for attention; the
+          // baseline IS the reference now, so the grid goes.
+          gridData: const FlGridData(show: false),
+          titlesData: FlTitlesData(
+            topTitles: const AxisTitles(),
+            rightTitles: const AxisTitles(),
+            bottomTitles: const AxisTitles(),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                getTitlesWidget: (value, meta) => Text(
+                  meta.formattedValue,
+                  style: TextStyle(
+                    fontSize: FurFeelTokens.typeCaptionSize,
+                    color: context.ff.inkMuted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          lineTouchData: const LineTouchData(enabled: false),
+        ),
+        duration: FurFeelTokens.motionSlow,
+      ),
+    );
+  }
+}
+
+/// Start/end timestamps under a chart — without them the x-axis is unlabelled
+/// and there's no way to tell what period you're looking at.
+class _TimeAxis extends StatelessWidget {
+  const _TimeAxis({required this.readings});
+
+  final List<TelemetryReading> readings;
+
+  @override
+  Widget build(BuildContext context) {
+    if (readings.isEmpty) return const SizedBox.shrink();
+    final first = readings.first.capturedAt;
+    final last = readings.last.capturedAt;
+    final sameDay =
+        first.year == last.year && first.month == last.month && first.day == last.day;
+    final style = TextStyle(
+      fontSize: FurFeelTokens.typeCaptionSize,
+      color: context.ff.inkMuted,
+    );
+    return Padding(
+      // Clear the y-axis labels so the start time sits over the plot area.
+      padding: const EdgeInsets.only(left: 36),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(axisTimeLabel(first, sameDay: sameDay), style: style),
+          Text(axisTimeLabel(last, sameDay: sameDay), style: style),
+        ],
+      ),
+    );
+  }
+}
+
+/// Legend swatch + word, so the two fill tones are named rather than guessed.
+class _SwatchChip extends StatelessWidget {
+  const _SwatchChip({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+        ),
+        const SizedBox(width: FurFeelTokens.space1),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: FurFeelTokens.typeCaptionSize,
+            color: context.ff.inkMuted,
+          ),
+        ),
+      ],
     );
   }
 }
