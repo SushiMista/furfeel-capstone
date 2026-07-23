@@ -177,3 +177,16 @@ Linked notes:
 - [[08 AI Classification Pipeline]]
 - [[09 Database Schema]]
 - [[05 Veterinary Dashboard Design]]
+
+## ADR-016: Per-Variable Scoring Thresholds, Alongside (Not Replacing) Per-Level Cutoffs
+Status: Accepted (2026-07-23)
+
+Decision: Add 11 more nullable columns to `dog_baselines` — `hr_ratio_elevated_min`/`_moderate_min`/`_high_min`, `rr_ratio_elevated_min`/`_high_min`, `body_temp_elevated_c`/`_high_c`, `motion_elevated_min`/`_high_min`, `ambient_heat_c`, `humidity_heat_pct` — one per tier floor in `classifier_config.json.scoring_rules`. These let a vet override *when an individual signal starts scoring* (e.g. this dog's heart rate counts as elevated above a 1.10 ratio, not the global 1.15), independent of ADR-015's score-level cutoffs, which only control *how many total points* reach mild/moderate/high. Both mechanisms coexist in the same dashboard "Thresholds" tab, grouped by variable. Resolved by `resolveScoringRules` (`services/edge/telemetry-intake/baselines.ts`), mirroring `resolveLevelThresholds`'s per-field fallback shape: only each tier's `min` is overridable — `points` and `reason` always come from the global config, and every tier's `max` is recomputed from the next tier's (possibly overridden) `min` so a partial override can never leave a scoring gap or overlap. No new RLS (same `dog_baselines` row, same `is_clinic_member` gate).
+
+Reason: dogs vary enough by size/breed that a single global "elevated heart rate" ratio is wrong for many of them (a large dog's calm resting rate can sit close to a small dog's already-elevated one) — this was surfaced directly by veterinary review of the initial per-level-only design. Reusing `dog_baselines` again (rather than a new table, or a JSONB blob) keeps one row per dog, one resolver pattern, and no new authorization surface, at the cost of a wider table — judged acceptable since every column is a single nullable numeric with no relational complexity.
+
+Linked notes:
+- [[08 AI Classification Pipeline]]
+- [[09 Database Schema]]
+- [[05 Veterinary Dashboard Design]]
+- [[Threshold Validation Document]]

@@ -1,5 +1,5 @@
 import { defaultConfig } from "../classifier/index.ts";
-import { resolveBaselines, resolveLevelThresholds } from "./baselines.ts";
+import { resolveBaselines, resolveLevelThresholds, resolveScoringRules } from "./baselines.ts";
 import type { DogBaselinesRow } from "./baselines.ts";
 
 function assertEqual<T>(actual: T, expected: T, msg?: string) {
@@ -10,6 +10,7 @@ function assertEqual<T>(actual: T, expected: T, msg?: string) {
 
 const globals = defaultConfig.global_baselines;
 const levelGlobals = defaultConfig.level_thresholds;
+const scoringGlobals = defaultConfig.scoring_rules;
 
 /** Full row with everything null except the given overrides — keeps each
  * test's row literal focused on the fields it actually cares about. */
@@ -21,6 +22,17 @@ function row(overrides: Partial<DogBaselinesRow>): DogBaselinesRow {
     threshold_mild_min: null,
     threshold_moderate_min: null,
     threshold_high_min: null,
+    hr_ratio_elevated_min: null,
+    hr_ratio_moderate_min: null,
+    hr_ratio_high_min: null,
+    rr_ratio_elevated_min: null,
+    rr_ratio_high_min: null,
+    body_temp_elevated_c: null,
+    body_temp_high_c: null,
+    motion_elevated_min: null,
+    motion_high_min: null,
+    ambient_heat_c: null,
+    humidity_heat_pct: null,
     ...overrides,
   };
 }
@@ -90,4 +102,72 @@ Deno.test("resolveLevelThresholds: partial override -> per-field fallback to glo
   assertEqual(result.mild.min, levelGlobals.mild.min);
   assertEqual(result.moderate.min, levelGlobals.moderate.min);
   assertEqual(result.high.min, 9);
+});
+
+Deno.test("resolveScoringRules: no row -> reproduces the global scoring rules exactly", () => {
+  const result = resolveScoringRules(null);
+  assertEqual(JSON.stringify(result), JSON.stringify(scoringGlobals));
+});
+
+Deno.test("resolveScoringRules: heart rate override -> a large, naturally-calmer dog's own tiers", () => {
+  // A large breed with a low resting HR: what counts as "elevated" for this
+  // dog is lower than the global ratio, since even a modest rise off a low
+  // baseline should register.
+  const result = resolveScoringRules(row({
+    hr_ratio_elevated_min: 1.10,
+    hr_ratio_moderate_min: 1.25,
+    hr_ratio_high_min: 1.45,
+  }));
+  const tiers = result.heart_rate_elevated.tiers;
+  assertEqual(tiers[0].min, 1.10);
+  assertEqual(tiers[0].max, 1.25);
+  assertEqual(tiers[1].min, 1.25);
+  assertEqual(tiers[1].max, 1.45);
+  assertEqual(tiers[2].min, 1.45);
+  assertEqual(tiers[2].max, null);
+  // Points/reason are never overridable -- only where each tier starts.
+  assertEqual(tiers[0].points, scoringGlobals.heart_rate_elevated.tiers[0].points);
+  assertEqual(tiers[0].reason, scoringGlobals.heart_rate_elevated.tiers[0].reason);
+});
+
+Deno.test("resolveScoringRules: partial heart-rate override -> untouched tiers fall back to global", () => {
+  const result = resolveScoringRules(row({ hr_ratio_elevated_min: 1.10 }));
+  const tiers = result.heart_rate_elevated.tiers;
+  assertEqual(tiers[0].min, 1.10);
+  // tier 1's max is recomputed from tier 2's (global, unoverridden) min.
+  assertEqual(tiers[0].max, scoringGlobals.heart_rate_elevated.tiers[1].min);
+  assertEqual(tiers[1].min, scoringGlobals.heart_rate_elevated.tiers[1].min);
+  assertEqual(tiers[2].min, scoringGlobals.heart_rate_elevated.tiers[2].min);
+});
+
+Deno.test("resolveScoringRules: respiratory + temperature overrides are independent of each other", () => {
+  const result = resolveScoringRules(row({
+    rr_ratio_elevated_min: 1.2,
+    rr_ratio_high_min: 1.6,
+    body_temp_elevated_c: 38.9,
+    body_temp_high_c: 39.4,
+  }));
+  assertEqual(result.respiratory_elevated.tiers[0].min, 1.2);
+  assertEqual(result.respiratory_elevated.tiers[0].max, 1.6);
+  assertEqual(result.respiratory_elevated.tiers[1].min, 1.6);
+  assertEqual(result.body_temperature.tiers[0].min, 38.9);
+  assertEqual(result.body_temperature.tiers[0].max, 39.4);
+  assertEqual(result.body_temperature.tiers[1].min, 39.4);
+});
+
+Deno.test("resolveScoringRules: motion override also moves the posture-rule floor", () => {
+  // posture_moving_with_high_motion reuses the (possibly overridden) motion
+  // tier-1 floor, same inference classifier_config.json documents globally.
+  const result = resolveScoringRules(row({ motion_elevated_min: 0.5, motion_high_min: 0.75 }));
+  assertEqual(result.motion_restlessness.tiers[0].min, 0.5);
+  assertEqual(result.motion_restlessness.tiers[0].max, 0.75);
+  assertEqual(result.posture_moving_with_high_motion.motion_activity_min, 0.5);
+});
+
+Deno.test("resolveScoringRules: environmental amplifier ambient/humidity overrides", () => {
+  const result = resolveScoringRules(row({ ambient_heat_c: 30, humidity_heat_pct: 75 }));
+  assertEqual(result.environmental_amplifier.ambient_temperature_c_above, 30);
+  assertEqual(result.environmental_amplifier.humidity_percent_above, 75);
+  // Points/reason for the amplifier rule itself are untouched.
+  assertEqual(result.environmental_amplifier.points, scoringGlobals.environmental_amplifier.points);
 });

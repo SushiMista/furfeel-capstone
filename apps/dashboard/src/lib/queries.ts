@@ -47,7 +47,10 @@ export async function fetchDog(client: SupabaseClient, dogId: string): Promise<D
 
 const DOG_BASELINES_COLUMNS =
   "id, dog_id, resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c, " +
-  "threshold_mild_min, threshold_moderate_min, threshold_high_min, updated_at";
+  "threshold_mild_min, threshold_moderate_min, threshold_high_min, " +
+  "hr_ratio_elevated_min, hr_ratio_moderate_min, hr_ratio_high_min, " +
+  "rr_ratio_elevated_min, rr_ratio_high_min, body_temp_elevated_c, body_temp_high_c, " +
+  "motion_elevated_min, motion_high_min, ambient_heat_c, humidity_heat_pct, updated_at";
 
 /** 0-or-1 row per dog (docs/08); null means every field falls back to the
  * global defaults in classifier_config.json. */
@@ -64,20 +67,37 @@ export async function fetchDogBaselines(
   return data as unknown as DogBaselines | null;
 }
 
+/** Every dog_baselines column a vet can override from the Thresholds tab —
+ * the three score-level cutoffs plus the finer per-variable scoring-rule
+ * tier floors. Every field is independently nullable/optional; pass null (or
+ * omit) to reset a field to its global default. */
+export interface DogThresholdOverrides {
+  threshold_mild_min: number | null;
+  threshold_moderate_min: number | null;
+  threshold_high_min: number | null;
+  hr_ratio_elevated_min: number | null;
+  hr_ratio_moderate_min: number | null;
+  hr_ratio_high_min: number | null;
+  rr_ratio_elevated_min: number | null;
+  rr_ratio_high_min: number | null;
+  body_temp_elevated_c: number | null;
+  body_temp_high_c: number | null;
+  motion_elevated_min: number | null;
+  motion_high_min: number | null;
+  ambient_heat_c: number | null;
+  humidity_heat_pct: number | null;
+}
+
 /** Per-dog threshold override (docs/08, step 2): a vet-only write in practice —
  * dog_baselines_insert/update RLS gates on is_clinic_member(dog_id), so a vet
  * outside this dog's clinic gets rejected by Postgres, not by this function.
  * Pass null for a field to reset it to the global default. Only touches the
- * three threshold columns -- resting_* baseline columns set elsewhere on the
+ * threshold columns -- resting_* baseline columns set elsewhere on the
  * same row are left untouched (upsert only updates the columns given here). */
 export async function saveDogThresholds(
   client: SupabaseClient,
   dogId: string,
-  thresholds: {
-    threshold_mild_min: number | null;
-    threshold_moderate_min: number | null;
-    threshold_high_min: number | null;
-  },
+  thresholds: DogThresholdOverrides,
 ): Promise<DogBaselines> {
   const { data, error } = await client
     .from("dog_baselines")
