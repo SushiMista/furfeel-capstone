@@ -3,7 +3,7 @@ import { verifyDeviceKey } from "../_shared/device-auth.ts";
 import { classifyStress, defaultConfig } from "../classifier/index.ts";
 import { alertTypeForStressLevel, decideAlert, decideBatteryAlert } from "../alerts/index.ts";
 import { parseTelemetryRequestBody, sanitizeTelemetry } from "./validation.ts";
-import { resolveBaselines, resolveLevelThresholds } from "./baselines.ts";
+import { resolveBaselines, resolveLevelThresholds, resolveScoringRules } from "./baselines.ts";
 import type { DogBaselinesRow } from "./baselines.ts";
 
 function jsonResponse(body: unknown, status: number): Response {
@@ -99,7 +99,10 @@ async function handleTelemetry(req: Request): Promise<Response> {
       .from("dog_baselines")
       .select(
         "resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c, " +
-          "threshold_mild_min, threshold_moderate_min, threshold_high_min",
+          "threshold_mild_min, threshold_moderate_min, threshold_high_min, " +
+          "hr_ratio_elevated_min, hr_ratio_moderate_min, hr_ratio_high_min, " +
+          "rr_ratio_elevated_min, rr_ratio_high_min, body_temp_elevated_c, body_temp_high_c, " +
+          "motion_elevated_min, motion_high_min, ambient_heat_c, humidity_heat_pct",
       )
       .eq("dog_id", device.dog_id)
       .maybeSingle();
@@ -111,10 +114,14 @@ async function handleTelemetry(req: Request): Promise<Response> {
 
     const typedBaselineRow = baselineRow as DogBaselinesRow | null;
     const baselines = resolveBaselines(typedBaselineRow);
-    // Per-dog score->level thresholds (docs/08): NULL columns fall back to
-    // the global defaults, same shape as the baseline resolver above.
+    // Per-dog score->level thresholds AND per-variable scoring-rule tiers
+    // (docs/08): NULL columns fall back to the global defaults, same shape
+    // as the baseline resolver above. Level thresholds decide how many total
+    // points reach a stress level; scoring rules decide when each individual
+    // signal starts contributing points -- both vet-tunable, independently.
     const levelThresholds = resolveLevelThresholds(typedBaselineRow);
-    const config = { ...defaultConfig, level_thresholds: levelThresholds };
+    const scoringRules = resolveScoringRules(typedBaselineRow);
+    const config = { ...defaultConfig, level_thresholds: levelThresholds, scoring_rules: scoringRules };
 
     const { data: recentRows, error: recentError } = await supabase
       .from("stress_classifications")
