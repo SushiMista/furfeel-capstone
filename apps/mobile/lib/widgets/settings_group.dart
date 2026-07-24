@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shadcn;
 
 import '../theme/furfeel_tokens.dart';
+import '../theme/shadcn_bridge.dart';
 import '../util/motion.dart';
 
 /// iOS-Settings-style inset group: small uppercase header, a rounded surface
@@ -46,27 +48,30 @@ class SettingsGroup extends StatelessWidget {
               ],
             ),
           ),
-        Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: context.ff.surface,
+        // shadcn_flutter piloted here too (ADR-017), same local-scope pattern
+        // as OverviewStatsCard -- app root stays MaterialApp.
+        shadcn.Theme(
+          data: furFeelShadcnTheme(context),
+          child: shadcn.Card(
+            clipBehavior: Clip.antiAlias,
+            filled: true,
+            fillColor: context.ff.surface,
+            borderColor: context.ff.hairline,
             borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-            border: Border.all(color: context.ff.hairline),
-          ),
-          child: Column(
-            children: [
-              for (final (i, child) in children.indexed) ...[
-                if (i > 0)
-                  Divider(
-                    height: 1,
-                    thickness: 1,
-                    // Inset past the leading tile so hairlines align with text.
-                    indent: 60,
-                    color: context.ff.hairline,
-                  ),
-                child,
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final (i, child) in children.indexed) ...[
+                  if (i > 0)
+                    Padding(
+                      // Inset past the leading tile so hairlines align with text.
+                      padding: const EdgeInsets.only(left: 60),
+                      child: shadcn.Divider(color: context.ff.hairline),
+                    ),
+                  child,
+                ],
               ],
-            ],
+            ),
           ),
         ),
         if (footer != null)
