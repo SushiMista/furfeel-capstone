@@ -104,7 +104,7 @@ Keep every animation short and gentle; motion should reassure, never distract.
 - **Dog card (dashboard board):** name + breed + stress pill leading; calm dogs recede, above-calm dogs get a soft status tint and float to the top.
 - **Alert card:** severity-colored left border, message, timestamp, one clear **Acknowledge** button; acknowledged → muted.
 - **Empty states:** friendly + encouraging with a small illustration ("No alerts — Biscuit is doing great 🐾"), never a bare "No data."
-- **Nav:** dashboard = left sidebar (Overview, Board, Alerts, Reports, Admin); mobile = bottom tab bar (Home, Alerts, History, Profile).
+- **Nav:** dashboard = left sidebar (Overview, Board, Alerts, Reports, Admin); mobile = a **floating pill bar — Home · Alerts · Trends · Profile — plus a detached Chat box** beside it (2026-07-24). The mobile bar is **icon-only**: selection is shown by swapping to the *filled* glyph plus a soft brand pill, never colour alone, and every destination keeps its name in `Semantics` (a badged tab announces as "Alerts, 3 new").
 
 ## 8. Per-module screen direction
 Design intent for every manuscript module so the full build stays cohesive.
@@ -137,7 +137,7 @@ Design intent for every manuscript module so the full build stays cohesive.
 
 ## 11. Implementation checklist
 - [ ] `packages/shared/design_tokens.json` holds all tokens above.
-- [ ] Generator emits `apps/dashboard/src/styles/tokens.css` (CSS vars) + Tailwind theme extension, and `apps/mobile/lib/theme/furfeel_tokens.dart` + a Material 3 `ThemeData`.
+- [ ] Generator emits `apps/dashboard/src/styles/tokens.css` (CSS vars) + Tailwind theme extension, `apps/mobile/lib/theme/furfeel_tokens.dart` + a Material 3 `ThemeData`, and `apps/mobile/android/.../res/values{,-night}/colors.xml` (the Android launch screen is painted by the OS before Flutter starts, so it needs real colour resources rather than Dart constants).
 - [ ] Dashboard adopts shadcn/ui + Tremor themed to the tokens.
 - [ ] Mobile uses `ColorScheme.fromSeed(seedColor: brand)` + Inter + `fl_chart`.
 - [ ] Stress pill + vital card + alert card built once per platform from tokens; no hardcoded hex.

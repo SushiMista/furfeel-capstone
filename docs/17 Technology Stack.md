@@ -21,7 +21,7 @@ tags: [furfeel, stack, development]
 | Layer | What's actually used |
 |---|---|
 | Dashboard UI | React + Vite + Tailwind, shadcn-style primitives, **Tremor** charts, lucide icons |
-| Mobile UI | Flutter Material 3, `fl_chart`, `flutter_animate`, `google_fonts` |
+| Mobile UI | Flutter Material 3, `fl_chart`, `flutter_animate`, `google_fonts`, `shadcn_flutter` (scoped locally, not the app root — ADR-017) |
 | Design tokens | `packages/shared/design_tokens.json` → generates dashboard CSS vars + Tailwind theme and Flutter `ThemeData` (light + dark, AA-checked). Font **Inter**. Blue + white brand (see [[19 Design System]]) |
 | Edge Functions (Deno/TS) | `telemetry-intake` (validate → store → classify → alert → offline-recovery), `delete-account` (ADR-003-safe) |
 | Server-side logic | SQL RPCs: `stress_daily_summary`, `stress_hourly_pattern`, `vet_note_feed`, `set_dog_photo`, `pair_device`; pg_cron device-offline job |

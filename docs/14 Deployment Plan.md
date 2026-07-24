@@ -22,6 +22,18 @@ tags: [furfeel, deployment, operations]
 - Mobile app.
 - Web dashboard.
 
+## Android app identity + versioning (as built)
+| Field | Value | Where |
+|---|---|---|
+| App label | `FurFeel` | `android/app/src/main/AndroidManifest.xml` |
+| Application ID | `com.furfeel.furfeel_mobile` | `android/app/build.gradle.kts` |
+| Version | `1.0.0+2` → versionName `1.0.0`, versionCode `2` | `apps/mobile/pubspec.yaml` |
+| Launcher icon | `apps/mobile/assets/icon/app_icon.png` → generated `mipmap-*/ic_launcher.png` | — |
+
+Gradle reads `versionCode`/`versionName` straight from Flutter, so **`pubspec.yaml` is the single place a release is versioned**. Bump the build number (`+N`) for every APK handed to a tester — Android refuses to install a build whose `versionCode` is not higher than the installed one, which otherwise reads as "the update didn't work."
+
+The launcher icon is also what Android 12+ paints on the system launch screen, so changing it changes the first frame of the app — see `04 Mobile App Design` → Launch + splash, and ADR-019.
+
 ## Pilot Deployment Flow
 1. Register clinic.
 2. Register test dog.
