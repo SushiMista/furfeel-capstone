@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ draws the launch screen itself via the SplashScreen API, so
+     `windowBackground` is ignored there and the OS falls back to the system
+     surface + the raw launcher icon. These two attributes are the only way to
+     make that first frame brand-correct. Colors come from
+     packages/shared/design_tokens.json via generate_design_tokens.mjs — the
+     OS renders this before Flutter exists, so it can't read the Dart tokens. -->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+    </style>
+</resources>

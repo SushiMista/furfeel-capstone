@@ -3,6 +3,7 @@
 //   - apps/dashboard/src/styles/tokens.css      (CSS custom properties)
 //   - apps/dashboard/tailwind.tokens.js         (Tailwind theme extension + Tremor-compatible color scales)
 //   - apps/mobile/lib/theme/furfeel_tokens.dart (Flutter constants)
+//   - apps/mobile/android/.../res/values{,-night}/colors.xml (Android splash)
 // Run from anywhere: node packages/shared/scripts/generate_design_tokens.mjs
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -238,6 +239,21 @@ function dart() {
   return lines.join("\n");
 }
 
+/** Android's launch screen is drawn by the OS before Flutter starts, so it
+ * can't read the Dart tokens — it needs real color resources. Only the two
+ * values the splash theme uses are emitted; everything else stays in Dart. */
+function androidColors(palette) {
+  return [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    ...HEADER.split("\n").map((line) => `<!-- ${line} -->`),
+    "<resources>",
+    `    <color name="splash_background">${palette.base.bg}</color>`,
+    `    <color name="brand">${palette.brand.brand}</color>`,
+    "</resources>",
+    "",
+  ].join("\n");
+}
+
 const cssPath = join(repoRoot, "apps", "dashboard", "src", "styles", "tokens.css");
 const twPath = join(repoRoot, "apps", "dashboard", "tailwind.tokens.js");
 const dartPath = join(repoRoot, "apps", "mobile", "lib", "theme", "furfeel_tokens.dart");
@@ -246,6 +262,14 @@ mkdirSync(dirname(dartPath), { recursive: true });
 writeFileSync(cssPath, css());
 writeFileSync(twPath, tailwind());
 writeFileSync(dartPath, dart());
+
+const androidRes = join(repoRoot, "apps", "mobile", "android", "app", "src", "main", "res");
+for (const [dir, palette] of [["values", tokens.color], ["values-night", tokens.colorDark]]) {
+  const p = join(androidRes, dir, "colors.xml");
+  mkdirSync(dirname(p), { recursive: true });
+  writeFileSync(p, androidColors(palette));
+  console.log(`wrote ${p}`);
+}
 console.log(`wrote ${cssPath}`);
 console.log(`wrote ${twPath}`);
 console.log(`wrote ${dartPath}`);
