@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shadcn;
 
 import '../theme/furfeel_tokens.dart';
+import '../theme/shadcn_bridge.dart';
 
 /// One at-a-glance stat (docs/04 Home): word + icon, never color alone.
 class OverviewStat {
@@ -87,87 +89,95 @@ class OverviewStatsCard extends StatelessWidget {
 
     final dogLabel = dogCount == 1 ? 'Dog monitored' : 'Dogs monitored';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: FurFeelTokens.space4,
-        vertical: FurFeelTokens.space3,
-      ),
-      decoration: BoxDecoration(
-        color: context.ff.surface,
+    // shadcn_flutter piloted here (ADR-017): Card gives the same surface this
+    // widget already drew by hand, NumberTicker animates the dog count on
+    // change instead of it just snapping to a new digit. Scoped locally via
+    // shadcn.Theme -- the app root stays MaterialApp (see shadcn_bridge.dart).
+    return shadcn.Theme(
+      data: furFeelShadcnTheme(context),
+      child: shadcn.Card(
+        filled: true,
+        fillColor: context.ff.surface,
+        borderColor: context.ff.hairline,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-        border: Border.all(color: context.ff.hairline),
         boxShadow: FurFeelTokens.shadowCard,
-      ),
-      child: Row(
-        children: [
-          // Paw Icon
-          Container(
-            padding: const EdgeInsets.all(FurFeelTokens.space2),
-            decoration: BoxDecoration(
-              color: context.ff.brandSoft,
-              borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: FurFeelTokens.space4,
+          vertical: FurFeelTokens.space3,
+        ),
+        child: Row(
+          children: [
+            // Paw Icon
+            Container(
+              padding: const EdgeInsets.all(FurFeelTokens.space2),
+              decoration: BoxDecoration(
+                color: context.ff.brandSoft,
+                borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
+              ),
+              child: Icon(
+                Icons.pets,
+                size: 16,
+                color: context.ff.brand,
+              ),
             ),
-            child: Icon(
-              Icons.pets,
-              size: 16,
-              color: context.ff.brand,
-            ),
-          ),
-          const SizedBox(width: FurFeelTokens.space3),
-          // Total Dogs Monitored Count & Label
-          Expanded(
-            child: Row(
-              children: [
-                Text(
-                  '${dogsStat.value} ',
-                  style: TextStyle(
-                    fontSize: FurFeelTokens.typeH3Size,
-                    fontWeight: FontWeight.w800,
-                    color: context.ff.ink,
-                  ),
-                ),
-                Flexible(
-                  child: Text(
-                    dogLabel,
-                    overflow: TextOverflow.ellipsis,
+            const SizedBox(width: FurFeelTokens.space3),
+            // Total Dogs Monitored Count & Label
+            Expanded(
+              child: Row(
+                children: [
+                  shadcn.NumberTicker(
+                    number: dogCount,
+                    formatter: (v) => '${v.toInt()} ',
+                    duration: FurFeelTokens.motionSlow,
                     style: TextStyle(
-                      fontSize: FurFeelTokens.typeBodySize,
-                      fontWeight: FontWeight.w600,
+                      fontSize: FurFeelTokens.typeH3Size,
+                      fontWeight: FontWeight.w800,
                       color: context.ff.ink,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: FurFeelTokens.space2),
-          // Status Badge
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: FurFeelTokens.space3,
-              vertical: 5,
-            ),
-            decoration: BoxDecoration(
-              color: statusBg,
-              borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(statusIcon, size: 14, color: statusFg),
-                const SizedBox(width: 4),
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: statusFg,
+                  Flexible(
+                    child: Text(
+                      dogLabel,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: FurFeelTokens.typeBodySize,
+                        fontWeight: FontWeight.w600,
+                        color: context.ff.ink,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: FurFeelTokens.space2),
+            // Status Badge
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: FurFeelTokens.space3,
+                vertical: 5,
+              ),
+              decoration: BoxDecoration(
+                color: statusBg,
+                borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(statusIcon, size: 14, color: statusFg),
+                  const SizedBox(width: 4),
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: statusFg,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
