@@ -214,6 +214,26 @@ The care-team reminder pinned above the threads is the latest **`vet_notes`** en
 
 Known limits, deliberately shipped: (1) `media_submissions.storage_path` is `not null`, so a thread can only be *started* by sharing media — the empty state states this instead of offering a composer that cannot work; making that column and `media_type` nullable is the phase-3 change that unlocks text-only messages while reusing every existing policy. (2) No unread badge, because no per-user read state exists on either table and a badge that never clears is worse than none — `last_read_at` is the prerequisite.
 
+**Amended 2026-07-24 (same day):** the Care Team tab referenced above was retired once Chat took over the vet-note feed, leaving the dog page with **Vitals · Activity**. Care Insights moved to **Vitals** — the reasoning is unchanged (rule-derived, so it must not look like a clinician's message), only its address. The retirement also deleted `HomeTab.vetNotes`, the `_QuickLink` widget, and the `fetchVetNoteFeed` call plus the `onVetNote` realtime callback in both `RootShell` and `DogDetailPage`, so Home is one query lighter per dog load.
+
 Linked notes:
 - [[04 Mobile App Design]]
 - [[09 Database Schema]]
+
+## ADR-019: The Launch Screen Is Two Stages Pretending to Be One
+Status: Accepted (2026-07-24)
+
+Decision: Treat the cold start as a single brand moment split across two renderers. **Stage 1** is the Android 12+ system splash — the OS draws the launcher icon before Flutter exists, so it cannot be a Flutter animation; `values-v31/styles.xml` (+ `values-night-v31`) sets `windowSplashScreenBackground` so at least the canvas is brand-correct. **Stage 2** is Flutter's `SplashPage`, rendered on the *same* background with the same mark (`FurFeelLogo.auth`, the gradient paw + two-tone wordmark the auth screens already use), so the handoff reads as continuation rather than a second screen.
+
+Consequence for the token pipeline: `generate_design_tokens.mjs` gained a fourth output, `apps/mobile/android/.../res/values{,-night}/colors.xml`. The OS paints stage 1 before any Dart runs, so it cannot read `furfeel_tokens.dart` — without generated colour resources the splash background would be a hardcoded hex in XML, drifting from `design_tokens.json` the first time the palette moves. Only the two colours the splash theme needs are emitted; everything else stays in Dart.
+
+Launch timing: the minimum splash was **1500 ms → 400 ms**, with a 320 ms cross-fade into the first real screen. The floor exists only so a fast start doesn't flash the logo for a single frame; the old value taxed every cold start by ~1.1 s even when everything resolved in 200 ms, and the fade solves the flicker the floor was defending against.
+
+A loader appears **only** on the signed-in settings load — a real network call that can hang — and only after 600 ms, so a quick load never flashes a bar. It is not built before then rather than built-and-transparent, since a zero-opacity widget still flashes into view on a slow frame. That 600 ms delay applies under reduced motion too: avoiding a flash is not a motion preference, and skipping it would hand reduced-motion users the worse behaviour. Reduced motion only drops the fade.
+
+Rejected: an animated native splash via `windowSplashScreenAnimatedIcon`. It is Android 12+ only, capped around one second, and the API deliberately refuses branding text in the icon slot — so it could not show the wordmark, which is the thing the splash exists to show.
+
+Linked notes:
+- [[04 Mobile App Design]]
+- [[19 Design System]]
+- [[14 Deployment Plan]]
