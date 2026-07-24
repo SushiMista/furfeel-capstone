@@ -13,7 +13,6 @@ import '../util/motion.dart';
 import '../widgets/activity_indicator.dart';
 import '../widgets/day_timeline.dart';
 import '../widgets/dog_avatar.dart';
-import '../widgets/overview_stats_card.dart';
 import '../widgets/setup_checklist_card.dart';
 import '../widgets/stress_pill.dart';
 import '../widgets/vet_note_card.dart';
