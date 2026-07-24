@@ -190,3 +190,15 @@ Linked notes:
 - [[09 Database Schema]]
 - [[05 Veterinary Dashboard Design]]
 - [[Threshold Validation Document]]
+
+## ADR-017: `shadcn_flutter` Piloted Locally, Not Adopted as the App Root
+Status: Accepted (2026-07-24)
+
+Decision: Add `shadcn_flutter` as a dependency and use its `Card`, `Divider`, and `NumberTicker` in `overview_stats_card.dart` and `settings_group.dart`, scoped to those widgets via a local `shadcn.Theme` wrapper (`lib/theme/shadcn_bridge.dart` maps `FurFeelTokens` onto a `shadcn.ThemeData`/`ColorScheme` — docs/19 stays authoritative for color; no shadcn stock palette). The app root stays `MaterialApp`; `ShadcnApp` is NOT adopted. This is possible because shadcn_flutter's `Theme`/`ComponentTheme` are plain `InheritedTheme`s (confirmed by reading the installed 0.0.53 source) that these three components read via `Theme.of`/`ComponentTheme.maybeOf` (null-safe) — none of the three touch `Localizations`, `Overlay`, or `Navigator`, so they don't need `ShadcnApp`'s `WidgetsApp` machinery.
+
+Reason: `ShadcnApp` wraps `WidgetsApp` directly — it's an architectural peer of `MaterialApp`, not a themeable component layer, despite pub.dev's README claiming components can be mixed into an existing `MaterialApp` (the package's own example app only ever shows `ShadcnApp` as literal root; this claim wasn't found demonstrated anywhere in the source). Adopting it app-wide would mean a root swap, re-deriving the Material-specific fade-through `pageTransitionsTheme`, fixing 81 `Theme.of` call sites, and rewriting the 24 test files that wrap in `MaterialApp` — a multi-day, high-regression-risk change for what the user actually wanted (two specific components' visual upgrade). Verify per-component before relying on this pattern again: not every shadcn widget is dependency-free the way these three are (e.g. anything overlay-based — Toast, Popover, Dialog, Tooltip — almost certainly needs `ShadcnApp`'s handlers and was not attempted here).
+
+Linked notes:
+- [[19 Design System]]
+- [[overview_stats_card.dart]]
+- [[settings_group.dart]]

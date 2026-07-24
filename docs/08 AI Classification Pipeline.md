@@ -37,6 +37,12 @@ Classify canine stress into actionable levels using physiological, behavioral, a
 
 Per-dog values in `dog_baselines` override these when available.
 
+**Vet-tunable per-dog overrides (2026-07-24):** beyond the resting values above, clinic staff can override two independent, complementary things per dog from the dashboard's Dog detail → Thresholds tab, each falling back to the clinic-wide default in `classifier_config.json` when left blank — dogs vary by size, so a small dog's normal heart rate can be a large dog's elevated one:
+- **Score cutoffs** (`threshold_mild_min` / `threshold_moderate_min` / `threshold_high_min`): how many total points reach each level (ADR-015).
+- **Per-variable tiers** (`hr_ratio_*`, `rr_ratio_*`, `body_temp_*`, `motion_*`, `ambient_heat_c`, `humidity_heat_pct`): when each individual signal in the Scoring Rules table below starts contributing points in the first place, independent of the score cutoffs (ADR-016).
+
+Both live as nullable columns on `dog_baselines` (schema: [[09 Database Schema]]); see `services/edge/telemetry-intake/baselines.ts` for the resolver the classifier actually calls.
+
 ## Scoring Rules (rule-v1)
 
 Each rule adds points. `hr_ratio = heart_rate / baseline_hr`, `rr_ratio = respiratory_rate / baseline_rr`.

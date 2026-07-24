@@ -22,7 +22,7 @@ Left sidebar: **Overview · Monitoring Board · Alerts · Reports · Admin** (Ad
 - Vet **account menu + settings** (theme, profile photo via `users.avatar_path`, sign out) so the dashboard is a real signed-in product too.
 - Columns: dog, device status (online dot), current stress pill, HR, RR, temp, motion, last reading, open-alert count.
 - Live via Realtime. Filter: all / needs attention.
-- **Dog detail:** header + current stress pill, vital cards, vitals trend chart (Tremor), stress classification timeline, a **14-day stress-mix chart** (same 100%-stacked composition as the owner app, via `stress_daily_summary`), open alerts, vet-notes panel.
+- **Dog detail:** header + current stress pill, vital cards, vitals trend chart (Tremor), stress classification timeline, a **14-day stress-mix chart** (same 100%-stacked composition as the owner app, via `stress_daily_summary`), open alerts, vet-notes panel, and a **Thresholds tab** (`ThresholdEditor`) letting clinic staff override this dog's classifier score cutoffs and per-variable tiers (heart rate, respiratory rate, body temperature, motion, ambient heat, humidity), falling back to the clinic-wide default when left blank — see `08 AI Classification Pipeline` and [[09 Database Schema]] (`dog_baselines`).
 - **Overview page:** greets the vet, a **"Calm today" KPI**, and a **clinic-wide 14-day stress-mix** chart aggregated across the clinic's dogs.
 
 ### 2. Vet Review Module
@@ -53,6 +53,9 @@ Search by dog/breed plus **saved quick filters** — All / Needs attention / Off
 
 ## Shift handover (2026-07-19)
 Sidebar page `/handover`: one printable view of the last 8/12/24 h — every monitored dog with current stress pill, harness status, open-alert count, and the window's alert timeline (handled ones marked); dogs with events sort first. Print / save PDF reuses the report print stylesheet, so it also serves as the clinic-period report.
+
+## Per-dog threshold customization (2026-07-24)
+Dog detail → **Thresholds** tab (`ThresholdEditor`): a vet asked to set the classifier threshold for each variable per dog rather than live with one clinic-wide cutoff. Two independent controls, tabbed by category (score cutoffs, then one tab per variable) so the editor never becomes a long scroll: score cutoffs (how many points reach mild/moderate/high) and per-variable tiers (when heart rate, respiratory rate, body temperature, motion, ambient temperature, or humidity itself starts scoring). Every field shows "Default · x" or "Custom · effective x" and can be reset individually; blank = clinic-wide default from `classifier_config.json`. See `08 AI Classification Pipeline` and ADR-015/ADR-016.
 
 ## MVP priority order
 Board (done) → Dog detail (done) → Alerts queue (done) → Vet notes (done) → Reports (done) → Vet Review media + confirm/override (done) → Admin incl. add-user + System Health (done).
