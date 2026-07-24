@@ -92,11 +92,17 @@ class _FurFeelAppState extends State<FurFeelApp> {
     _bootstrap();
   }
 
+  /// Minimum time the brand splash stays up. Short on purpose: it exists only
+  /// so a fast start doesn't flash the logo for one frame, NOT to pad the
+  /// launch. The cross-fade below covers the rest — a fixed 1.5s floor taxed
+  /// every cold start even when everything was ready in 200ms.
+  static const _minSplash = Duration(milliseconds: 400);
+
   Future<void> _bootstrap() async {
     final prefs = SharedPreferences.getInstance();
     await Future.wait([
       prefs,
-      Future<void>.delayed(const Duration(milliseconds: 1500)),
+      Future<void>.delayed(_minSplash),
     ]);
     final seen = (await prefs).getBool(_onboardingSeenKey) ?? false;
     if (!mounted) return;
@@ -135,7 +141,12 @@ class _FurFeelAppState extends State<FurFeelApp> {
             theme: buildFurFeelTheme(),
             darkTheme: buildFurFeelTheme(dark: true),
             themeMode: _settings.themeMode,
-            home: !_splashDone || _onboardingSeen == null
+            // Cross-fade out of the splash so the first real screen arrives
+            // softly instead of cutting; this is what lets the floor above be
+            // short without the launch looking like a flicker.
+            home: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 320),
+              child: !_splashDone || _onboardingSeen == null
                 ? const SplashPage()
                 : StreamBuilder<AuthState>(
                     stream: _client.auth.onAuthStateChange,
@@ -147,7 +158,9 @@ class _FurFeelAppState extends State<FurFeelApp> {
                         }
                         return WelcomePage(client: _client);
                       }
-                      if (!_settings.loaded) return const SplashPage();
+                      // A real network wait, unlike the cold-start beat, so
+                      // this one earns a loader.
+                      if (!_settings.loaded) return const SplashPage.loading();
                       return RootShell(
                         repository: _repository,
                         userEmail: session.user.email,
@@ -155,6 +168,7 @@ class _FurFeelAppState extends State<FurFeelApp> {
                       );
                     },
                   ),
+            ),
           ),
         );
       },
