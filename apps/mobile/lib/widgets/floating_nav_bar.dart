@@ -13,28 +13,47 @@ class FloatingNavDestination {
 
   final IconData icon;
   final IconData selectedIcon;
+
+  /// Not rendered — the bar is icon-only. This is the accessible name the
+  /// item is announced and found by, so it must stay set and meaningful.
   final String label;
+
   final int badgeCount;
 }
 
 /// Modern-minimal floating pill nav bar: a rounded surface with a soft,
 /// brand-tinted shadow that hovers above the page background instead of a
-/// bar flush with the screen edges. Selection is shown by a soft pill behind
-/// the icon + a bold label (word + weight, never color alone).
+/// bar flush with the screen edges.
+///
+/// Icon-only by choice. Selection never rides on colour alone: the selected
+/// item swaps to its *filled* glyph and gains a soft brand pill behind it, so
+/// it is distinguishable without colour vision. Labels are still carried on
+/// every destination and exposed through [Semantics], so screen readers
+/// announce the same words the bar no longer draws.
 class FloatingNavBar extends StatelessWidget {
   const FloatingNavBar({
     super.key,
     required this.selectedIndex,
     required this.onDestinationSelected,
     required this.destinations,
+    this.detachLast = false,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
   final List<FloatingNavDestination> destinations;
 
+  /// Renders the final destination as its own round box beside the pill
+  /// instead of a fifth item inside it — a destination that is a different
+  /// *kind* of thing (messaging, not a view switch) reads better detached.
+  /// Indices are unchanged — the detached item is still `destinations.length - 1`.
+  final bool detachLast;
+
   @override
   Widget build(BuildContext context) {
+    final pillDestinations =
+        detachLast ? destinations.sublist(0, destinations.length - 1) : destinations;
+
     return SafeArea(
       minimum: const EdgeInsets.only(bottom: FurFeelTokens.space2),
       child: Padding(
@@ -42,35 +61,71 @@ class FloatingNavBar extends StatelessWidget {
           horizontal: FurFeelTokens.space4,
           vertical: FurFeelTokens.space2,
         ),
-        child: Container(
-          height: 64,
-          decoration: BoxDecoration(
-            color: context.ff.surface,
-            borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
-            border: Border.all(color: context.ff.hairline),
-            boxShadow: [
-              BoxShadow(
-                color: context.ff.ink.withValues(alpha: 0.10),
-                offset: const Offset(0, 10),
-                blurRadius: 28,
-                spreadRadius: -6,
+        child: Row(
+          children: [
+            Expanded(
+              child: _NavSurface(
+                child: Row(
+                  children: [
+                    for (final (i, dest) in pillDestinations.indexed)
+                      Expanded(
+                        child: _FloatingNavItem(
+                          destination: dest,
+                          selected: i == selectedIndex,
+                          onTap: () => onDestinationSelected(i),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            if (detachLast) ...[
+              const SizedBox(width: FurFeelTokens.space3),
+              _NavSurface(
+                // Square-ish so the detached box reads as one tap target, not
+                // a cut-off pill; the label still rides under the icon.
+                width: 64,
+                child: _FloatingNavItem(
+                  destination: destinations.last,
+                  selected: selectedIndex == destinations.length - 1,
+                  onTap: () => onDestinationSelected(destinations.length - 1),
+                ),
               ),
             ],
-          ),
-          child: Row(
-            children: [
-              for (final (i, dest) in destinations.indexed)
-                Expanded(
-                  child: _FloatingNavItem(
-                    destination: dest,
-                    selected: i == selectedIndex,
-                    onTap: () => onDestinationSelected(i),
-                  ),
-                ),
-            ],
-          ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+/// The floating surface itself — same height, radius, hairline and lifted
+/// shadow whether it holds the tab row or the detached action.
+class _NavSurface extends StatelessWidget {
+  const _NavSurface({required this.child, this.width});
+
+  final Widget child;
+  final double? width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      width: width,
+      decoration: BoxDecoration(
+        color: context.ff.surface,
+        borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+        border: Border.all(color: context.ff.hairline),
+        boxShadow: [
+          BoxShadow(
+            color: context.ff.ink.withValues(alpha: 0.10),
+            offset: const Offset(0, 10),
+            blurRadius: 28,
+            spreadRadius: -6,
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }
@@ -96,7 +151,12 @@ class _FloatingNavItem extends StatelessWidget {
       color: color,
     );
     if (destination.badgeCount > 0) {
-      icon = Badge(label: Text('${destination.badgeCount}'), child: icon);
+      // The count is folded into this item's accessible name below, so the
+      // badge's own text is excluded — otherwise the merged node announces a
+      // bare trailing number ("Alerts 3") instead of a readable phrase.
+      icon = ExcludeSemantics(
+        child: Badge(label: Text('${destination.badgeCount}'), child: icon),
+      );
     }
 
     return Material(
@@ -107,7 +167,11 @@ class _FloatingNavItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
         ),
         child: Semantics(
-          label: destination.label,
+          // Icon-only bar: this is the ONLY place the destination's name
+          // exists, so it carries the badge count too.
+          label: destination.badgeCount > 0
+              ? '${destination.label}, ${destination.badgeCount} new'
+              : destination.label,
           selected: selected,
           button: true,
           child: SizedBox(
@@ -118,34 +182,14 @@ class _FloatingNavItem extends StatelessWidget {
                     context.reduceMotion ? Duration.zero : FurFeelTokens.motionFast,
                 curve: Curves.easeOut,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: FurFeelTokens.space3,
-                  vertical: FurFeelTokens.space1,
+                  horizontal: FurFeelTokens.space4,
+                  vertical: FurFeelTokens.space2,
                 ),
                 decoration: BoxDecoration(
                   color: selected ? context.ff.brandSoft : Colors.transparent,
                   borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    icon,
-                    const SizedBox(height: 2),
-                    Text(
-                      destination.label,
-                      // A11y: labels scale with dynamic type but cap at 1.3×
-                      // inside the fixed-height bar (Material nav-bar guidance)
-                      // — the tab still reads bigger, the bar never overflows.
-                      textScaler: MediaQuery.textScalerOf(context)
-                          .clamp(maxScaleFactor: 1.3),
-                      style: TextStyle(
-                        fontSize: FurFeelTokens.typeLabelSize,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ),
+                child: icon,
               ),
             ),
           ),

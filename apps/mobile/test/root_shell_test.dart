@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/pages/root_shell.dart';
-import 'package:furfeel_mobile/widgets/overview_stats_card.dart';
 
 import 'fakes.dart';
 
@@ -44,6 +43,12 @@ Widget app(FakeRepository repository) => SettingsScope(
         ),
       ),
     );
+
+/// The bottom bar is icon-only, so tabs are found by their accessible name
+/// rather than visible text (FloatingNavBar keeps the label in Semantics).
+/// Anchored, and tolerant of the ", N new" suffix a badged tab carries.
+Finder navTab(String label) =>
+    find.bySemanticsLabel(RegExp('^${RegExp.escape(label)}(,|\$)'));
 
 void main() {
   testWidgets('status hero shows dog name, stress pill, vitals, and last-updated',
@@ -145,7 +150,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Alerts'));
+    await tester.tap(navTab('Alerts'));
     await tester.pumpAndSettle();
     expect(find.text('Biscuit is showing high stress'), findsOneWidget);
 
@@ -175,7 +180,7 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Alerts'));
+    await tester.tap(navTab('Alerts'));
     await tester.pumpAndSettle();
 
     // All tab shows both; Harness tab filters to device alerts.
@@ -203,7 +208,7 @@ void main() {
     // Owner feedback: the switcher chip is hidden on the multi-dog Home (the
     // cards are the dog list) but still lives on the other tabs.
     expect(find.byTooltip('Switch dog'), findsNothing);
-    await tester.tap(find.text('Alerts'));
+    await tester.tap(navTab('Alerts'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Switch dog'));
@@ -288,7 +293,7 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Profile'));
+    await tester.tap(navTab('Profile'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('owner@example.com'), findsWidgets); // account card
@@ -321,7 +326,7 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Trends'));
+    await tester.tap(navTab('Trends'));
     await tester.pumpAndSettle();
 
     expect(find.text('CALM TIME THIS WEEK'), findsOneWidget);
@@ -342,7 +347,7 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Trends'));
+    await tester.tap(navTab('Trends'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Trends appear after a day or two'), findsOneWidget);
