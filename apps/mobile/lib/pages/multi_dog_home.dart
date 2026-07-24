@@ -67,7 +67,12 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(FurFeelTokens.space4),
+        padding: EdgeInsets.fromLTRB(
+          FurFeelTokens.space4,
+          FurFeelTokens.space4,
+          FurFeelTokens.space4,
+          FurFeelTokens.space6 + MediaQuery.paddingOf(context).bottom,
+        ),
         children: [
           const _PackGreeting(),
           const SizedBox(height: FurFeelTokens.space3),
