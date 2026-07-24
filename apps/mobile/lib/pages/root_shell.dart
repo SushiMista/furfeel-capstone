@@ -16,6 +16,7 @@ import '../util/friendly_time.dart';
 import '../util/perf.dart';
 import '../widgets/alert_card.dart';
 import 'alerts_tab.dart';
+import 'chat_tab.dart';
 import 'consent_page.dart';
 import 'dog_form_page.dart';
 import 'guided_setup_page.dart';
@@ -363,12 +364,13 @@ class _RootShellState extends State<RootShell> {
         title: const FurFeelLogo(),
         actions: [
           // Owner feedback: on the multi-dog Home the cards ARE the dog list,
-          // so the switcher chip would be redundant there. It stays on
-          // Alerts/Trends/Profile, which still need a selected dog.
+          // so the switcher chip would be redundant there. Chat picks its own
+          // dog too. It stays on Alerts/Trends, which act on one selected dog.
           if (dogs != null &&
               dog != null &&
               !(_tab == 0 && dogs.length > 1) &&
-              _tab != 3)
+              _tab != 3 &&
+              _tab != 4)
             Padding(
               padding: const EdgeInsets.only(right: FurFeelTokens.space3),
               child: _DogSwitcher(
@@ -421,7 +423,15 @@ class _RootShellState extends State<RootShell> {
             selectedIcon: Icons.person,
             label: 'Profile',
           ),
+          // Detached (see detachLast): messaging is a different kind of thing
+          // than a view switch, and five labelled pills don't fit the bar.
+          const FloatingNavDestination(
+            icon: Icons.chat_bubble_outline,
+            selectedIcon: Icons.chat_bubble,
+            label: 'Chat',
+          ),
         ],
+        detachLast: true,
       ),
     );
   }
@@ -469,13 +479,16 @@ class _RootShellState extends State<RootShell> {
           alerts: _alerts,
           onRefresh: _refresh,
         ),
-      _ => ProfileTab(
+      3 => ProfileTab(
           repository: widget.repository,
           dogs: _dogs ?? const [],
           userEmail: widget.userEmail,
           onDogsChanged: _loadDogs,
           onSignOut: widget.onSignOut,
         ),
+      // Chat picks its own dog (conversations are granted per dog), so it
+      // takes the whole list rather than the shell's selected dog.
+      _ => ChatTab(repository: widget.repository, dogs: _dogs ?? const []),
     };
   }
 

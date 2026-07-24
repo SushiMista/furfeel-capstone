@@ -24,7 +24,7 @@ Widget app(FakeRepository repo, SettingsController controller) => SettingsScope(
     );
 
 Future<void> openProfile(WidgetTester tester) async {
-  await tester.tap(find.text('Profile'));
+  await tester.tap(find.bySemanticsLabel('Profile'));
   await tester.pumpAndSettle();
 }
 

@@ -202,3 +202,18 @@ Linked notes:
 - [[19 Design System]]
 - [[overview_stats_card.dart]]
 - [[settings_group.dart]]
+
+## ADR-018: Chat Is a Detached Nav Box Over the Existing `media_messages` Substrate
+Status: Accepted (2026-07-24)
+
+Decision: Give owner↔clinic messaging a top-level entry point — a **detached box beside the four-pill floating bar**, not a fifth pill — opening a per-dog conversation view built on the **existing** `media_messages` threads. No new table, no new policy: `media_messages` is already RLS'd to the dog's owner + that dog's clinic staff (`media_messages_select/insert_owner_or_clinic`), already in the realtime publication, and already has author-only edit/delete from `20260721090000_media_conversation_crud.sql`. `FloatingNavBar` gained one `detachLast` flag; indices are unchanged, so the detached destination is still just `destinations.length - 1`.
+
+Reason (detached, not a fifth pill): five labelled items don't fit a 375pt-wide fixed-height bar once labels scale — the first build overflowed by 4px because "Chat" wrapped to a second line. Beyond the layout, messaging is a different *kind* of destination than a view switch, so a distinct affordance reads correctly. Labels now carry `maxLines: 1` + `softWrap: false`, since in a fixed-height bar a wrap is a layout error rather than a cosmetic one; `floating_nav_bar_test.dart` pins that (verified by mutation — removing the wrap guard reproduces the overflow).
+
+The care-team reminder pinned above the threads is the latest **`vet_notes`** entry, not `care_guidance`. Both were candidates; only `vet_notes` is written by an identifiable clinician. `care_guidance` is rule-derived from the stress level, so rendering it as a chat bubble with an author would present an algorithm as a person's message — the same decision-support line ADR-002 draws. It stays on the dog's Care Team tab under its "general guidance — not a diagnosis" label.
+
+Known limits, deliberately shipped: (1) `media_submissions.storage_path` is `not null`, so a thread can only be *started* by sharing media — the empty state states this instead of offering a composer that cannot work; making that column and `media_type` nullable is the phase-3 change that unlocks text-only messages while reusing every existing policy. (2) No unread badge, because no per-user read state exists on either table and a badge that never clears is worse than none — `last_read_at` is the prerequisite.
+
+Linked notes:
+- [[04 Mobile App Design]]
+- [[09 Database Schema]]
