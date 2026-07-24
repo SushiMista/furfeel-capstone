@@ -94,7 +94,7 @@ RLS: a user reads/writes only their own tokens (`user_id = auth.uid()`).
 **Dog ↔ clinic linkage:** `owner_user_id` = who owns the dog; `clinic_id` = which clinic monitors it (nullable). A clinic's dashboard board = all dogs where `clinic_id` = that clinic. So an owner-created dog only appears on a clinic board once `clinic_id` is set (owner selects a clinic at Pet Creation / Device Pairing, or Admin assigns). `clinic_id = null` = home-only. Many dogs per clinic is the normal case. (A future `enrollments` table could model repeated boarding visits; MVP uses a single `clinic_id`.)
 
 ### dog_baselines
-Per-dog resting reference values used by the classifier. Optional; classifier falls back to global defaults (see `08 AI Classification Pipeline`).
+Per-dog resting reference values used by the classifier. Optional; classifier falls back to global defaults (see `08 AI Classification Pipeline`). Also carries this dog's **classifier threshold overrides**, editable by clinic staff from the dashboard's Dog detail → Thresholds tab (`ThresholdEditor`) — see [[05 Veterinary Dashboard Design]] and ADR-015/ADR-016 in [[02 Architecture Decisions]]. Every override column is nullable; `null` means "use the clinic-wide default from `packages/shared/classifier_config.json`".
 
 | column | type | constraints |
 |---|---|---|
@@ -103,7 +103,23 @@ Per-dog resting reference values used by the classifier. Optional; classifier fa
 | resting_heart_rate_bpm | int | null |
 | resting_respiratory_rate_bpm | int | null |
 | normal_body_temperature_c | numeric(3,1) | null |
+| threshold_mild_min | smallint | null; score cutoff into `mild` (must be < `threshold_moderate_min`) |
+| threshold_moderate_min | smallint | null; score cutoff into `moderate` (must be < `threshold_high_min`) |
+| threshold_high_min | smallint | null; score cutoff into `high` |
+| hr_ratio_elevated_min | numeric(4,2) | null; `heart_rate_elevated` tier 1 (global 1.15) |
+| hr_ratio_moderate_min | numeric(4,2) | null; tier 2 (global 1.35) |
+| hr_ratio_high_min | numeric(4,2) | null; tier 3 (global 1.60) |
+| rr_ratio_elevated_min | numeric(4,2) | null; `respiratory_elevated` tier 1 (global 1.30) |
+| rr_ratio_high_min | numeric(4,2) | null; tier 2, panting (global 1.80) |
+| body_temp_elevated_c | numeric(3,1) | null; `body_temperature` tier 1 (global 39.2) |
+| body_temp_high_c | numeric(3,1) | null; tier 2 (global 39.7) |
+| motion_elevated_min | numeric(3,2) | null; `motion_restlessness` tier 1 (global 0.60) |
+| motion_high_min | numeric(3,2) | null; tier 2 (global 0.80) |
+| ambient_heat_c | numeric(4,1) | null; `environmental_amplifier` ambient leg (global 32) |
+| humidity_heat_pct | numeric(4,1) | null; `environmental_amplifier` humidity leg (global 80) |
 | updated_at | timestamptz | not null, default now() |
+
+Two check constraints enforce "null-safe strictly increasing" ordering per rule: `dog_baselines_thresholds_ordered` (the three score cutoffs) and one each for the HR/RR/temp/motion tier pairs. Reads/writes go through the existing `dog_baselines_select/insert/update` RLS (`is_clinic_member(dog_id)`) — no new policy was added for these columns.
 
 ### devices
 | column | type | constraints |
