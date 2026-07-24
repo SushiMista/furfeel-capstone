@@ -102,7 +102,12 @@ class _HomeTabState extends State<HomeTab> {
       onRefresh: widget.onRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(FurFeelTokens.space4),
+        padding: EdgeInsets.fromLTRB(
+          FurFeelTokens.space4,
+          FurFeelTokens.space4,
+          FurFeelTokens.space4,
+          FurFeelTokens.space6 + MediaQuery.paddingOf(context).bottom,
+        ),
         children: [
           // ADDED: personalized greeting by name + time of day (docs/04).
           const _Greeting(),
