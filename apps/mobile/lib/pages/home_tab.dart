@@ -15,11 +15,8 @@ import '../widgets/day_timeline.dart';
 import '../widgets/dog_avatar.dart';
 import '../widgets/setup_checklist_card.dart';
 import '../widgets/stress_pill.dart';
-import '../widgets/vet_note_card.dart';
 import 'device_pairing_page.dart';
 import 'dog_form_page.dart';
-import 'observation_page.dart';
-import 'vet_review_page.dart';
 import 'vital_detail_page.dart';
 
 /// Finds the daily summary for one calendar day, or null when there's none.
@@ -46,7 +43,6 @@ class HomeTab extends StatefulWidget {
     required this.daily,
     required this.device,
     required this.guidance,
-    required this.vetNotes,
     required this.onRefresh,
     required this.dogsCount,
     required this.alerts,
@@ -59,7 +55,6 @@ class HomeTab extends StatefulWidget {
   final List<DailyStressSummary> daily;
   final Device? device;
   final List<CareGuidance> guidance;
-  final List<VetNoteFeedItem> vetNotes;
   final Future<void> Function() onRefresh;
 
   /// Total dogs on this account and this dog's own alerts — both already
@@ -155,7 +150,15 @@ class _HomeTabState extends State<HomeTab> {
 
           // Tab content based on index
           if (_selectedTabIndex == 0) ...[
-            // Tab 0: Vitals
+            // Tab 0: Vitals — "what should I do about this" first, then the
+            // numbers behind it. Care Insights landed here when the Care Team
+            // tab was retired: its vet-note feed moved to Chat, but this card
+            // is rule-derived guidance rather than a message from a clinician
+            // (ADR-018), so it belongs with the reading it describes.
+            if (careGuidance != null) ...[
+              _CareInsightsCard(guidance: careGuidance).entrance(context, index: 3),
+              const SizedBox(height: FurFeelTokens.space3),
+            ],
             if (widget.device != null) ...[
               _BatteryHealthCard(
                 device: widget.device!,
@@ -166,7 +169,7 @@ class _HomeTabState extends State<HomeTab> {
                         DevicePairingPage(repository: widget.repository, dog: widget.dog),
                   ),
                 ),
-              ).entrance(context, index: 3),
+              ).entrance(context, index: 4),
               const SizedBox(height: FurFeelTokens.space3),
             ],
             // QA: vitals as four tappable squares; each opens a detail screen
@@ -175,8 +178,8 @@ class _HomeTabState extends State<HomeTab> {
               repository: widget.repository,
               dog: widget.dog,
               reading: widget.reading,
-            ).entrance(context, index: 4),
-          ] else if (_selectedTabIndex == 1) ...[
+            ).entrance(context, index: 5),
+          ] else ...[
             // Tab 1: Activity
             _TodaySoFar(daily: widget.daily).entrance(context, index: 3),
             const SizedBox(height: FurFeelTokens.space3),
@@ -185,52 +188,6 @@ class _HomeTabState extends State<HomeTab> {
               repository: widget.repository,
               dog: widget.dog,
             ).entrance(context, index: 4),
-          ] else ...[
-            // Tab 2: Care Team
-            if (careGuidance != null) ...[
-              _CareInsightsCard(guidance: careGuidance).entrance(context, index: 3),
-              const SizedBox(height: FurFeelTokens.space4),
-            ],
-            // QA: clinician comments surface right here — no navigation needed.
-            if (widget.vetNotes.isNotEmpty) ...[
-              Text('FROM YOUR CARE TEAM',
-                  style: Theme.of(context).textTheme.labelSmall),
-              const SizedBox(height: FurFeelTokens.space2),
-              for (final (i, note) in widget.vetNotes.take(2).indexed)
-                Padding(
-                  padding: EdgeInsets.only(top: i > 0 ? FurFeelTokens.space3 : 0),
-                  child: VetNoteCard(repository: widget.repository, note: note)
-                      .entrance(context, index: 4 + i),
-                ),
-              const SizedBox(height: FurFeelTokens.space4),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: _QuickLink(
-                    icon: Icons.medical_information_outlined,
-                    label: 'Vet review',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => VetReviewPage(repository: widget.repository, dog: widget.dog),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: FurFeelTokens.space3),
-                Expanded(
-                  child: _QuickLink(
-                    icon: Icons.photo_camera_outlined,
-                    label: 'Share an observation',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => ObservationPage(repository: widget.repository, dog: widget.dog),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ).entrance(context, index: 6),
           ],
         ],
       ),
@@ -850,48 +807,6 @@ class _CareInsightsCard extends StatelessWidget {
   }
 }
 
-class _QuickLink extends StatelessWidget {
-  const _QuickLink({required this.icon, required this.label, required this.onTap});
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: context.ff.surface,
-      borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-        child: Container(
-          padding: const EdgeInsets.all(FurFeelTokens.space4),
-          decoration: BoxDecoration(
-            border: Border.all(color: context.ff.hairline),
-            borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: context.ff.brand),
-              const SizedBox(height: FurFeelTokens.space2),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: FurFeelTokens.typeLabelSize,
-                  fontWeight: FontWeight.w600,
-                  color: context.ff.ink,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// A premium, tactile card displaying battery health, connectivity status,
 /// and friendly contextual alerts for the paired dog harness (QA item 14).
 class _BatteryHealthCard extends StatelessWidget {
@@ -1081,7 +996,6 @@ class _HomeTabBar extends StatelessWidget {
         children: [
           _buildTab(context, index: 0, label: 'Vitals', icon: Icons.analytics_outlined),
           _buildTab(context, index: 1, label: 'Activity', icon: Icons.trending_up_rounded),
-          _buildTab(context, index: 2, label: 'Care Team', icon: Icons.healing_outlined),
         ],
       ),
     );

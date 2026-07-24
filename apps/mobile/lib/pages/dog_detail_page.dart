@@ -35,7 +35,6 @@ class _DogDetailPageState extends State<DogDetailPage> {
   List<DailyStressSummary> _daily = const [];
   Device? _device;
   List<CareGuidance> _guidance = const [];
-  List<VetNoteFeedItem> _vetNotes = const [];
   List<Alert> _alerts = const [];
   bool _loading = true;
   String? _error;
@@ -72,7 +71,6 @@ class _DogDetailPageState extends State<DogDetailPage> {
         repo.fetchDailyStressSummary(dogId, days: 7),
         repo.fetchDeviceForDog(dogId),
         repo.fetchCareGuidance(),
-        repo.fetchVetNoteFeed(dogId),
         repo.fetchAlerts(dogId, limit: 100),
       ]);
       if (!mounted) return;
@@ -82,8 +80,7 @@ class _DogDetailPageState extends State<DogDetailPage> {
         _daily = results[2] as List<DailyStressSummary>;
         _device = results[3] as Device?;
         _guidance = results[4] as List<CareGuidance>;
-        _vetNotes = results[5] as List<VetNoteFeedItem>;
-        _alerts = results[6] as List<Alert>;
+        _alerts = results[5] as List<Alert>;
         _loading = false;
         _error = null;
       });
@@ -114,7 +111,6 @@ class _DogDetailPageState extends State<DogDetailPage> {
               daily: _daily,
               device: _device,
               guidance: _guidance,
-              vetNotes: _vetNotes,
               onRefresh: _load,
               dogsCount: widget.dogsCount,
               alerts: _alerts,

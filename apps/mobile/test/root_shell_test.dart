@@ -104,18 +104,9 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    // Scroll to the Care Team tab and tap it
-    await tester.scrollUntilVisible(
-      find.text('Care Team'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Care Team'));
-    await tester.pumpAndSettle();
-
-    // The card sits below the vital grid — scroll it into view, then let the
-    // staggered entrance animations finish so no timers stay pending.
+    // Care Insights sits on Vitals now (the landing tab) -- the Care Team tab
+    // was retired once the vet-note feed moved to Chat.
+    expect(find.text('Care Team'), findsNothing);
     await tester.scrollUntilVisible(find.text('A little uneasy'), 200,
         scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
@@ -243,37 +234,6 @@ void main() {
 
     expect(find.text('TYPICAL AT REST'), findsOneWidget);
     expect(find.textContaining('60–120 bpm'), findsOneWidget); // general default
-  });
-
-  testWidgets('clinician note shows inline on Home with the author name',
-      (tester) async {
-    final repo = FakeRepository(dogs: const [_dog]);
-    repo.vetNoteFeed = [
-      VetNoteFeedItem(
-        id: 'n1',
-        note: 'Biscuit responded well today.',
-        createdAt: DateTime.now(),
-        authorName: 'Dr. Alex Kim',
-      ),
-    ];
-    await tester.pumpWidget(app(repo));
-    await tester.pumpAndSettle();
-
-    // Scroll to the Care Team tab and tap it
-    await tester.scrollUntilVisible(
-      find.text('Care Team'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Care Team'));
-    await tester.pumpAndSettle();
-
-    await tester.scrollUntilVisible(find.text('Dr. Alex Kim'), 200,
-        scrollable: find.byType(Scrollable).first);
-    await tester.pumpAndSettle();
-    expect(find.text('Dr. Alex Kim'), findsOneWidget);
-    expect(find.text('Biscuit responded well today.'), findsOneWidget);
   });
 
   testWidgets('no dogs yet → guided setup steps instead of an empty dashboard',

@@ -64,7 +64,6 @@ class _RootShellState extends State<RootShell> {
   List<Alert> _alerts = [];
   Device? _device;
   List<CareGuidance> _guidance = [];
-  List<VetNoteFeedItem> _vetNotes = [];
   List<DailyStressSummary> _dailySummaries = [];
   List<HourlyStressBucket> _hourlyPattern = [];
   bool _loading = true;
@@ -175,7 +174,6 @@ class _RootShellState extends State<RootShell> {
         _latestClassification = null;
         _alerts = [];
         _device = null;
-        _vetNotes = [];
         _dailySummaries = [];
         _hourlyPattern = [];
       });
@@ -195,7 +193,6 @@ class _RootShellState extends State<RootShell> {
         widget.repository.fetchCareGuidance(),
         widget.repository.fetchDailyStressSummary(dogId),
         widget.repository.fetchHourlyStressPattern(dogId),
-        widget.repository.fetchVetNoteFeed(dogId),
       ]));
       if (!mounted || _selectedDogId != dogId) return;
       setState(() {
@@ -206,7 +203,6 @@ class _RootShellState extends State<RootShell> {
         _guidance = results[4] as List<CareGuidance>;
         _dailySummaries = results[5] as List<DailyStressSummary>;
         _hourlyPattern = results[6] as List<HourlyStressBucket>;
-        _vetNotes = results[7] as List<VetNoteFeedItem>;
         _loading = false;
         _error = null;
         _staleSince = null;
@@ -232,15 +228,6 @@ class _RootShellState extends State<RootShell> {
           if (!mounted) return;
           setState(() => _alerts = [alert, ..._alerts]);
           _showAlertBanner(alert);
-        },
-        // QA: a fresh clinician note pops onto Home live (the realtime row has
-        // no author identity, so refetch the enriched feed).
-        onVetNote: () {
-          widget.repository.fetchVetNoteFeed(dogId).then((notes) {
-            if (mounted && _selectedDogId == dogId) {
-              setState(() => _vetNotes = notes);
-            }
-          }).catchError((_) {});
         },
       );
     } catch (e) {
@@ -460,7 +447,6 @@ class _RootShellState extends State<RootShell> {
               daily: _dailySummaries,
               device: _device,
               guidance: _guidance,
-              vetNotes: _vetNotes,
               onRefresh: _refresh,
               dogsCount: _dogs?.length ?? 1,
               alerts: _alerts,
