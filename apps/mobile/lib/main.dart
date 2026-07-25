@@ -27,12 +27,26 @@ Future<void> main() async {
   // font swap makes TextPainter's deferred paint-time relayout disagree with
   // the cached layout size — the text_painter.dart `debugSize == size` assert
   // (flutter#79084). Preloading removes the race entirely.
-  await GoogleFonts.pendingFonts([
-    GoogleFonts.inter(),
-    GoogleFonts.inter(fontWeight: FontWeight.w500),
-    GoogleFonts.inter(fontWeight: FontWeight.w600),
-    GoogleFonts.inter(fontWeight: FontWeight.w700),
-  ]);
+  //
+  // Bounded: google_fonts' HTTP fetch (google_fonts_base.dart, `client.get`)
+  // has no timeout of its own. A dropped connection — restrictive network,
+  // no signal on first launch — means this await never resolves and never
+  // throws, so `runApp()` below is never reached and the native splash
+  // (values-v31/styles.xml) is stuck on screen forever with nothing on top
+  // of it to explain why. GoogleFonts already declares a system
+  // `fontFamilyFallback`, so timing out just costs the anti-relayout guard
+  // for the first frame, not the app being usable.
+  try {
+    await GoogleFonts.pendingFonts([
+      GoogleFonts.inter(),
+      GoogleFonts.inter(fontWeight: FontWeight.w500),
+      GoogleFonts.inter(fontWeight: FontWeight.w600),
+      GoogleFonts.inter(fontWeight: FontWeight.w700),
+    ]).timeout(const Duration(seconds: 3));
+  } catch (_) {
+    // Timed out or failed to fetch — proceed on the system font fallback
+    // rather than hold the splash screen hostage.
+  }
 
   if (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty) {
     runApp(const _MissingConfigApp());
