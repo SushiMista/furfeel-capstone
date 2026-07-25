@@ -237,3 +237,18 @@ Linked notes:
 - [[04 Mobile App Design]]
 - [[19 Design System]]
 - [[14 Deployment Plan]]
+
+## ADR-020: Bound the Font Preload With a Timeout — an Unbounded Await Can Strand a Cold Start Forever
+Status: Accepted (2026-07-25)
+
+Decision: Wrap the pre-first-frame `GoogleFonts.pendingFonts([...])` call in `main()` with a 3-second `.timeout()`, catching failure and proceeding on the system font fallback rather than letting it block `runApp()`.
+
+Reason: found via a real report — an installed (not `flutter run`) build stuck indefinitely on the native Android splash screen added in ADR-019. Traced to `google_fonts` 8.1.0's HTTP fetch (`google_fonts_base.dart`, `_httpFetchFontAndSaveToDevice`): `await client.get(uri)` carries **no timeout of its own**. On a dropped connection — a silently-blocking network rather than a fast failure, which some restrictive Wi-Fi/carriers produce, or simply no signal at first launch — that `await` never resolves and never throws. Since it sits before `runApp()` in `main()`, Flutter never paints a first frame, and Android never dismisses the splash it drew before Flutter existed. The bug was always latent; it only became *visible* once ADR-019 gave the native splash a real background instead of stock white, since previously the failure mode was presumably a silent stall on a blank/default screen that looked the same as "still launching."
+
+Why this fix is safe to make unilaterally: `GoogleFonts.inter()` already sets `fontFamilyFallback` to the system font (visible in the package source), and the preload's own doc comment states its only purpose is dodging a `TextPainter` relayout assert (flutter#79084) on the very first frame — not making text render at all. Timing it out costs that one guard on a slow network, never app functionality.
+
+Deliberately NOT applied the same way to the following `await Supabase.initialize(...)`: `Supabase.instance.client` is `late final` and read from many call sites across the app with no null-safety net. A version of this fix that lets `main()` proceed after a failed/timed-out `Supabase.initialize()` would trade a visible "stuck on splash" for a `LateInitializationError` the first time any screen touches `Supabase.instance`, which is harder to diagnose, not easier. That needs an audit of every `Supabase.instance` access site before touching it — flagged as follow-up work, not fixed here.
+
+Linked notes:
+- [[19 Design System]]
+- [[02 Architecture Decisions]] (ADR-019)
