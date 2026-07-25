@@ -601,6 +601,12 @@ class UserProfile {
 
   /// First name for greetings ("Good morning, Joshua").
   String get firstName => name.trim().split(RegExp(r'\s+')).first;
+
+  /// Last name for clinical record matching ("Charlotte Malonzo").
+  String? get lastName {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    return parts.length > 1 ? parts.last : null;
+  }
 }
 
 /// ADDED: per-user preferences row (docs/09 user_settings). One row per user;
