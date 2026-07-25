@@ -89,4 +89,7 @@ class SettingsScope extends InheritedNotifier<SettingsController> {
 
   static SettingsController of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<SettingsScope>()!.notifier!;
+
+  static SettingsController? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SettingsScope>()?.notifier;
 }
