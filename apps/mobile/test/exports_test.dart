@@ -77,10 +77,11 @@ void main() {
       to: DateTime(2026, 7, 17),
       readings: [reading(0, hr: 92, temp: 38.5, battery: 70)],
       classifications: [],
-      owner: const UserProfile(
+      owner: UserProfile(
         id: 'u1',
         name: 'Jamie Rivera',
         email: 'owner@example.com',
+        createdAt: DateTime(2025, 1, 1),
         phone: '+1-555-0100',
         emergencyContact: 'Sam Rivera +1-555-0101',
       ),
