@@ -22,6 +22,11 @@ export interface DogReport {
   heartRate: VitalSummary | null;
   respiratoryRate: VitalSummary | null;
   temperature: VitalSummary | null;
+  /** Environmental + behavioral vitals — parity with the mobile PDF health
+   * record's 6-row vitals table (apps/mobile/lib/util/exports.dart). */
+  motion: VitalSummary | null;
+  ambientTemperature: VitalSummary | null;
+  humidity: VitalSummary | null;
   /** Classification counts per level (every level present, zero-filled). */
   stressBreakdown: Record<StressLevel, number>;
   classificationCount: number;
@@ -111,6 +116,9 @@ export function buildDogReport(
     heartRate: summarize(pick((r) => r.heart_rate_bpm)),
     respiratoryRate: summarize(pick((r) => r.respiratory_rate_bpm)),
     temperature: summarize(pick((r) => r.body_temperature_c)),
+    motion: summarize(pick((r) => r.motion_activity)),
+    ambientTemperature: summarize(pick((r) => r.ambient_temperature_c)),
+    humidity: summarize(pick((r) => r.humidity_percent)),
     stressBreakdown,
     classificationCount: classifications.length,
     dominantLevel,
