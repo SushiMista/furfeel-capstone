@@ -1,6 +1,7 @@
 // ADDED: Overview page — docs/05 nav lists "Overview" but never specified it, so this
 // is a clinic-at-a-glance screen: greeting, KPI cards, a clinic-wide 14-day
 // stress-mix chart, needs-attention dogs, and latest open alerts.
+import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Activity, Bell, Dog as DogIcon, HeartHandshake, WifiOff } from "lucide-react";
@@ -113,7 +114,7 @@ export function Overview() {
       setMix(aggregateDailySummaries(summaries));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load overview");
+      setError(friendlyError(err, "load the overview"));
     } finally {
       setLoading(false);
     }
