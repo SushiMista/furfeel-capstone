@@ -556,12 +556,29 @@ function ClinicFields({
         <Label htmlFor={`${idPrefix}-address`}>Address</Label>
         <Input id={`${idPrefix}-address`} value={address} onChange={(e) => onAddress(e.target.value)} />
       </div>
+      {address.trim() !== "" && (
+        <div className="overflow-hidden rounded-lg border border-hairline">
+          <iframe
+            title="Clinic location preview"
+            className="h-40 w-full"
+            loading="lazy"
+            src={clinicMapEmbedUrl(address)}
+          />
+        </div>
+      )}
       <div className="flex flex-col gap-1">
         <Label htmlFor={`${idPrefix}-contact`}>Contact</Label>
         <Input id={`${idPrefix}-contact`} value={contact} onChange={(e) => onContact(e.target.value)} />
       </div>
     </>
   );
+}
+
+/** No-API-key Google Maps embed built from a clinic's free-text address —
+ * same formula the mobile app uses (see Clinic.mapEmbedUrl in models.dart)
+ * so admin preview and the owner app's "Partner Clinics" map always match. */
+function clinicMapEmbedUrl(address: string) {
+  return `https://maps.google.com/maps?q=${encodeURIComponent(address.trim())}&output=embed`;
 }
 
 function ClinicsTab({
