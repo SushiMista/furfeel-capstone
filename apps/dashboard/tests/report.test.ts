@@ -76,6 +76,20 @@ describe("buildDogReport", () => {
     expect(report.heartRate).toBeNull();
   });
 
+  it("summarizes the environmental/behavioral vitals too (health-record parity)", () => {
+    const report = buildDogReport(
+      [
+        reading({ motion_activity: 0.2, ambient_temperature_c: 22, humidity_percent: 50 }),
+        reading({ motion_activity: 0.4, ambient_temperature_c: 26, humidity_percent: 60 }),
+      ],
+      [],
+      [],
+    );
+    expect(report.motion).toEqual({ avg: 0.3, min: 0.2, max: 0.4 });
+    expect(report.ambientTemperature).toEqual({ avg: 24, min: 22, max: 26 });
+    expect(report.humidity).toEqual({ avg: 55, min: 50, max: 60 });
+  });
+
   it("zero-fills the stress breakdown and picks the dominant level", () => {
     const report = buildDogReport(
       [],
