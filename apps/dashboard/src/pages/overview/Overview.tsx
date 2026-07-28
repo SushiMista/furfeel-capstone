@@ -9,11 +9,11 @@ import { supabase } from "../../lib/supabaseClient.ts";
 import {
   acknowledgeAlert,
   fetchAlertsQueue,
-  fetchDailyStressSummary,
-  fetchMonitoringBoard,
+  fetchClinicBoardSummary,
+  fetchClinicStressDailySummary,
   sortBoardRows,
+  type ClinicBoardRow,
   type DailyStressSummaryRow,
-  type MonitoringBoardRow,
 } from "../../lib/queries.ts";
 import { useAuth } from "../../lib/useAuth.ts";
 import { useAccount } from "../../lib/userSettings.ts";
@@ -25,6 +25,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import type { Alert } from "../../../../../packages/shared/types/index.ts";
+
+/** Clinic mix window (matches the "last 14 days" header below). */
+const MIX_DAYS = 14;
 
 export function Kpi({
   label,
@@ -64,27 +67,6 @@ export function Kpi({
   );
 }
 
-/** Sums per-dog daily summaries into one clinic-wide mix per day. */
-export function aggregateDailySummaries(
-  perDog: DailyStressSummaryRow[][],
-): DailyStressSummaryRow[] {
-  const byDay = new Map<string, DailyStressSummaryRow>();
-  for (const rows of perDog) {
-    for (const row of rows) {
-      const existing = byDay.get(row.day);
-      if (existing) {
-        existing.calm += row.calm;
-        existing.mild += row.mild;
-        existing.moderate += row.moderate;
-        existing.high += row.high;
-      } else {
-        byDay.set(row.day, { ...row, avg_motion: null });
-      }
-    }
-  }
-  return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
-}
-
 function greetingWord(hour: number): string {
   if (hour >= 5 && hour < 12) return "Good morning";
   if (hour >= 12 && hour < 17) return "Good afternoon";
@@ -94,24 +76,31 @@ function greetingWord(hour: number): string {
 export function Overview() {
   const { session } = useAuth();
   const { profile } = useAccount();
-  const [rows, setRows] = useState<MonitoringBoardRow[]>([]);
+  const [rows, setRows] = useState<ClinicBoardRow[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [mix, setMix] = useState<DailyStressSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 3 queries total, regardless of clinic size — was ~25 for a 4-dog clinic
+  // (fetchMonitoringBoard's 5-per-dog fan-out + one stress_daily_summary RPC
+  // per dog), which is what produced the 57014 statement-timeout under
+  // concurrent load from the firmware simulator + mobile app + dashboard all
+  // hitting the same free-tier project at once (ADR-021). The mix chart is
+  // aggregated server-side by clinic_stress_daily_summary — an earlier,
+  // client-side-bucketing version of this fix silently truncated the chart
+  // to ~8% of the period, since this project's PostgREST config caps a plain
+  // row fetch at 1000 and a real 14-day window is 11,000+ rows.
   const load = useCallback(async () => {
     try {
-      const [board, openAlerts] = await Promise.all([
-        fetchMonitoringBoard(supabase),
+      const [board, openAlerts, mix] = await Promise.all([
+        fetchClinicBoardSummary(supabase),
         fetchAlertsQueue(supabase, "open", 20),
+        fetchClinicStressDailySummary(supabase, MIX_DAYS),
       ]);
       setRows(board);
       setAlerts(openAlerts);
-      const summaries = await Promise.all(
-        board.map((r) => fetchDailyStressSummary(supabase, r.dog.id)),
-      );
-      setMix(aggregateDailySummaries(summaries));
+      setMix(mix);
       setError(null);
     } catch (err) {
       setError(friendlyError(err, "load the overview"));

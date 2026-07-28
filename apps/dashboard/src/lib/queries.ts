@@ -207,11 +207,103 @@ export async function fetchMonitoringBoard(client: SupabaseClient): Promise<Moni
   return Promise.all(dogs.map((dog) => fetchMonitoringBoardRowForDog(client, dog)));
 }
 
+/** Just what the Overview KPI/needs-attention view actually reads — never
+ * the reading, open-alert count, or 24-row history `MonitoringBoardRow`
+ * carries for the richer Monitoring Board cards. */
+export interface ClinicBoardRow {
+  dog: Dog;
+  device: Pick<Device, "status"> | null;
+  latestClassification: Pick<StressClassification, "stress_level" | "created_at"> | null;
+}
+
+const BOARD_SUMMARY_SELECT = "*, devices(status), stress_classifications(stress_level, created_at)";
+
+/**
+ * Overview's board data in ONE query, instead of `fetchMonitoringBoard`'s
+ * 5-queries-per-dog fan-out (device, latest reading, latest classification,
+ * open-alert count, 24-row history) that Overview doesn't need most of. For
+ * a 4-dog clinic that fan-out plus Overview's old per-dog daily-summary RPC
+ * loop meant ~25 concurrent round trips from one page load — the exact
+ * amplification that produced a `57014` (statement timeout) under
+ * concurrent load (ADR-021).
+ *
+ * PostgREST's per-relation `order`/`limit` (via `referencedTable`) does the
+ * "latest child row per parent dog" join Postgres-side, in one round trip,
+ * using the existing `idx_stress_classifications_dog_created` index —
+ * equivalent to a `DISTINCT ON` but through the embedded-resource query
+ * PostgREST already supports, so no new SQL function/migration is needed.
+ * `devices` has no unique constraint on `dog_id`, so it always comes back as
+ * an array even though it's 0-or-1 in practice; handled defensively.
+ */
+export async function fetchClinicBoardSummary(client: SupabaseClient): Promise<ClinicBoardRow[]> {
+  const { data, error } = await client
+    .from("dogs")
+    .select(BOARD_SUMMARY_SELECT)
+    .order("name")
+    .order("created_at", { referencedTable: "stress_classifications", ascending: false })
+    .limit(1, { referencedTable: "stress_classifications" });
+  if (error) throw error;
+
+  type RawRow = Record<string, unknown> & {
+    devices: Pick<Device, "status">[] | Pick<Device, "status"> | null;
+    stress_classifications:
+      | Pick<StressClassification, "stress_level" | "created_at">[]
+      | Pick<StressClassification, "stress_level" | "created_at">
+      | null;
+  };
+
+  return ((data ?? []) as unknown as RawRow[]).map((row) => {
+    const { devices, stress_classifications, ...dog } = row;
+    const device = Array.isArray(devices) ? (devices[0] ?? null) : devices;
+    const latestClassification = Array.isArray(stress_classifications)
+      ? (stress_classifications[0] ?? null)
+      : stress_classifications;
+    return { dog: dog as unknown as Dog, device, latestClassification };
+  });
+}
+
+/**
+ * Overview's clinic-wide "stress mix — last 14 days" chart, aggregated
+ * server-side in ONE RPC call — replaces both the old N-per-dog
+ * `stress_daily_summary` loop (the query that hit `57014` in production)
+ * *and* a first-attempt fix that fetched raw classifications client-side.
+ * That attempt was wrong, not just slow: this project's PostgREST config
+ * caps responses at 1000 rows, and a 14-day window for one active dog alone
+ * was already 11,893 rows — the client-side version silently charted only
+ * the first ~8% of the period. `clinic_stress_daily_summary`
+ * (20260729020000_clinic_stress_daily_summary.sql) does the grouping in SQL
+ * and ships back only the resulting day rows. No `dog_id` list is passed —
+ * RLS scopes which classifications count, the same convention `fetchDogs`
+ * relies on.
+ */
+export async function fetchClinicStressDailySummary(
+  client: SupabaseClient,
+  days = 14,
+): Promise<DailyStressSummaryRow[]> {
+  const { data, error } = await client.rpc("clinic_stress_daily_summary", {
+    p_days: days,
+    p_tz_offset_minutes: -new Date().getTimezoneOffset(),
+  });
+  if (error) throw error;
+  // The RPC has no per-dog motion to average across a whole clinic, so it
+  // doesn't return the column at all — filled in here rather than lying
+  // about the shape via a bare cast. StressMixChart never reads it anyway.
+  return ((data ?? []) as Omit<DailyStressSummaryRow, "avg_motion">[]).map((row) => ({
+    ...row,
+    avg_motion: null,
+  }));
+}
+
 const STRESS_SEVERITY_RANK: Record<StressLevel, number> = { calm: 0, mild: 1, moderate: 2, high: 3 };
 
 /** docs/19 monitoring board: "Sort so anything above calm floats up." Highest stress first,
- * then unclassified/calm dogs, ties broken by dog name so ordering stays stable. */
-export function sortBoardRows(rows: MonitoringBoardRow[]): MonitoringBoardRow[] {
+ * then unclassified/calm dogs, ties broken by dog name so ordering stays stable.
+ * Generic over just the two fields this actually reads, so both the full
+ * `MonitoringBoardRow` (Monitoring Board) and the leaner `ClinicBoardRow`
+ * (Overview) can share one sort instead of duplicating it. */
+export function sortBoardRows<
+  T extends { dog: { name: string }; latestClassification: { stress_level: StressLevel } | null },
+>(rows: T[]): T[] {
   return [...rows].sort((a, b) => {
     const rankA = a.latestClassification ? STRESS_SEVERITY_RANK[a.latestClassification.stress_level] : -1;
     const rankB = b.latestClassification ? STRESS_SEVERITY_RANK[b.latestClassification.stress_level] : -1;
