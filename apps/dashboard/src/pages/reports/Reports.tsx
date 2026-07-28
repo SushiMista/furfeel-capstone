@@ -1,3 +1,4 @@
+import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useState } from "react";
 import { PawPrint, Printer } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
@@ -80,7 +81,7 @@ export function Reports() {
         setDogs(rows);
         if (rows.length > 0) setDogId((prev) => prev || rows[0].id);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dogs"));
+      .catch((err) => setError(friendlyError(err, "load dogs")));
     // clinics_select_authenticated: any signed-in staff member can resolve names.
     fetchClinics(supabase)
       .then((rows) => setClinicNames(new Map(rows.map((c) => [c.id, c.name]))))
@@ -119,7 +120,7 @@ export function Reports() {
       setReadings(periodReadings);
       setPeriod({ from, to });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to build report");
+      setError(friendlyError(err, "build the report"));
     } finally {
       setLoading(false);
     }

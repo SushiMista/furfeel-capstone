@@ -1,3 +1,4 @@
+import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Check, CheckCircle2, Pencil } from "lucide-react";
@@ -77,7 +78,7 @@ function ConfirmOverridePanel({
       );
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save the assessment");
+      setError(friendlyError(err, "save the assessment"));
     } finally {
       setSaving(false);
     }
@@ -227,7 +228,7 @@ function MediaItem({ media, onReviewed }: { media: MediaSubmission; onReviewed: 
       setAnnotating(false);
       onReviewed(updated);
     } catch (err) {
-      toast("error", err instanceof Error ? err.message : "Failed to save the review");
+      toast("error", friendlyError(err, "save the review"));
     } finally {
       setSaving(false);
     }
@@ -335,7 +336,7 @@ export function VetReview() {
       setMedia(mediaRows);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load vet review");
+      setError(friendlyError(err, "load the vet review"));
     } finally {
       setLoading(false);
     }
