@@ -1,3 +1,4 @@
+import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardCheck } from "lucide-react";
@@ -93,7 +94,7 @@ export function DogDetail() {
       setMixSummary(mixRows);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dog");
+      setError(friendlyError(err, "load this dog"));
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+import { friendlyError } from "../lib/errors.ts";
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { supabase } from "../lib/supabaseClient.ts";
@@ -233,7 +234,7 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
       setSavedDraft(loaded);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load thresholds");
+      setError(friendlyError(err, "load thresholds"));
     } finally {
       setLoading(false);
     }
@@ -309,7 +310,7 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
       setSavedDraft(loaded);
       toast("success", "Thresholds saved");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save thresholds");
+      setError(friendlyError(err, "save thresholds"));
     } finally {
       setSaving(false);
     }

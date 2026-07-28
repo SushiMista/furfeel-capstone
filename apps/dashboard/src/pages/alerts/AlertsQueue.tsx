@@ -1,3 +1,4 @@
+import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient.ts";
@@ -34,7 +35,7 @@ export function AlertsQueue() {
       setDogs(dogRows);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load alerts");
+      setError(friendlyError(err, "load alerts"));
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export function AlertsQueue() {
       const byId = new Map(updated.map((a) => [a.id, a]));
       setAlerts((prev) => prev.map((a) => byId.get(a.id) ?? a));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to acknowledge alerts");
+      setError(friendlyError(err, "acknowledge alerts"));
     } finally {
       setAcking(false);
     }

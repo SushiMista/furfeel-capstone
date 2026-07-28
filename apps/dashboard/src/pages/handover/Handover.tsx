@@ -1,3 +1,4 @@
+import { friendlyError } from "../../lib/errors.ts";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Printer } from "lucide-react";
@@ -40,7 +41,7 @@ export function Handover() {
         setAlerts(queue);
         setError(null);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load handover"))
+      .catch((err) => setError(friendlyError(err, "load the handover")))
       .finally(() => setLoading(false));
   }, []);
 

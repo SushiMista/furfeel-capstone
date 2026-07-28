@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import {
+  Activity,
   ArrowLeftRight,
   Bell,
+  Building2,
+  Cpu,
   FileText,
   LayoutDashboard,
   PawPrint,
-  Settings,
   Table2,
+  Users,
 } from "lucide-react";
 import { useAuth } from "../lib/useAuth.ts";
 import { useCurrentRole } from "../lib/useCurrentRole.ts";
@@ -20,6 +23,13 @@ const NAV = [
   { to: "/alerts", label: "Alerts", icon: Bell },
   { to: "/handover", label: "Handover", icon: ArrowLeftRight },
   { to: "/reports", label: "Reports", icon: FileText },
+];
+
+const ADMIN_NAV = [
+  { to: "/admin/users", label: "Users", icon: Users },
+  { to: "/admin/clinics", label: "Clinics", icon: Building2 },
+  { to: "/admin/devices", label: "Devices", icon: Cpu },
+  { to: "/admin/health", label: "Health", icon: Activity },
 ];
 
 /** Dashboard chrome (docs/19 §7): left sidebar — Overview, Board, Alerts, Reports,
@@ -56,21 +66,29 @@ export function AppShell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
           {role === "admin" && (
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium",
-                  "transition-colors duration-fast",
-                  isActive
-                    ? "bg-brand-soft text-brand-strong"
-                    : "text-ink-muted hover:bg-surface-alt hover:text-ink",
-                )
-              }
-            >
-              <Settings size={16} />
-              Admin
-            </NavLink>
+            <>
+              <div className="mt-3 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                Admin
+              </div>
+              {ADMIN_NAV.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium",
+                      "transition-colors duration-fast",
+                      isActive
+                        ? "bg-brand-soft text-brand-strong"
+                        : "text-ink-muted hover:bg-surface-alt hover:text-ink",
+                    )
+                  }
+                >
+                  <Icon size={16} />
+                  {label}
+                </NavLink>
+              ))}
+            </>
           )}
         </nav>
         {/* ADDED: account menu (docs/05) — theme, profile photo, sign out. */}

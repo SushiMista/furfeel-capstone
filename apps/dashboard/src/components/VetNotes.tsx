@@ -1,3 +1,4 @@
+import { friendlyError } from "../lib/errors.ts";
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { supabase } from "../lib/supabaseClient.ts";
@@ -38,7 +39,7 @@ export function VetNotes({ dogId }: { dogId: string }) {
       setRole(userRole);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load notes");
+      setError(friendlyError(err, "load notes"));
     }
   }, [dogId, session?.user.id]);
 
@@ -59,7 +60,7 @@ export function VetNotes({ dogId }: { dogId: string }) {
       toast("success", "Note saved");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save the note");
+      setError(friendlyError(err, "save the note"));
     } finally {
       setSubmitting(false);
     }

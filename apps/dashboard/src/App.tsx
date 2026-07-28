@@ -79,8 +79,9 @@ export function App() {
               </RequireAuth>
             }
           />
+          <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
           <Route
-            path="/admin"
+            path="/admin/:tab"
             element={
               <RequireAuth>
                 <Admin />

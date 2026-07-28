@@ -1,4 +1,6 @@
+import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Navigate, useParams } from "react-router-dom";
 import {
   Activity,
   Bell,
@@ -41,7 +43,6 @@ import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { useToast } from "../../components/ui/toast.tsx";
-import { cn } from "../../lib/cn.ts";
 import type {
   Clinic,
   Device,
@@ -54,6 +55,7 @@ import type {
 const ROLES: UserRole[] = ["owner", "vet_staff", "veterinarian", "admin"];
 const DEVICE_STATUSES: DeviceStatus[] = ["active", "inactive", "offline", "maintenance"];
 type Tab = "users" | "clinics" | "devices" | "health";
+const TABS: Tab[] = ["users", "clinics", "devices", "health"];
 
 /** Shared destructive-action confirmation (docs/19 dialog primitive). Delete
  * is the one Admin action that can't be undone, so every delete flow in this
@@ -92,10 +94,10 @@ function ConfirmDeleteDialog({
  * The page is offered to the admin role only as UX; the users_update_admin /
  * clinics_admin_manage / devices_admin_all RLS policies are the actual gate. */
 export function Admin() {
+  const { tab: tabParam } = useParams<{ tab: string }>();
   const { role, loading: roleLoading } = useCurrentRole();
   const { session } = useAuth();
   const toast = useToast();
-  const [tab, setTab] = useState<Tab>("users");
   const [users, setUsers] = useState<User[]>([]);
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -117,7 +119,7 @@ export function Admin() {
       setDogs(dogRows);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load admin data");
+      setError(friendlyError(err, "load admin data"));
     } finally {
       setLoading(false);
     }
@@ -144,28 +146,12 @@ export function Admin() {
         {error}
       </p>
     );
+  if (!tabParam || !TABS.includes(tabParam as Tab)) return <Navigate to="/admin/users" replace />;
+  const tab = tabParam as Tab;
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="m-0 text-2xl font-bold text-ink">Admin</h1>
-
-      <div className="flex gap-2">
-        {(["users", "clinics", "devices", "health"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={cn(
-              "rounded-md px-4 py-2 text-sm font-semibold capitalize transition-colors duration-fast",
-              tab === t
-                ? "bg-brand-soft text-brand-strong"
-                : "text-ink-muted hover:bg-surface-alt hover:text-ink",
-            )}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <h1 className="m-0 text-2xl font-bold capitalize text-ink">Admin — {tab}</h1>
 
       {tab === "users" && (
         <UsersTab
@@ -250,7 +236,7 @@ function HealthTab({
   useEffect(() => {
     fetchSystemHealth(supabase)
       .then(setHealth)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load system health"));
+      .catch((err) => setError(friendlyError(err, "load system health")));
   }, []);
 
   const online = devices.filter((d) => d.status === "active").length;
@@ -325,6 +311,7 @@ function UsersTab({
   const [newRole, setNewRole] = useState<UserRole>("owner");
   const [newClinicId, setNewClinicId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -332,7 +319,7 @@ function UsersTab({
     try {
       onChanged(await updateUserRoleClinic(supabase, user.id, role, clinicId));
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to update the user");
+      onError(friendlyError(err, "update the user"));
     }
   }
 
@@ -344,7 +331,7 @@ function UsersTab({
       onDeleted(pendingDelete.id, pendingDelete.name);
       setPendingDelete(null);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to delete the user");
+      onError(friendlyError(err, "delete the user"));
     } finally {
       setDeleting(false);
     }
@@ -367,8 +354,9 @@ function UsersTab({
       setNewRole("owner");
       setNewClinicId("");
       onCreated(user);
+      setAddOpen(false);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to create the user");
+      onError(friendlyError(err, "create the user"));
     } finally {
       setSaving(false);
     }
@@ -376,77 +364,20 @@ function UsersTab({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Users</CardTitle>
-        <CardDescription>
-          Add accounts and assign roles and clinics. Accounts created here can sign in
-          right away — no email confirmation needed. Users can also sign up in the apps
-          themselves and start as owners.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle>Users</CardTitle>
+          <CardDescription>
+            Add accounts and assign roles and clinics. Accounts created here can sign in
+            right away — no email confirmation needed. Users can also sign up in the apps
+            themselves and start as owners.
+          </CardDescription>
+        </div>
+        <Button type="button" onClick={() => setAddOpen(true)}>
+          <Plus size={14} /> Add user
+        </Button>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        <form className="flex flex-wrap items-end gap-3" onSubmit={submit}>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="user-name">Name</Label>
-            <Input id="user-name" value={name} onChange={(e) => setName(e.target.value)} required />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="user-email">Email</Label>
-            <Input
-              id="user-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="user-password">Temporary password</Label>
-            <Input
-              id="user-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="user-role">Role</Label>
-            <Select
-              id="user-role"
-              className="h-10 w-36"
-              value={newRole}
-              onChange={(e) => setNewRole(e.target.value as UserRole)}
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="user-clinic">Clinic</Label>
-            <Select
-              id="user-clinic"
-              className="h-10 w-48"
-              value={newClinicId}
-              onChange={(e) => setNewClinicId(e.target.value)}
-            >
-              <option value="">— none —</option>
-              {clinics.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <Button type="submit" disabled={saving || name.trim() === "" || email.trim() === "" || password.length < 6}>
-            <Plus size={14} /> Add user
-          </Button>
-        </form>
-
         <Table>
           <THead>
             <Tr className="border-t-0">
@@ -508,6 +439,78 @@ function UsersTab({
           </TBody>
         </Table>
       </CardContent>
+
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Add user">
+        <form className="flex flex-col gap-3" onSubmit={submit}>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-name">Name</Label>
+            <Input id="user-name" value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-email">Email</Label>
+            <Input
+              id="user-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-password">Temporary password</Label>
+            <Input
+              id="user-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              minLength={6}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-role">Role</Label>
+            <Select
+              id="user-role"
+              className="h-10 w-full"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as UserRole)}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="user-clinic">Clinic</Label>
+            <Select
+              id="user-clinic"
+              className="h-10 w-full"
+              value={newClinicId}
+              onChange={(e) => setNewClinicId(e.target.value)}
+            >
+              <option value="">— none —</option>
+              {clinics.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving || name.trim() === "" || email.trim() === "" || password.length < 6}
+            >
+              {saving ? "Adding…" : "Add user"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
 
       <ConfirmDeleteDialog
         open={pendingDelete !== null}
@@ -578,6 +581,7 @@ function ClinicsTab({
   const [address, setAddress] = useState("");
   const [contact, setContact] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   const [editing, setEditing] = useState<Clinic | null>(null);
   const [editName, setEditName] = useState("");
@@ -602,8 +606,9 @@ function ClinicsTab({
       setAddress("");
       setContact("");
       onCreated(clinic);
+      setAddOpen(false);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to create the clinic");
+      onError(friendlyError(err, "create the clinic"));
     } finally {
       setSaving(false);
     }
@@ -629,7 +634,7 @@ function ClinicsTab({
       onChanged(clinic);
       setEditing(null);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to update the clinic");
+      onError(friendlyError(err, "update the clinic"));
     } finally {
       setEditSaving(false);
     }
@@ -643,7 +648,7 @@ function ClinicsTab({
       onDeleted(pendingDelete.id, pendingDelete.name);
       setPendingDelete(null);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to delete the clinic");
+      onError(friendlyError(err, "delete the clinic"));
     } finally {
       setDeleting(false);
     }
@@ -651,25 +656,13 @@ function ClinicsTab({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
         <CardTitle>Clinics</CardTitle>
+        <Button type="button" onClick={() => setAddOpen(true)}>
+          <Plus size={14} /> Add clinic
+        </Button>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        <form className="flex flex-wrap items-end gap-3" onSubmit={submit}>
-          <ClinicFields
-            idPrefix="clinic"
-            name={name}
-            address={address}
-            contact={contact}
-            onName={setName}
-            onAddress={setAddress}
-            onContact={setContact}
-          />
-          <Button type="submit" disabled={saving || name.trim() === ""}>
-            <Plus size={14} /> Add clinic
-          </Button>
-        </form>
-
         <Table>
           <THead>
             <Tr className="border-t-0">
@@ -705,6 +698,28 @@ function ClinicsTab({
           </TBody>
         </Table>
       </CardContent>
+
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Add clinic">
+        <form className="flex flex-col gap-3" onSubmit={submit}>
+          <ClinicFields
+            idPrefix="clinic"
+            name={name}
+            address={address}
+            contact={contact}
+            onName={setName}
+            onAddress={setAddress}
+            onContact={setContact}
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving || name.trim() === ""}>
+              {saving ? "Adding…" : "Add clinic"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
 
       <Dialog open={editing !== null} onClose={() => setEditing(null)} title="Edit clinic">
         <form className="flex flex-col gap-3" onSubmit={saveEdit}>
@@ -770,6 +785,7 @@ function DevicesTab({
   const [code, setCode] = useState("");
   const [firmware, setFirmware] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Device | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -787,8 +803,9 @@ function DevicesTab({
       setFirmware("");
       onRegistered(device);
       onToast("success", `${device.device_code} registered`);
+      setAddOpen(false);
     } catch (err) {
-      onToast("error", err instanceof Error ? err.message : "Failed to register the device");
+      onToast("error", friendlyError(err, "register the device"));
     } finally {
       setSaving(false);
     }
@@ -799,7 +816,7 @@ function DevicesTab({
       onChanged(await updateDevice(supabase, device.id, patchBody));
       onToast("success", `${device.device_code} updated`);
     } catch (err) {
-      onToast("error", err instanceof Error ? err.message : "Failed to update the device");
+      onToast("error", friendlyError(err, "update the device"));
     }
   }
 
@@ -808,7 +825,7 @@ function DevicesTab({
       onDogClinicChanged(await updateDogClinic(supabase, dog.id, clinicId));
       onToast("success", `${dog.name}'s clinic updated`);
     } catch (err) {
-      onToast("error", err instanceof Error ? err.message : "Failed to update the dog's clinic");
+      onToast("error", friendlyError(err, "update the dog's clinic"));
     }
   }
 
@@ -821,7 +838,7 @@ function DevicesTab({
       onToast("success", `${pendingDelete.device_code} deleted`);
       setPendingDelete(null);
     } catch (err) {
-      onToast("error", err instanceof Error ? err.message : "Failed to delete the device");
+      onToast("error", friendlyError(err, "delete the device"));
     } finally {
       setDeleting(false);
     }
@@ -830,38 +847,18 @@ function DevicesTab({
   return (
     <div className="flex flex-col gap-5">
       <Card>
-        <CardHeader>
-          <CardTitle>Devices</CardTitle>
-          <CardDescription>
-            Register harnesses, assign them to dogs, or take them out of service.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle>Devices</CardTitle>
+            <CardDescription>
+              Register harnesses, assign them to dogs, or take them out of service.
+            </CardDescription>
+          </div>
+          <Button type="button" onClick={() => setAddOpen(true)}>
+            <Plus size={14} /> Register device
+          </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
-          <form className="flex flex-wrap items-end gap-3" onSubmit={register}>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="device-code">Device code</Label>
-              <Input
-                id="device-code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="FURFEEL-DEV-0003"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="device-fw">Firmware</Label>
-              <Input
-                id="device-fw"
-                value={firmware}
-                onChange={(e) => setFirmware(e.target.value)}
-                placeholder="0.1.0"
-              />
-            </div>
-            <Button type="submit" disabled={saving || code.trim() === ""}>
-              <Plus size={14} /> Register device
-            </Button>
-          </form>
-
           <Table>
             <THead>
               <Tr className="border-t-0">
@@ -923,6 +920,38 @@ function DevicesTab({
             </TBody>
           </Table>
         </CardContent>
+
+        <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Register device">
+          <form className="flex flex-col gap-3" onSubmit={register}>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="device-code">Device code</Label>
+              <Input
+                id="device-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="FURFEEL-DEV-0003"
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="device-fw">Firmware</Label>
+              <Input
+                id="device-fw"
+                value={firmware}
+                onChange={(e) => setFirmware(e.target.value)}
+                placeholder="0.1.0"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setAddOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || code.trim() === ""}>
+                {saving ? "Registering…" : "Register device"}
+              </Button>
+            </div>
+          </form>
+        </Dialog>
 
         <ConfirmDeleteDialog
           open={pendingDelete !== null}
