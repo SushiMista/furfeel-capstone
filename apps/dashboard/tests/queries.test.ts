@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { acknowledgeAlert, acknowledgeAlerts, fetchDogs, fetchMonitoringBoardRowForDog, sortBoardRows } from "../src/lib/queries.ts";
+import {
+  acknowledgeAlert,
+  acknowledgeAlerts,
+  fetchClinicBoardSummary,
+  fetchClinicStressDailySummary,
+  fetchDogs,
+  fetchMonitoringBoardRowForDog,
+  sortBoardRows,
+} from "../src/lib/queries.ts";
 import type { Dog } from "../../../packages/shared/types/index.ts";
 
 /** Minimal fake of the fluent PostgrestFilterBuilder chain: chainable + thenable, and
@@ -10,6 +18,7 @@ function fakeQuery(result: { data: unknown; error: null; count?: number | null }
   const chain: Record<string, unknown> = {
     select: () => chain,
     eq: () => chain,
+    gte: () => chain,
     order: () => chain,
     limit: () => chain,
     maybeSingle: async () => ({ data: result.data, error: null }),
@@ -24,8 +33,14 @@ function fakeQuery(result: { data: unknown; error: null; count?: number | null }
   return chain;
 }
 
-function fakeClient(tables: Record<string, unknown>): SupabaseClient {
-  return { from: (table: string) => tables[table] } as unknown as SupabaseClient;
+function fakeClient(
+  tables: Record<string, unknown>,
+  rpcs: Record<string, unknown> = {},
+): SupabaseClient {
+  return {
+    from: (table: string) => tables[table],
+    rpc: (fn: string) => rpcs[fn],
+  } as unknown as SupabaseClient;
 }
 
 const DOG: Dog = {
@@ -183,6 +198,95 @@ describe("sortBoardRows", () => {
   it("breaks ties by dog name for a stable board", () => {
     const rows = [boardRow("Ziggy", "calm"), boardRow("Apollo", "calm")];
     expect(sortBoardRows(rows).map((r) => r.dog.name)).toEqual(["Apollo", "Ziggy"]);
+  });
+
+  // The actual reason sortBoardRows became generic: Overview's leaner
+  // ClinicBoardRow (dog/device/latestClassification only, no latestReading/
+  // openAlertCount/recentLevels) must be sortable by the same function
+  // Monitoring Board uses, without a duplicate copy of this logic.
+  it("also sorts the leaner ClinicBoardRow shape Overview uses", () => {
+    const rows = [
+      { dog: { ...DOG, name: "Calm Carl" }, device: null, latestClassification: null },
+      {
+        dog: { ...DOG, name: "High Hank" },
+        device: null,
+        latestClassification: { stress_level: "high" as const, created_at: "2026-07-11T00:00:00Z" },
+      },
+    ];
+    expect(sortBoardRows(rows).map((r) => r.dog.name)).toEqual(["High Hank", "Calm Carl"]);
+  });
+});
+
+describe("fetchClinicBoardSummary", () => {
+  it("unwraps the embedded device and latest classification from one dogs query", async () => {
+    // Shape PostgREST actually returns for `dogs` with embedded
+    // `devices(status)` + `stress_classifications(stress_level, created_at)`
+    // ordered+limited to 1 per referencedTable: both embeds come back as
+    // arrays regardless of cardinality (devices.dog_id has no unique
+    // constraint, so PostgREST can't infer 1:1 — see queries.ts's comment).
+    const client = fakeClient({
+      dogs: fakeQuery({
+        data: [
+          {
+            ...DOG,
+            devices: [{ status: "active" }],
+            stress_classifications: [
+              { stress_level: "calm", created_at: "2026-07-11T08:00:00Z" },
+            ],
+          },
+        ],
+        error: null,
+      }),
+    });
+
+    const rows = await fetchClinicBoardSummary(client);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].dog.name).toBe("Biscuit");
+    expect(rows[0].device?.status).toBe("active");
+    expect(rows[0].latestClassification?.stress_level).toBe("calm");
+    // The embed keys must not leak onto the returned dog object.
+    expect(rows[0].dog).not.toHaveProperty("devices");
+    expect(rows[0].dog).not.toHaveProperty("stress_classifications");
+  });
+
+  it("handles a dog with no device and no classification yet", async () => {
+    const client = fakeClient({
+      dogs: fakeQuery({
+        data: [{ ...DOG, devices: [], stress_classifications: [] }],
+        error: null,
+      }),
+    });
+
+    const rows = await fetchClinicBoardSummary(client);
+    expect(rows[0].device).toBeNull();
+    expect(rows[0].latestClassification).toBeNull();
+  });
+});
+
+describe("fetchClinicStressDailySummary", () => {
+  it("fills in avg_motion (the RPC has none, clinic-wide) without lying about the row shape", async () => {
+    const client = fakeClient(
+      {},
+      {
+        clinic_stress_daily_summary: Promise.resolve({
+          data: [{ day: "2026-07-11", calm: 5, mild: 2, moderate: 1, high: 0 }],
+          error: null,
+        }),
+      },
+    );
+
+    const rows = await fetchClinicStressDailySummary(client, 14);
+    expect(rows).toEqual([
+      { day: "2026-07-11", calm: 5, mild: 2, moderate: 1, high: 0, avg_motion: null },
+    ]);
+  });
+
+  it("returns an empty array for a clinic with nothing in the window", async () => {
+    const client = fakeClient(
+      {},
+      { clinic_stress_daily_summary: Promise.resolve({ data: null, error: null }) },
+    );
+    expect(await fetchClinicStressDailySummary(client)).toEqual([]);
   });
 });
 
