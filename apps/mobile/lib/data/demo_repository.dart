@@ -36,10 +36,11 @@ class DemoRepository implements FurFeelRepository {
   final List<StressClassification> _classifications = [];
   final List<Alert> _alerts = [];
   final List<MediaSubmission> _media = [];
-  final UserProfile _profile = const UserProfile(
+  final UserProfile _profile = UserProfile(
     id: 'demo-user',
     name: 'Demo Explorer',
     email: 'demo@furfeel.example',
+    createdAt: DateTime.utc(2025, 7),
   );
   UserSettings _settings = const UserSettings(theme: 'light');
 
