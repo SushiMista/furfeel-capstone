@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../data/furfeel_repository.dart';
+import '../data/settings_controller.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/errors.dart';
@@ -174,6 +175,7 @@ class _DogFormPageState extends State<DogFormPage> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final ownerLastName = SettingsScope.maybeOf(context)?.profile?.lastName?.trim();
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEdit ? 'Edit ${widget.dog!.name}' : 'Add your dog'),
@@ -221,9 +223,44 @@ class _DogFormPageState extends State<DogFormPage> {
             const SizedBox(height: FurFeelTokens.space4),
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                hintText: 'e.g., Charlotte Malonzo',
+              ),
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Every pup needs a name' : null,
+            ),
+            if (ownerLastName != null &&
+                ownerLastName.isNotEmpty &&
+                !_name.text.contains(ownerLastName)) ...[
+              const SizedBox(height: FurFeelTokens.space1),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ActionChip(
+                  avatar: const Icon(Icons.add, size: 16),
+                  label: Text('Append "$ownerLastName"'),
+                  onPressed: () {
+                    final current = _name.text.trim();
+                    _name.text = current.isEmpty
+                        ? ownerLastName
+                        : '$current $ownerLastName';
+                  },
+                ),
+              ),
+            ],
+            const SizedBox(height: FurFeelTokens.space1),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lightbulb_outline, size: 16, color: context.ff.brand),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Vet Recommendation: Include your last name (e.g., Charlotte Malonzo) so partner clinics can easily match your dog to clinical records.',
+                    style: textTheme.bodySmall?.copyWith(color: context.ff.inkMuted),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: FurFeelTokens.space3),
             TextFormField(

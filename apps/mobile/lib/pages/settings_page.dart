@@ -43,14 +43,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  // Per-type notification toggles — UI only until wired to user_settings
-  bool _healthAlerts = true;
-  bool _stressAlerts = true;
-  bool _batteryAlerts = true;
-
-  // Weight unit — UI only until added to UserSettings model
-  String _weightUnit = 'kg';
-
   TimeOfDay? _parseTime(String? hhmmss) {
     if (hhmmss == null) return null;
     final parts = hhmmss.split(':');
@@ -229,9 +221,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 iconBackground: context.ff.statusHighBg,
                 title: 'Health Alerts',
                 subtitle: 'Heart rate, temperature anomalies',
-                value: s.notificationsEnabled && _healthAlerts,
+                value: s.notificationsEnabled && s.isAlertCategoryEnabled('health'),
                 onChanged: s.notificationsEnabled
-                    ? (on) => setState(() => _healthAlerts = on)
+                    ? (on) => ctrl.update(s.withAlertCategoryEnabled('health', on))
                     : null,
               ),
               _SwitchRow(
@@ -240,9 +232,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 iconBackground: context.ff.statusModerateBg,
                 title: 'Stress Alerts',
                 subtitle: 'Moderate and high stress detections',
-                value: s.notificationsEnabled && _stressAlerts,
+                value: s.notificationsEnabled && s.isAlertCategoryEnabled('stress'),
                 onChanged: s.notificationsEnabled
-                    ? (on) => setState(() => _stressAlerts = on)
+                    ? (on) => ctrl.update(s.withAlertCategoryEnabled('stress', on))
                     : null,
               ),
               _SwitchRow(
@@ -251,9 +243,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 iconBackground: context.ff.statusMildBg,
                 title: 'Battery Alerts',
                 subtitle: 'Low harness battery warnings',
-                value: s.notificationsEnabled && _batteryAlerts,
+                value: s.notificationsEnabled && s.isAlertCategoryEnabled('battery'),
                 onChanged: s.notificationsEnabled
-                    ? (on) => setState(() => _batteryAlerts = on)
+                    ? (on) => ctrl.update(s.withAlertCategoryEnabled('battery', on))
                     : null,
               ),
               _SwitchRow(
@@ -321,8 +313,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   ButtonSegment(value: 'kg', label: Text('kg')),
                   ButtonSegment(value: 'lbs', label: Text('lbs')),
                 ],
-                selected: _weightUnit,
-                onChanged: (v) => setState(() => _weightUnit = v),
+                selected: s.weightUnit,
+                onChanged: (v) {
+                  HapticFeedback.selectionClick();
+                  ctrl.update(s.copyWith(weightUnit: v));
+                },
               ),
             ],
           ).entrance(context, index: 7),

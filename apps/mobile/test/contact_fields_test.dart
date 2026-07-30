@@ -78,10 +78,18 @@ void main() {
 
   testWidgets('cancel leaves the field untouched', (tester) async {
     final repo = FakeRepository(dogs: const [_dog]);
+<<<<<<< HEAD
     repo.profile = const UserProfile(
       id: 'user-1',
       name: 'Jamie Rivera',
       email: 'owner@example.com',
+=======
+    repo.profile = UserProfile(
+      id: 'user-1',
+      name: 'Jamie Rivera',
+      email: 'owner@example.com',
+      createdAt: DateTime(2025, 1, 1),
+>>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
       phone: '+63 900 000 0000',
     );
     final controller = SettingsController(repo);

@@ -338,8 +338,8 @@ class FakeRepository implements FurFeelRepository {
   }
 
   // ---- Account & settings ----
-  UserProfile profile =
-      const UserProfile(id: 'user-1', name: 'Jamie Rivera', email: 'owner@example.com');
+  UserProfile profile = UserProfile(
+      id: 'user-1', name: 'Jamie Rivera', email: 'owner@example.com', createdAt: DateTime(2025, 1, 1));
   UserSettings userSettings = const UserSettings();
   String? lastPassword;
   bool accountDeleted = false;
@@ -353,6 +353,10 @@ class FakeRepository implements FurFeelRepository {
         id: profile.id,
         name: name,
         email: profile.email,
+<<<<<<< HEAD
+=======
+        createdAt: profile.createdAt,
+>>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
         avatarPath: profile.avatarPath,
         phone: profile.phone,
         emergencyContact: profile.emergencyContact);
@@ -363,6 +367,10 @@ class FakeRepository implements FurFeelRepository {
         id: profile.id,
         name: profile.name,
         email: profile.email,
+<<<<<<< HEAD
+=======
+        createdAt: profile.createdAt,
+>>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
         avatarPath: profile.avatarPath,
         phone: phone,
         emergencyContact: emergencyContact,
@@ -394,6 +402,7 @@ class FakeRepository implements FurFeelRepository {
         id: profile.id,
         name: profile.name,
         email: profile.email,
+        createdAt: profile.createdAt,
         avatarPath: '${profile.id}/avatar.$fileExtension');
     return profile;
   }
