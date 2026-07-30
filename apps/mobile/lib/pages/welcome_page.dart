@@ -25,6 +25,11 @@ class WelcomePage extends StatelessWidget {
       await client.auth.signInWithPassword(email: email, password: password);
       return null;
     } on AuthException catch (e) {
+      if (e.message.contains('SocketException') ||
+          e.message.contains('Failed host lookup') ||
+          e.message.contains('ClientException')) {
+        return 'Unable to connect to FurFeel servers. Please check your connection and try again.';
+      }
       return e.message;
     } catch (_) {
       return 'Could not sign in. Check your connection and try again.';
