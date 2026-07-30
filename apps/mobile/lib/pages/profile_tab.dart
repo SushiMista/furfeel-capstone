@@ -13,7 +13,6 @@ import 'account_page.dart';
 import 'care_tips_page.dart';
 import 'device_pairing_page.dart';
 import 'dog_form_page.dart';
-import 'dog_health_page.dart';
 import 'partner_clinics_page.dart';
 import 'settings_page.dart';
 
@@ -166,8 +165,7 @@ class ProfileTab extends StatelessWidget {
               iconBackground: context.ff.statusCalmBg,
               iconColor: context.ff.statusCalmFg,
               title: 'Member Since',
-              // Placeholder — will read profile.createdAt once wired
-              subtitle: 'July 2025',
+              subtitle: profile == null ? '—' : _monthYear(profile.createdAt),
               showChevron: false,
             ),
           ],
@@ -228,6 +226,7 @@ class ProfileTab extends StatelessWidget {
                       '${dog.ageYears} ${dog.ageYears == 1 ? 'year' : 'years'} old',
                     dog.clinicId != null ? 'Clinic-monitored' : 'Home only',
                   ].join(' · '),
+<<<<<<< HEAD
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -256,6 +255,18 @@ class ProfileTab extends StatelessWidget {
                         ),
                       ),
                     ],
+=======
+                  trailing: IconButton(
+                    tooltip: 'Harness',
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(Icons.sensors, color: context.ff.inkMuted),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            DevicePairingPage(repository: repository, dog: dog),
+                      ),
+                    ),
+>>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
                   ),
                   onTap: () => _openForm(context, dog: dog),
                 ),
@@ -272,10 +283,10 @@ class ProfileTab extends StatelessWidget {
               iconBackground: context.ff.statusCalmBg,
               iconColor: context.ff.statusCalmFg,
               title: 'Partner Clinics',
-              subtitle: '2 clinics in your area',
+              subtitle: 'Clinics integrated with FurFeel',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => const PartnerClinicsPage(),
+                  builder: (_) => PartnerClinicsPage(repository: repository),
                 ),
               ),
             ),
@@ -306,3 +317,10 @@ class ProfileTab extends StatelessWidget {
     );
   }
 }
+
+const _monthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+String _monthYear(DateTime date) => '${_monthNames[date.month - 1]} ${date.year}';
