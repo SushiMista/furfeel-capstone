@@ -91,17 +91,25 @@ class Dog {
 }
 
 class Clinic {
-  const Clinic({required this.id, required this.name, this.address});
+  const Clinic({required this.id, required this.name, this.address, this.contactNumber});
 
   final String id;
   final String name;
   final String? address;
+  final String? contactNumber;
 
   factory Clinic.fromMap(Map<String, dynamic> map) => Clinic(
         id: map['id'] as String,
         name: map['name'] as String,
         address: map['address'] as String?,
+        contactNumber: map['contact_number'] as String?,
       );
+
+  /// No-API-key Google Maps embed built from the free-text address (docs/09
+  /// clinics has no lat/lng column). Null when there's no address to map.
+  String? get mapEmbedUrl => (address == null || address!.trim().isEmpty)
+      ? null
+      : 'https://maps.google.com/maps?q=${Uri.encodeComponent(address!)}&output=embed';
 }
 
 class Device {
@@ -573,6 +581,7 @@ class UserProfile {
     required this.id,
     required this.name,
     required this.email,
+    required this.createdAt,
     this.avatarPath,
     this.phone,
     this.emergencyContact,
@@ -581,6 +590,7 @@ class UserProfile {
   final String id;
   final String name;
   final String email;
+  final DateTime createdAt;
 
   /// Path in the private `avatars` bucket (resolved via signed URL).
   final String? avatarPath;
@@ -594,6 +604,7 @@ class UserProfile {
         id: map['id'] as String,
         name: map['name'] as String,
         email: map['email'] as String,
+        createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
         avatarPath: map['avatar_path'] as String?,
         phone: map['phone'] as String?,
         emergencyContact: map['emergency_contact'] as String?,
@@ -601,6 +612,12 @@ class UserProfile {
 
   /// First name for greetings ("Good morning, Joshua").
   String get firstName => name.trim().split(RegExp(r'\s+')).first;
+
+  /// Last name for clinical record matching ("Charlotte Malonzo").
+  String? get lastName {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    return parts.length > 1 ? parts.last : null;
+  }
 }
 
 /// ADDED: per-user preferences row (docs/09 user_settings). One row per user;
@@ -609,6 +626,7 @@ class UserSettings {
   const UserSettings({
     this.theme = 'light',
     this.temperatureUnit = 'c',
+    this.weightUnit = 'kg',
     this.notificationsEnabled = true,
     this.quietHoursStart,
     this.quietHoursEnd,
@@ -620,6 +638,9 @@ class UserSettings {
 
   /// 'c' | 'f'
   final String temperatureUnit;
+
+  /// 'kg' | 'lbs'
+  final String weightUnit;
   final bool notificationsEnabled;
 
   /// "HH:MM:SS" as Postgres `time` renders it; null = no quiet hours.
@@ -632,6 +653,7 @@ class UserSettings {
   factory UserSettings.fromMap(Map<String, dynamic> map) => UserSettings(
         theme: map['theme'] as String? ?? 'light',
         temperatureUnit: map['temperature_unit'] as String? ?? 'c',
+        weightUnit: map['weight_unit'] as String? ?? 'kg',
         notificationsEnabled: map['notifications_enabled'] as bool? ?? true,
         quietHoursStart: map['quiet_hours_start'] as String?,
         quietHoursEnd: map['quiet_hours_end'] as String?,
@@ -641,6 +663,7 @@ class UserSettings {
   UserSettings copyWith({
     String? theme,
     String? temperatureUnit,
+    String? weightUnit,
     bool? notificationsEnabled,
     Object? quietHoursStart = _unset,
     Object? quietHoursEnd = _unset,
@@ -649,6 +672,7 @@ class UserSettings {
       UserSettings(
         theme: theme ?? this.theme,
         temperatureUnit: temperatureUnit ?? this.temperatureUnit,
+        weightUnit: weightUnit ?? this.weightUnit,
         notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
         quietHoursStart: quietHoursStart == _unset
             ? this.quietHoursStart
@@ -658,11 +682,22 @@ class UserSettings {
         mutedAlertTypes: mutedAlertTypes ?? this.mutedAlertTypes,
       );
 
+  /// Per-type alert mute helpers (docs/04 Settings — Health/Stress/Battery
+  /// toggles). Keys are app-level categories, not `alerts.type` values.
+  bool isAlertCategoryEnabled(String category) => !mutedAlertTypes.contains(category);
+
+  UserSettings withAlertCategoryEnabled(String category, bool enabled) => copyWith(
+        mutedAlertTypes: enabled
+            ? mutedAlertTypes.where((t) => t != category).toList()
+            : [...mutedAlertTypes, if (!mutedAlertTypes.contains(category)) category],
+      );
+
   static const _unset = Object();
 
   Map<String, dynamic> toUpdateMap() => {
         'theme': theme,
         'temperature_unit': temperatureUnit,
+        'weight_unit': weightUnit,
         'notifications_enabled': notificationsEnabled,
         'quiet_hours_start': quietHoursStart,
         'quiet_hours_end': quietHoursEnd,

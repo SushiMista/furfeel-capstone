@@ -77,10 +77,18 @@ void main() {
       to: DateTime(2026, 7, 17),
       readings: [reading(0, hr: 92, temp: 38.5, battery: 70)],
       classifications: [],
+<<<<<<< HEAD
       owner: const UserProfile(
         id: 'u1',
         name: 'Jamie Rivera',
         email: 'owner@example.com',
+=======
+      owner: UserProfile(
+        id: 'u1',
+        name: 'Jamie Rivera',
+        email: 'owner@example.com',
+        createdAt: DateTime(2025, 1, 1),
+>>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
         phone: '+1-555-0100',
         emergencyContact: 'Sam Rivera +1-555-0101',
       ),
