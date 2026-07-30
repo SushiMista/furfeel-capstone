@@ -1,3 +1,4 @@
+import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { LayoutGrid, Rows3, Search } from "lucide-react";
@@ -105,7 +106,7 @@ export function MonitoringBoard() {
       setRows(board);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dogs");
+      setError(friendlyError(err, "load dogs"));
     } finally {
       setLoading(false);
     }
