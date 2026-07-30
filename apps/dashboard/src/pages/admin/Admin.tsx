@@ -528,6 +528,13 @@ function UsersTab({
   );
 }
 
+/** No-API-key Google Maps embed built from a clinic's free-text address —
+ * same formula the mobile app uses (see Clinic.mapEmbedUrl in models.dart)
+ * so admin preview and the owner app's "Partner Clinics" map always match. */
+function clinicMapEmbedUrl(address: string) {
+  return `https://maps.google.com/maps?q=${encodeURIComponent(address.trim())}&output=embed`;
+}
+
 /** Edit-clinic form, shared by the dialog below — same fields as "Add clinic". */
 function ClinicFields({
   name,
@@ -572,13 +579,6 @@ function ClinicFields({
       </div>
     </>
   );
-}
-
-/** No-API-key Google Maps embed built from a clinic's free-text address —
- * same formula the mobile app uses (see Clinic.mapEmbedUrl in models.dart)
- * so admin preview and the owner app's "Partner Clinics" map always match. */
-function clinicMapEmbedUrl(address: string) {
-  return `https://maps.google.com/maps?q=${encodeURIComponent(address.trim())}&output=embed`;
 }
 
 function ClinicsTab({
