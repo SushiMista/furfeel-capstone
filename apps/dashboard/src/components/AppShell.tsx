@@ -1,10 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import {
-<<<<<<< HEAD
-=======
   Activity,
->>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
   ArrowLeftRight,
   Bell,
   Building2,
