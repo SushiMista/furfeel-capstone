@@ -74,6 +74,21 @@
     break-inside: avoid;
   }
 
+<<<<<<< HEAD
+=======
+  /* Chrome/Safari/Firefox all drop background colors on print by default
+     (a paper-saving default, not a bug) — without this, the letterhead bar
+     and the stress-mix bars print as plain white/unstyled boxes. Scoped to
+     this class + its descendants rather than global so the rest of the
+     printed page still respects the "no chrome" intent of .print-plain. */
+  .print-color-exact,
+  .print-color-exact * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+>>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
   main {
     padding: 0 !important;
   }
