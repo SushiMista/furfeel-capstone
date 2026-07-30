@@ -104,6 +104,23 @@ abstract class FurFeelRepository {
   /// Everything the multi-dog Home card needs for one dog, in one call.
   Future<DogOverview> fetchDogOverview(Dog dog);
 
+  // ---- Care reminders (docs/04 P3.12: local-notification reminders) ----
+  /// Active reminders for a dog, soonest first. RLS gates on dog ownership.
+  Future<List<CareReminder>> fetchReminders(String dogId);
+
+  /// Create or update a reminder (id null => insert). Owner-only via RLS.
+  Future<CareReminder> saveReminder({
+    String? id,
+    required String dogId,
+    required String title,
+    String? notes,
+    required DateTime dueAt,
+    required ReminderRepeat repeat,
+    bool active = true,
+  });
+
+  Future<void> deleteReminder(String reminderId);
+
   // ---- Media conversation (docs/04 module 5: threaded follow-up) ----
   Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId);
   Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body);
@@ -600,6 +617,48 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   @override
   Future<void> deleteMediaMessage(String messageId) async {
     await _client.from('media_messages').delete().eq('id', messageId);
+  }
+
+  @override
+  Future<List<CareReminder>> fetchReminders(String dogId) async {
+    final rows = await _client
+        .from('care_reminders')
+        .select('id, dog_id, title, notes, due_at, repeat, active')
+        .eq('dog_id', dogId)
+        .eq('active', true)
+        .order('due_at', ascending: true);
+    return rows.map<CareReminder>(CareReminder.fromMap).toList();
+  }
+
+  @override
+  Future<CareReminder> saveReminder({
+    String? id,
+    required String dogId,
+    required String title,
+    String? notes,
+    required DateTime dueAt,
+    required ReminderRepeat repeat,
+    bool active = true,
+  }) async {
+    final values = {
+      'dog_id': dogId,
+      'user_id': _requiredUserId,
+      'title': title.trim(),
+      'notes': notes?.trim().isEmpty ?? true ? null : notes!.trim(),
+      'due_at': dueAt.toUtc().toIso8601String(),
+      'repeat': repeat.name,
+      'active': active,
+    };
+    final table = _client.from('care_reminders');
+    final row = id == null
+        ? await table.insert(values).select().single()
+        : await table.update(values).eq('id', id).select().single();
+    return CareReminder.fromMap(row);
+  }
+
+  @override
+  Future<void> deleteReminder(String reminderId) async {
+    await _client.from('care_reminders').delete().eq('id', reminderId);
   }
 
   @override

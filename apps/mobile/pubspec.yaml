@@ -46,6 +46,10 @@ dependencies:
   share_plus: ^13.2.1
   web: ^1.1.1
   shadcn_flutter: ^0.0.53
+  webview_flutter: ^4.10.0
+  # ADDED (P3.12 care reminders): on-device scheduled notifications, no push.
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
 
 dev_dependencies:
   flutter_test:

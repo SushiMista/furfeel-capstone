@@ -46,6 +46,7 @@ class HomeTab extends StatefulWidget {
     required this.onRefresh,
     required this.dogsCount,
     required this.alerts,
+    this.trailing,
   });
 
   final FurFeelRepository repository;
@@ -61,6 +62,10 @@ class HomeTab extends StatefulWidget {
   /// loaded by RootShell, just plumbed through for the overview card below.
   final int dogsCount;
   final List<Alert> alerts;
+
+  /// Optional extra section rendered at the bottom (dog-detail only, e.g. the
+  /// care-reminders section — null on the multi-dog Home).
+  final Widget? trailing;
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -188,6 +193,10 @@ class _HomeTabState extends State<HomeTab> {
               repository: widget.repository,
               dog: widget.dog,
             ).entrance(context, index: 4),
+          ],
+          if (widget.trailing != null) ...[
+            const SizedBox(height: FurFeelTokens.space3),
+            widget.trailing!,
           ],
         ],
       ),

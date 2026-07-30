@@ -27,7 +27,7 @@
 -- with the per-dog filter removed and the (irrelevant clinic-wide)
 -- avg_motion column dropped.
 
-create function public.clinic_stress_daily_summary(
+create or replace function public.clinic_stress_daily_summary(
   p_days int default 14,
   p_tz_offset_minutes int default 0
 )

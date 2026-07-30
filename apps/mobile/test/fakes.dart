@@ -35,6 +35,7 @@ class FakeRepository implements FurFeelRepository {
   List<Clinic> clinics;
   List<DailyStressSummary> dailySummaries;
   List<HourlyStressBucket> hourlyPattern;
+  List<CareReminder> reminders = [];
 
   /// Offline-cache tests: every fetch throws like a dead network.
   bool throwOnFetch;
@@ -285,6 +286,45 @@ class FakeRepository implements FurFeelRepository {
   @override
   Future<void> deleteMediaMessage(String messageId) async {
     mediaMessages = mediaMessages.where((m) => m.id != messageId).toList();
+  }
+
+  @override
+  Future<List<CareReminder>> fetchReminders(String dogId) async {
+    _maybeThrow();
+    return reminders.where((r) => r.dogId == dogId && r.active).toList()
+      ..sort((a, b) => a.dueAt.compareTo(b.dueAt));
+  }
+
+  @override
+  Future<CareReminder> saveReminder({
+    String? id,
+    required String dogId,
+    required String title,
+    String? notes,
+    required DateTime dueAt,
+    required ReminderRepeat repeat,
+    bool active = true,
+  }) async {
+    final saved = CareReminder(
+      id: id ?? 'reminder-${reminders.length + 1}',
+      dogId: dogId,
+      title: title,
+      notes: notes,
+      dueAt: dueAt,
+      repeat: repeat,
+      active: active,
+    );
+    reminders = [
+      for (final r in reminders)
+        if (r.id != saved.id) r,
+      saved,
+    ];
+    return saved;
+  }
+
+  @override
+  Future<void> deleteReminder(String reminderId) async {
+    reminders = reminders.where((r) => r.id != reminderId).toList();
   }
 
   @override

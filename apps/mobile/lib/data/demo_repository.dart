@@ -424,6 +424,32 @@ class DemoRepository implements FurFeelRepository {
   Future<void> deleteMediaMessage(String messageId) async =>
       throw const FurFeelDataException('Demo mode is read-only.');
   @override
+  Future<List<CareReminder>> fetchReminders(String dogId) async => [
+        CareReminder(
+          id: 'demo-reminder',
+          dogId: dogId,
+          title: 'Evening meal',
+          notes: 'Sample reminder — sign up to add your own.',
+          dueAt: DateTime.now().add(const Duration(hours: 3)),
+          repeat: ReminderRepeat.daily,
+          active: true,
+        ),
+      ];
+  @override
+  Future<CareReminder> saveReminder({
+    String? id,
+    required String dogId,
+    required String title,
+    String? notes,
+    required DateTime dueAt,
+    required ReminderRepeat repeat,
+    bool active = true,
+  }) async =>
+      throw const FurFeelDataException('Demo mode is read-only.');
+  @override
+  Future<void> deleteReminder(String reminderId) async =>
+      throw const FurFeelDataException('Demo mode is read-only.');
+  @override
   Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50}) async =>
       List.of(_media);
   @override

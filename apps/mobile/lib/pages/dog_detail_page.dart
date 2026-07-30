@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/furfeel_repository.dart';
 import '../models/models.dart';
 import '../util/errors.dart';
+import '../widgets/reminders_section.dart';
 import '../widgets/retry_message.dart';
 import '../widgets/skeletons.dart';
 import 'home_tab.dart';
@@ -114,6 +115,10 @@ class _DogDetailPageState extends State<DogDetailPage> {
               onRefresh: _load,
               dogsCount: widget.dogsCount,
               alerts: _alerts,
+              trailing: RemindersSection(
+                repository: widget.repository,
+                dog: widget.dog,
+              ),
             ),
     );
   }

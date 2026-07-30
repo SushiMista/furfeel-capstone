@@ -47,6 +47,7 @@ Thumbs.db
 *.swp
 
 # Local AI / agent state
-.claude/
+.claude/*
+!.claude/settings.json
 .agents/
 skills-lock.json

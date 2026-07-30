@@ -239,6 +239,56 @@ class CareGuidance {
       );
 }
 
+/// How a care reminder recurs (care_reminders.repeat). 'none' = one-off.
+enum ReminderRepeat {
+  none,
+  daily,
+  weekly;
+
+  static ReminderRepeat fromName(String name) =>
+      ReminderRepeat.values.firstWhere((r) => r.name == name,
+          orElse: () => ReminderRepeat.none);
+
+  String get label => switch (this) {
+        ReminderRepeat.none => 'Once',
+        ReminderRepeat.daily => 'Every day',
+        ReminderRepeat.weekly => 'Every week',
+      };
+}
+
+/// An owner-created care reminder (care_reminders, docs/04 P3.12) — medication,
+/// feeding, or a vet appointment for one dog. Fires as a local notification on
+/// the device; never a classifier input, never diagnosis.
+class CareReminder {
+  const CareReminder({
+    required this.id,
+    required this.dogId,
+    required this.title,
+    required this.dueAt,
+    required this.repeat,
+    required this.active,
+    this.notes,
+  });
+
+  final String id;
+  final String dogId;
+  final String title;
+  final String? notes;
+  final DateTime dueAt;
+  final ReminderRepeat repeat;
+  final bool active;
+
+  factory CareReminder.fromMap(Map<String, dynamic> map) => CareReminder(
+        id: map['id'] as String,
+        dogId: map['dog_id'] as String,
+        title: map['title'] as String,
+        notes: map['notes'] as String?,
+        dueAt: DateTime.parse(map['due_at'] as String).toLocal(),
+        repeat: ReminderRepeat.fromName(map['repeat'] as String? ?? 'none'),
+        active: map['active'] as bool? ?? true,
+      );
+}
+
 /// One message in a media-submission conversation (media_messages): the owner
 /// and the clinic replying back and forth under a submitted photo/video.
 class MediaMessage {
