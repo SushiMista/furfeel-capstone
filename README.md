@@ -54,7 +54,8 @@ cp firmware/simulator/.env.example firmware/simulator/.env
 
 # 3. run
 cd apps/dashboard && npm install && npm run dev          # dashboard
-cd apps/mobile && flutter run -d chrome --dart-define-from-file=env.json   # owner app
+cd apps/mobile && flutter run -d chrome --dart-define-from-file=env.json or flutter run --dart-define-from-file=env.json
+ # owner app
 cd firmware/simulator && npm install && npm start -- --sweep               # live data
 ```
 
