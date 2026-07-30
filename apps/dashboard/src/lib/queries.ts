@@ -108,6 +108,25 @@ export async function saveDogThresholds(
   return data as unknown as DogBaselines;
 }
 
+const DEVICE_LIST_COLUMNS =
+  "id, dog_id, device_code, status, last_seen_at, firmware_version, battery_percent, created_at, dog:dogs(name)";
+
+export interface DeviceWithDog extends Device {
+  dog: { name: string } | null;
+}
+
+/** Devices tab (docs/05): read-only fleet list under devices_select_owner_or_clinic
+ * RLS -- the caller's own dogs, or their whole clinic. No insert/update/delete
+ * here; device registration and assignment stay in Admin → Devices. */
+export async function fetchDevicesReadOnly(client: SupabaseClient): Promise<DeviceWithDog[]> {
+  const { data, error } = await client
+    .from("devices")
+    .select(DEVICE_LIST_COLUMNS)
+    .order("device_code");
+  if (error) throw error;
+  return (data ?? []) as unknown as DeviceWithDog[];
+}
+
 async function fetchDeviceForDog(client: SupabaseClient, dogId: string): Promise<Device | null> {
   const { data, error } = await client
     .from("devices")
