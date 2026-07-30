@@ -279,7 +279,8 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
 
   @override
   Future<List<Clinic>> fetchClinics() async {
-    final rows = await _client.from('clinics').select('id, name, address').order('name');
+    final rows =
+        await _client.from('clinics').select('id, name, address, contact_number').order('name');
     return rows.map(Clinic.fromMap).toList();
   }
 
@@ -690,7 +691,11 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   }
 
   static const _profileColumns =
+<<<<<<< HEAD
       'id, name, email, avatar_path, phone, emergency_contact';
+=======
+      'id, name, email, created_at, avatar_path, phone, emergency_contact';
+>>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
 
   String get _requiredUserId {
     final userId = _client.auth.currentUser?.id;

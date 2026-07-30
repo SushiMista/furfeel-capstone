@@ -1,3 +1,4 @@
+import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useState } from "react";
 import { PawPrint, Printer } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
@@ -23,7 +24,10 @@ import { Label, Select } from "../../components/ui/input.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
+import { cn } from "../../lib/cn.ts";
 import type {
+  Alert,
+  Clinic,
   Dog,
   StressLevel,
   TelemetryReading,
@@ -37,14 +41,29 @@ const PERIODS = [
 
 const LEVELS: StressLevel[] = ["calm", "mild", "moderate", "high"];
 
-function VitalRow({ label, unit, summary }: { label: string; unit: string; summary: VitalSummary | null }) {
+/** Vital | Unit | Min | Average | Max — matches the mobile PDF health
+ * record's vitals table (apps/mobile/lib/util/exports.dart) column-for-column,
+ * so a clinic sees the same shape whether the record came from the app or
+ * printed from the dashboard. */
+function VitalRow({
+  label,
+  unit,
+  summary,
+  decimals = 0,
+}: {
+  label: string;
+  unit: string;
+  summary: VitalSummary | null;
+  decimals?: number;
+}) {
+  const fmt = (n: number) => n.toFixed(decimals);
   return (
     <Tr>
       <Td>{label}</Td>
-      <Td className="tabular-nums">{summary ? `${summary.avg} ${unit}` : "—"}</Td>
-      <Td className="tabular-nums text-ink-muted">
-        {summary ? `${summary.min}–${summary.max} ${unit}` : "—"}
-      </Td>
+      <Td className="text-ink-muted">{unit}</Td>
+      <Td className="tabular-nums text-ink-muted">{summary ? fmt(summary.min) : "—"}</Td>
+      <Td className="tabular-nums font-semibold">{summary ? fmt(summary.avg) : "—"}</Td>
+      <Td className="tabular-nums text-ink-muted">{summary ? fmt(summary.max) : "—"}</Td>
     </Tr>
   );
 }
@@ -59,16 +78,64 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** One `Label: value` line inside an info panel — nulls render as an em dash
+ * so a receiving clinic sees the field was empty, not omitted (matches the
+ * mobile PDF's `_field` helper). */
+function InfoField({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <p className="m-0 mb-1 text-xs leading-relaxed text-ink">
+      <span className="font-bold text-brand-ink">{label}: </span>
+      {value && value.trim() !== "" ? value : "—"}
+    </p>
+  );
+}
+
+/** Patient/clinic info panel — a soft-tinted block with an uppercase title,
+ * the letterhead-adjacent block a real clinic record expects (mirrors the
+ * mobile PDF's Patient/Owner/Clinic panels; docs/04 "PDF health record"). */
+function InfoPanel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-[12rem] flex-1 rounded-md bg-brand-soft p-4">
+      <p className="m-0 mb-2 text-[10px] font-bold uppercase tracking-widest text-brand">
+        {title}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+/** Whole years between a birthdate and today; null when unparsable. Mirrors
+ * apps/mobile/lib/models/models.dart's `Dog.ageYears`. */
+function ageYears(birthdate: string | null): number | null {
+  if (!birthdate) return null;
+  const born = new Date(birthdate);
+  if (Number.isNaN(born.getTime())) return null;
+  const now = new Date();
+  let years = now.getFullYear() - born.getFullYear();
+  const beforeBirthdayThisYear =
+    now.getMonth() < born.getMonth() ||
+    (now.getMonth() === born.getMonth() && now.getDate() < born.getDate());
+  if (beforeBirthdayThisYear) years -= 1;
+  return years < 0 ? null : years;
+}
+
+function capitalize(s: string): string {
+  return s.length === 0 ? s : s[0].toUpperCase() + s.slice(1);
+}
+
 /** Reports (docs/05 §3): the FurFeel Health Record — a per-dog period summary
  * formatted as a document a clinic can print and file. Decision support, not
  * diagnosis. */
 export function Reports() {
   const [dogs, setDogs] = useState<Dog[]>([]);
-  const [clinicNames, setClinicNames] = useState<Map<string, string>>(new Map());
+  // Full Clinic rows, not just names — the clinic info panel needs address
+  // and contact number too.
+  const [clinics, setClinics] = useState<Map<string, Clinic>>(new Map());
   const [dogId, setDogId] = useState<string>("");
   const [hours, setHours] = useState(24);
   const [report, setReport] = useState<DogReport | null>(null);
   const [readings, setReadings] = useState<TelemetryReading[]>([]);
+  const [periodAlerts, setPeriodAlerts] = useState<Alert[]>([]);
   const [period, setPeriod] = useState<{ from: Date; to: Date } | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -80,10 +147,10 @@ export function Reports() {
         setDogs(rows);
         if (rows.length > 0) setDogId((prev) => prev || rows[0].id);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dogs"));
+      .catch((err) => setError(friendlyError(err, "load dogs")));
     // clinics_select_authenticated: any signed-in staff member can resolve names.
     fetchClinics(supabase)
-      .then((rows) => setClinicNames(new Map(rows.map((c) => [c.id, c.name]))))
+      .then((rows) => setClinics(new Map(rows.map((c) => [c.id, c]))))
       .catch(() => {});
   }, []);
 
@@ -117,9 +184,10 @@ export function Reports() {
       ]);
       setReport(buildDogReport(periodReadings, classifications, alerts));
       setReadings(periodReadings);
+      setPeriodAlerts(alerts);
       setPeriod({ from, to });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to build report");
+      setError(friendlyError(err, "build the report"));
     } finally {
       setLoading(false);
     }
@@ -129,7 +197,8 @@ export function Reports() {
     generate();
   }, [generate]);
 
-  const clinicName = dog?.clinic_id ? clinicNames.get(dog.clinic_id) : null;
+  const clinic = dog?.clinic_id ? clinics.get(dog.clinic_id) : null;
+  const age = dog ? ageYears(dog.birthdate) : null;
   const highlights = report && dog ? buildHighlights(report, dog.name) : [];
   const fmtDate = (d: Date) =>
     d.toLocaleString(undefined, {
@@ -188,38 +257,78 @@ export function Reports() {
       {!loading && report && dog && period && (
         <Card className="print-plain">
           <CardContent className="p-6">
-            {/* ── Record masthead ──────────────────────────────────────── */}
-            <div className="flex flex-wrap items-start justify-between gap-4 rounded-md bg-brand-soft p-4 print-avoid-break">
-              <div className="flex items-center gap-4">
-                <span className="block h-14 w-14 flex-shrink-0 overflow-hidden rounded-pill bg-surface ring-2 ring-brand">
-                  {photoUrl ? (
-                    <img src={photoUrl} alt={dog.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-brand">
-                      <PawPrint size={24} />
-                    </span>
-                  )}
-                </span>
-                <div>
-                  <p className="m-0 text-xs font-bold uppercase tracking-widest text-brand">
-                    FurFeel Health Record
-                  </p>
-                  <h2 className="m-0 flex items-center gap-2 text-xl font-bold text-ink">
-                    {dog.name}
-                    {report.dominantLevel && <StressLevelBadge level={report.dominantLevel} />}
-                  </h2>
-                  <p className="m-0 text-sm text-ink-muted">{dog.breed ?? "Breed not recorded"}</p>
-                </div>
-              </div>
-              <div className="text-right text-xs text-ink-muted">
-                <p className="m-0 font-semibold text-ink">
-                  {clinicName ?? "Home monitoring — no clinic linked"}
+            {/* ── Record masthead: solid letterhead bar, mirrors the mobile
+                 PDF's branded header (apps/mobile/lib/util/exports.dart) so
+                 a printed dashboard report and a mobile-exported one read as
+                 the same document family. print-color-exact forces the
+                 solid fill to survive Chrome's print pipeline, which strips
+                 background colors by default unless told otherwise. ── */}
+            <div className="print-color-exact print-avoid-break flex flex-wrap items-end justify-between gap-4 rounded-md bg-brand p-4 text-white">
+              <div>
+                <p className="m-0 flex items-center gap-2 text-lg font-bold">
+                  <PawPrint size={18} /> FurFeel
                 </p>
-                <p className="m-0">
-                  Period: {fmtDate(period.from)} — {fmtDate(period.to)}
-                </p>
-                <p className="m-0">Generated {fmtDate(new Date())}</p>
+                <p className="m-0 text-xs">Canine stress monitoring</p>
               </div>
+              <div className="text-right">
+                <p className="m-0 text-xs font-bold uppercase tracking-widest">Health record</p>
+                <p className="m-0 text-xs">Issued {fmtDate(new Date())}</p>
+              </div>
+            </div>
+            <p className="m-0 mt-2 text-xs text-ink-muted">
+              Monitoring period {fmtDate(period.from)} – {fmtDate(period.to)} ·{" "}
+              {report.readingCount} readings · {report.classificationCount} stress assessments
+            </p>
+
+            {/* ── Patient identity strip ───────────────────────────────── */}
+            <div className="mt-4 flex items-center gap-4 print-avoid-break">
+              <span className="block h-14 w-14 flex-shrink-0 overflow-hidden rounded-pill bg-surface ring-2 ring-brand">
+                {photoUrl ? (
+                  <img src={photoUrl} alt={dog.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center text-brand">
+                    <PawPrint size={24} />
+                  </span>
+                )}
+              </span>
+              <div>
+                <h2 className="m-0 flex items-center gap-2 text-xl font-bold text-ink">
+                  {dog.name}
+                  {report.dominantLevel && <StressLevelBadge level={report.dominantLevel} />}
+                </h2>
+                <p className="m-0 text-sm text-ink-muted">{dog.breed ?? "Breed not recorded"}</p>
+              </div>
+            </div>
+
+            {/* ── Patient / clinic info panels ─────────────────────────── */}
+            <div className="mt-4 flex flex-wrap gap-3 print-avoid-break">
+              <InfoPanel title="Patient">
+                <InfoField label="Name" value={dog.name} />
+                <InfoField label="Breed" value={dog.breed} />
+                <InfoField
+                  label="Sex"
+                  value={dog.sex && dog.sex !== "unknown" ? capitalize(dog.sex) : null}
+                />
+                <InfoField
+                  label="Date of birth"
+                  value={dog.birthdate ? `${dog.birthdate}${age !== null ? ` (${age} y)` : ""}` : null}
+                />
+                <InfoField
+                  label="Weight"
+                  value={dog.weight_kg != null ? `${dog.weight_kg} kg` : null}
+                />
+              </InfoPanel>
+              <InfoPanel title="Veterinary clinic">
+                {clinic ? (
+                  <>
+                    <InfoField label="Clinic" value={clinic.name} />
+                    <InfoField label="Address" value={clinic.address} />
+                    <InfoField label="Contact" value={clinic.contact_number} />
+                  </>
+                ) : (
+                  <p className="m-0 text-xs text-ink-muted">Home monitoring — no clinic linked.</p>
+                )}
+              </InfoPanel>
             </div>
 
             {report.readingCount === 0 ? (
@@ -235,20 +344,46 @@ export function Reports() {
                   {report.openAlertCount} still open).
                 </p>
 
+                {/* Vital | Unit | Min | Average | Max — 6 rows, parity with
+                    the mobile PDF's vitals table. */}
                 <SectionTitle>Vitals</SectionTitle>
-                <div className="max-w-lg print-avoid-break">
+                <div className="max-w-2xl print-avoid-break">
                   <Table>
                     <THead>
                       <Tr className="border-t-0">
                         <Th>Vital</Th>
+                        <Th>Unit</Th>
+                        <Th>Min</Th>
                         <Th>Average</Th>
-                        <Th>Range</Th>
+                        <Th>Max</Th>
                       </Tr>
                     </THead>
                     <TBody>
                       <VitalRow label="Heart rate" unit="bpm" summary={report.heartRate} />
-                      <VitalRow label="Respiratory rate" unit="bpm" summary={report.respiratoryRate} />
-                      <VitalRow label="Body temperature" unit="°C" summary={report.temperature} />
+                      <VitalRow
+                        label="Respiratory rate"
+                        unit="breaths/min"
+                        summary={report.respiratoryRate}
+                      />
+                      <VitalRow
+                        label="Body temperature"
+                        unit="°C"
+                        summary={report.temperature}
+                        decimals={1}
+                      />
+                      <VitalRow
+                        label="Motion activity"
+                        unit="index 0–1"
+                        summary={report.motion}
+                        decimals={2}
+                      />
+                      <VitalRow
+                        label="Ambient temperature"
+                        unit="°C"
+                        summary={report.ambientTemperature}
+                        decimals={1}
+                      />
+                      <VitalRow label="Humidity" unit="%" summary={report.humidity} />
                     </TBody>
                   </Table>
                 </div>
@@ -258,33 +393,100 @@ export function Reports() {
                   <TelemetryChart readings={readings} />
                 </div>
 
+                {/* A real ruled table, not a bare progress-bar list — reads as
+                    a document section instead of a dashboard widget, while
+                    keeping the proportional bar for an at-a-glance read. */}
                 <SectionTitle>Stress distribution</SectionTitle>
-                <div className="flex max-w-lg flex-col gap-2 print-avoid-break">
-                  {LEVELS.map((level) => {
-                    const count = report.stressBreakdown[level];
-                    const pct =
-                      report.classificationCount > 0
-                        ? Math.round((count / report.classificationCount) * 100)
-                        : 0;
-                    return (
-                      <div
-                        key={level}
-                        className="grid grid-cols-[7rem_1fr_5rem] items-center gap-3"
-                      >
-                        <StressLevelBadge level={level} />
-                        <div className="h-3 overflow-hidden rounded-pill bg-surface-alt">
-                          <div
-                            className="h-full rounded-pill transition-[width] duration-slow"
-                            style={{ width: `${pct}%`, backgroundColor: stressLevelColor(level) }}
-                          />
-                        </div>
-                        <span className="text-sm tabular-nums text-ink-muted">
-                          {count} ({pct}%)
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="max-w-2xl print-avoid-break">
+                  <Table>
+                    <THead>
+                      <Tr className="border-t-0">
+                        <Th>Level</Th>
+                        <Th>Readings</Th>
+                        <Th>Share</Th>
+                        <Th></Th>
+                      </Tr>
+                    </THead>
+                    <TBody>
+                      {LEVELS.map((level) => {
+                        const count = report.stressBreakdown[level];
+                        const pct =
+                          report.classificationCount > 0
+                            ? Math.round((count / report.classificationCount) * 100)
+                            : 0;
+                        return (
+                          <Tr key={level}>
+                            <Td>
+                              <StressLevelBadge level={level} />
+                            </Td>
+                            <Td className="tabular-nums">{count}</Td>
+                            <Td className="tabular-nums text-ink-muted">{pct}%</Td>
+                            <Td className="w-32">
+                              <div className="print-color-exact h-2.5 w-full overflow-hidden rounded-pill bg-surface-alt">
+                                <div
+                                  className="print-color-exact h-full rounded-pill transition-[width] duration-slow"
+                                  style={{ width: `${pct}%`, backgroundColor: stressLevelColor(level) }}
+                                />
+                              </div>
+                            </Td>
+                          </Tr>
+                        );
+                      })}
+                    </TBody>
+                  </Table>
                 </div>
+
+                {/* Itemized alert history — the mobile PDF has this, the
+                    dashboard record previously only stated a count. */}
+                <SectionTitle>Alerts in this period</SectionTitle>
+                {periodAlerts.length === 0 ? (
+                  <p className="m-0 text-sm text-ink">
+                    No alerts were raised in this period.
+                  </p>
+                ) : (
+                  <>
+                    <div className="print-avoid-break">
+                      <Table>
+                        <THead>
+                          <Tr className="border-t-0">
+                            <Th>Date</Th>
+                            <Th>Severity</Th>
+                            <Th>Alert</Th>
+                          </Tr>
+                        </THead>
+                        <TBody>
+                          {periodAlerts.slice(0, 20).map((a) => (
+                            <Tr key={a.id}>
+                              <Td className="whitespace-nowrap tabular-nums text-ink-muted">
+                                {fmtDate(new Date(a.created_at))}
+                              </Td>
+                              <Td>
+                                <span
+                                  className={cn(
+                                    "text-xs font-bold capitalize",
+                                    a.severity === "critical"
+                                      ? "text-high-fg"
+                                      : a.severity === "warning"
+                                        ? "text-moderate-fg"
+                                        : "text-ink-muted",
+                                  )}
+                                >
+                                  {a.severity}
+                                </span>
+                              </Td>
+                              <Td>{a.message}</Td>
+                            </Tr>
+                          ))}
+                        </TBody>
+                      </Table>
+                    </div>
+                    {periodAlerts.length > 20 && (
+                      <p className="m-0 mt-2 text-xs text-ink-muted">
+                        Showing the 20 most recent of {periodAlerts.length} alerts.
+                      </p>
+                    )}
+                  </>
+                )}
 
                 <SectionTitle>Abnormal-pattern highlights</SectionTitle>
                 {highlights.length === 0 ? (
