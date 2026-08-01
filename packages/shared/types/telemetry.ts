@@ -9,6 +9,7 @@ export interface TelemetryPayload {
   device_code: string;
   captured_at: string;
   heart_rate_bpm?: number;
+  avg_heart_rate_bpm?: number;
   body_temperature_c?: number;
   respiratory_rate_bpm?: number;
   motion_activity?: number;
@@ -27,6 +28,7 @@ export interface TelemetryReading {
   captured_at: string;
   received_at: string;
   heart_rate_bpm: number | null;
+  avg_heart_rate_bpm: number | null;
   body_temperature_c: number | null;
   respiratory_rate_bpm: number | null;
   motion_activity: number | null;
