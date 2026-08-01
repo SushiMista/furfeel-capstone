@@ -102,7 +102,6 @@ Per-dog resting reference values used by the classifier. Optional; classifier fa
 | dog_id | uuid | not null, unique, FK → dogs(id) |
 | resting_heart_rate_bpm | int | null |
 | resting_respiratory_rate_bpm | int | null |
-| normal_body_temperature_c | numeric(3,1) | null |
 | threshold_mild_min | smallint | null; score cutoff into `mild` (must be < `threshold_moderate_min`) |
 | threshold_moderate_min | smallint | null; score cutoff into `moderate` (must be < `threshold_high_min`) |
 | threshold_high_min | smallint | null; score cutoff into `high` |
@@ -111,15 +110,15 @@ Per-dog resting reference values used by the classifier. Optional; classifier fa
 | hr_ratio_high_min | numeric(4,2) | null; tier 3 (global 1.60) |
 | rr_ratio_elevated_min | numeric(4,2) | null; `respiratory_elevated` tier 1 (global 1.30) |
 | rr_ratio_high_min | numeric(4,2) | null; tier 2, panting (global 1.80) |
-| body_temp_elevated_c | numeric(3,1) | null; `body_temperature` tier 1 (global 39.2) |
-| body_temp_high_c | numeric(3,1) | null; tier 2 (global 39.7) |
 | motion_elevated_min | numeric(3,2) | null; `motion_restlessness` tier 1 (global 0.60) |
 | motion_high_min | numeric(3,2) | null; tier 2 (global 0.80) |
 | ambient_heat_c | numeric(4,1) | null; `environmental_amplifier` ambient leg (global 32) |
 | humidity_heat_pct | numeric(4,1) | null; `environmental_amplifier` humidity leg (global 80) |
 | updated_at | timestamptz | not null, default now() |
 
-Two check constraints enforce "null-safe strictly increasing" ordering per rule: `dog_baselines_thresholds_ordered` (the three score cutoffs) and one each for the HR/RR/temp/motion tier pairs. Reads/writes go through the existing `dog_baselines_select/insert/update` RLS (`is_clinic_member(dog_id)`) — no new policy was added for these columns.
+Two check constraints enforce "null-safe strictly increasing" ordering per rule: `dog_baselines_thresholds_ordered` (the three score cutoffs) and one each for the HR/RR/motion tier pairs. Reads/writes go through the existing `dog_baselines_select/insert/update` RLS (`is_clinic_member(dog_id)`) — no new policy was added for these columns.
+
+`normal_body_temperature_c`, `body_temp_elevated_c`, and `body_temp_high_c` were dropped in `20260802120000_remove_body_temperature.sql` (ADR-012 — FurFeel doesn't promote invasive procedures to gather stress data). Config/override columns are safe to drop outright; only raw telemetry is protected from deletion (ADR-003).
 
 ### devices
 | column | type | constraints |
@@ -147,7 +146,7 @@ High-volume table. Index on `(dog_id, captured_at desc)` and `(device_id, captur
 | captured_at | timestamptz | not null (device clock) |
 | received_at | timestamptz | not null, default now() (server clock) |
 | heart_rate_bpm | int | null |
-| body_temperature_c | numeric(3,1) | null |
+| body_temperature_c | numeric(3,1) | null; **deprecated (ADR-012)** — no longer written by telemetry-intake; column kept only because raw telemetry history is never deleted (ADR-003) |
 | respiratory_rate_bpm | int | null |
 | motion_activity | numeric(4,3) | null (0.000–1.000) |
 | posture | posture_type | not null, default `'unknown'` |

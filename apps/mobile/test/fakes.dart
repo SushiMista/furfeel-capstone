@@ -353,10 +353,7 @@ class FakeRepository implements FurFeelRepository {
         id: profile.id,
         name: name,
         email: profile.email,
-<<<<<<< HEAD
-=======
         createdAt: profile.createdAt,
->>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
         avatarPath: profile.avatarPath,
         phone: profile.phone,
         emergencyContact: profile.emergencyContact);
@@ -367,10 +364,7 @@ class FakeRepository implements FurFeelRepository {
         id: profile.id,
         name: profile.name,
         email: profile.email,
-<<<<<<< HEAD
-=======
         createdAt: profile.createdAt,
->>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
         avatarPath: profile.avatarPath,
         phone: phone,
         emergencyContact: emergencyContact,

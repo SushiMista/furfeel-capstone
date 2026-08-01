@@ -16,10 +16,6 @@ const kRrRatioLowBelow = 0.5;
 const kRrRatioElevatedAt = 1.3;
 const kRrRatioHighAt = 1.8;
 
-const kTempLowBelowC = 37.5;
-const kTempElevatedAtC = 39.2;
-const kTempHighAtC = 39.7;
-
 /// Environment thresholds (environmental_amplifier / context_rules).
 const kHotAmbientAboveC = 32;
 const kHotHumidityAbovePercent = 80;

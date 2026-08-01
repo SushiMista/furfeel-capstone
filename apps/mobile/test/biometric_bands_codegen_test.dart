@@ -33,10 +33,6 @@ void main() {
     expect(kRrRatioElevatedAt, tierMin('respiratory_elevated', 0));
     expect(kRrRatioHighAt, tierMin('respiratory_elevated', 1));
 
-    expect(kTempLowBelowC, bands['body_temperature_c_low_below']);
-    expect(kTempElevatedAtC, tierMin('body_temperature', 0));
-    expect(kTempHighAtC, tierMin('body_temperature', 1));
-
     final amp = rules['environmental_amplifier'] as Map<String, dynamic>;
     expect(kHotAmbientAboveC, amp['ambient_temperature_c_above']);
     expect(kHotHumidityAbovePercent, amp['humidity_percent_above']);

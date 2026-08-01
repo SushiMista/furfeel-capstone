@@ -5,7 +5,6 @@ import 'package:furfeel_mobile/models/models.dart';
 TelemetryReading reading({
   int? hr,
   int? rr,
-  double? temp,
   double? motion,
   double? ambient,
   double? humidity,
@@ -16,7 +15,6 @@ TelemetryReading reading({
       capturedAt: DateTime(2026, 7, 17, 8),
       heartRateBpm: hr,
       respiratoryRateBpm: rr,
-      bodyTemperatureC: temp,
       motionActivity: motion,
       ambientTemperatureC: ambient,
       humidityPercent: humidity,
@@ -47,16 +45,6 @@ void main() {
       expect(respiratoryStatus(35, null), VitalStatus.elevated); // 1.46
       expect(respiratoryStatus(46, null), VitalStatus.high); // 1.92 = panting
       expect(respiratoryStatus(10, null), VitalStatus.low);
-    });
-  });
-
-  group('temperatureStatus', () {
-    test('absolute bands match the vital detail typical range', () {
-      expect(temperatureStatus(38.5), VitalStatus.normal);
-      expect(temperatureStatus(39.4), VitalStatus.elevated);
-      expect(temperatureStatus(39.9), VitalStatus.high);
-      expect(temperatureStatus(37.0), VitalStatus.low);
-      expect(temperatureStatus(null), isNull);
     });
   });
 

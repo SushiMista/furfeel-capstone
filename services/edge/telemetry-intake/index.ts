@@ -98,10 +98,10 @@ async function handleTelemetry(req: Request): Promise<Response> {
     const { data: baselineRow, error: baselineError } = await supabase
       .from("dog_baselines")
       .select(
-        "resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c, " +
+        "resting_heart_rate_bpm, resting_respiratory_rate_bpm, " +
           "threshold_mild_min, threshold_moderate_min, threshold_high_min, " +
           "hr_ratio_elevated_min, hr_ratio_moderate_min, hr_ratio_high_min, " +
-          "rr_ratio_elevated_min, rr_ratio_high_min, body_temp_elevated_c, body_temp_high_c, " +
+          "rr_ratio_elevated_min, rr_ratio_high_min, " +
           "motion_elevated_min, motion_high_min, ambient_heat_c, humidity_heat_pct",
       )
       .eq("dog_id", device.dog_id)
@@ -151,7 +151,6 @@ async function handleTelemetry(req: Request): Promise<Response> {
         dog_id: device.dog_id,
         captured_at: sanitized.captured_at,
         heart_rate_bpm: sanitized.features.heart_rate_bpm,
-        body_temperature_c: sanitized.features.body_temperature_c,
         respiratory_rate_bpm: sanitized.features.respiratory_rate_bpm,
         motion_activity: sanitized.features.motion_activity,
         posture: sanitized.posture_db,

@@ -56,16 +56,6 @@ Deno.test("heart_rate_bpm: 300 valid, 301 invalid (upper boundary)", () => {
   assertEqual(sanitizeNumericField(301, ranges.heart_rate_bpm).invalid, true);
 });
 
-Deno.test("body_temperature_c: 30.0 valid, 29.9 invalid", () => {
-  assertEqual(sanitizeNumericField(30.0, ranges.body_temperature_c).invalid, false);
-  assertEqual(sanitizeNumericField(29.9, ranges.body_temperature_c).invalid, true);
-});
-
-Deno.test("body_temperature_c: 43.0 valid, 43.1 invalid", () => {
-  assertEqual(sanitizeNumericField(43.0, ranges.body_temperature_c).invalid, false);
-  assertEqual(sanitizeNumericField(43.1, ranges.body_temperature_c).invalid, true);
-});
-
 Deno.test("respiratory_rate_bpm: 3 valid, 2 invalid", () => {
   assertEqual(sanitizeNumericField(3, ranges.respiratory_rate_bpm).invalid, false);
   assertEqual(sanitizeNumericField(2, ranges.respiratory_rate_bpm).invalid, true);
@@ -179,7 +169,6 @@ Deno.test("sanitizeTelemetry: all fields missing -> is_valid true, all features 
   assertArrayEqual(result.invalid_fields, []);
   assertEqual(result.features.heart_rate_bpm, null);
   assertEqual(result.features.respiratory_rate_bpm, null);
-  assertEqual(result.features.body_temperature_c, null);
   assertEqual(result.features.motion_activity, null);
   assertEqual(result.features.posture, null);
   assertEqual(result.features.ambient_temperature_c, null);

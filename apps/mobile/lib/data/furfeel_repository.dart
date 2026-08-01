@@ -194,7 +194,7 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   final SupabaseClient _client;
 
   static const _readingColumns =
-      'id, dog_id, captured_at, heart_rate_bpm, body_temperature_c, '
+      'id, dog_id, captured_at, heart_rate_bpm, '
       'respiratory_rate_bpm, motion_activity, posture, '
       'ambient_temperature_c, humidity_percent, battery_percent';
   static const _classificationColumns =
@@ -477,7 +477,7 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   Future<DogBaseline?> fetchBaseline(String dogId) async {
     final rows = await _client
         .from('dog_baselines')
-        .select('resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c')
+        .select('resting_heart_rate_bpm, resting_respiratory_rate_bpm')
         .eq('dog_id', dogId)
         .limit(1);
     if (rows.isEmpty) return null;
@@ -691,11 +691,7 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   }
 
   static const _profileColumns =
-<<<<<<< HEAD
-      'id, name, email, avatar_path, phone, emergency_contact';
-=======
       'id, name, email, created_at, avatar_path, phone, emergency_contact';
->>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
 
   String get _requiredUserId {
     final userId = _client.auth.currentUser?.id;

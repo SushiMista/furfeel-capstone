@@ -78,8 +78,8 @@ function readConfig(): SimulatorConfig {
 }
 
 // docs/08 Global Default Baselines / worked example ranges, used as the two ends of the sweep.
-const CALM = { heart_rate_bpm: 90, respiratory_rate_bpm: 22, body_temperature_c: 38.5, motion_activity: 0.25 };
-const HIGH = { heart_rate_bpm: 155, respiratory_rate_bpm: 46, body_temperature_c: 39.6, motion_activity: 0.8 };
+const CALM = { heart_rate_bpm: 90, respiratory_rate_bpm: 22, motion_activity: 0.25 };
+const HIGH = { heart_rate_bpm: 155, respiratory_rate_bpm: 46, motion_activity: 0.8 };
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -101,9 +101,6 @@ function buildPayload(config: SimulatorConfig, tick: number): TelemetryPayload {
   const respiratory_rate_bpm = Math.round(
     jitter(lerp(CALM.respiratory_rate_bpm, HIGH.respiratory_rate_bpm, t), 2),
   );
-  const body_temperature_c = Number(
-    jitter(lerp(CALM.body_temperature_c, HIGH.body_temperature_c, t), 0.1).toFixed(1),
-  );
   const motion_activity = Number(
     clamp(jitter(lerp(CALM.motion_activity, HIGH.motion_activity, t), 0.05), 0, 1).toFixed(3),
   );
@@ -119,7 +116,6 @@ function buildPayload(config: SimulatorConfig, tick: number): TelemetryPayload {
     device_code: config.deviceCode,
     captured_at: new Date().toISOString(),
     heart_rate_bpm,
-    body_temperature_c,
     respiratory_rate_bpm,
     motion_activity,
     posture,
@@ -177,7 +173,7 @@ async function main() {
       latenciesMs.push(ms);
       console.log(
         `[tick ${tick}] hr=${payload.heart_rate_bpm} rr=${payload.respiratory_rate_bpm} ` +
-          `temp=${payload.body_temperature_c} motion=${payload.motion_activity} posture=${payload.posture} ` +
+          `motion=${payload.motion_activity} posture=${payload.posture} ` +
           `battery=${payload.battery_percent}% ` +
           `-> ${status} in ${ms}ms ${JSON.stringify(body)}`,
       );

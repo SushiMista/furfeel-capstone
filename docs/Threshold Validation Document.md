@@ -23,7 +23,6 @@ These are **sensor/hardware plausibility bounds** (docs/07), not clinical thresh
 | Field | Accept range | Source | Reviewer note |
 |---|---|---|---|
 | `heart_rate_bpm` | 20 – 300 | MAX30102 plausibility bound | |
-| `body_temperature_c` | 30.0 – 43.0 | MAX30102 plausibility bound | |
 | `respiratory_rate_bpm` | 3 – 200 | Flex sensor plausibility bound | |
 | `motion_activity` | 0.0 – 1.0 | Normalized index (0 = still, 1 = constant motion) | |
 | `ambient_temperature_c` | -10 – 60 | DHT22 plausibility bound | |
@@ -45,16 +44,15 @@ Used when a dog has no `dog_baselines` row (or a null field within one) — a pe
 |---|---|---|
 | Heart rate | 60–100 bpm | **90 bpm** |
 | Respiratory rate | 10–35 bpm | **24 bpm** |
-| Body temperature | 38.3–39.2 °C | **38.7 °C** |
 | Motion activity | 0.0–1.0 | **0.3** |
 
 **Size matters here.** A global "medium dog" baseline is a compromise — a small dog's genuinely normal resting heart rate can run well above 90 bpm, and a large dog's can run well below it, purely from body size, not stress. The sample dataset illustrates this directly with three example dogs and their own baselines:
 
-| Dog | Size class | Illustrative baseline HR | Illustrative baseline RR | Baseline temp |
-|---|---|---|---|---|
-| Mochi (Shiba Inu, 9.8 kg) | small | 110 bpm | 26 | 38.6 °C |
-| Rio (Border Collie, 18 kg) | medium | 90 bpm (= global default) | 24 | 38.7 °C |
-| Duke (Great Dane, 55 kg) | large | 72 bpm | 18 | 38.4 °C |
+| Dog | Size class | Illustrative baseline HR | Illustrative baseline RR |
+|---|---|---|---|
+| Mochi (Shiba Inu, 9.8 kg) | small | 110 bpm | 26 |
+| Rio (Border Collie, 18 kg) | medium | 90 bpm (= global default) | 24 |
+| Duke (Great Dane, 55 kg) | large | 72 bpm | 18 |
 
 The dataset makes the consequence concrete: a reading of **95 bpm** scores as calm (below Mochi's or Rio's baseline-derived elevated threshold) but scores **+1 elevated** for Duke, whose baseline is lower — the same raw number means something different depending on the dog. This is exactly what the existing per-dog `dog_baselines` mechanism (and its threshold-override columns) exists to correct; there is currently no formal `small/medium/large` schema field, so these three are illustrative baselines entered the same way a vet would enter any dog's real resting values.
 
@@ -73,13 +71,13 @@ The dataset makes the consequence concrete: a reading of **95 bpm** scores as ca
 | | | `hr_ratio` > 1.6 | +3 | |
 | 2 | Respiratory elevated | `rr_ratio` 1.3 – 1.8 | +1 | |
 | | | `rr_ratio` > 1.8 (panting) | +2 | |
-| 3 | Body temperature | 39.2 – 39.7 °C | +1 | |
-| | | > 39.7 °C | +2 | |
-| 4 | Motion / restlessness | `motion_activity` 0.6 – 0.8 | +1 | |
+| 3 | Motion / restlessness | `motion_activity` 0.6 – 0.8 | +1 | |
 | | | `motion_activity` > 0.8 | +2 | |
-| 5 | Posture + high motion | posture = `moving` **and** motion ≥ 0.6 | +1 | *Inference, not numerically specified in the original spec — reuses rule 4's 0.6 floor. Flagged for explicit confirmation.* |
-| 6 | Environmental amplifier (heat) | ambient > 32 °C **or** humidity > 80% | +1 | Heat only; cold is deliberately never scored (see §5) |
-| 7 | Rising trend | stress score strictly increased across the last 3 readings | +1 | |
+| 4 | Posture + high motion | posture = `moving` **and** motion ≥ 0.6 | +1 | *Inference, not numerically specified in the original spec — reuses rule 3's 0.6 floor. Flagged for explicit confirmation.* |
+| 5 | Environmental amplifier (heat) | ambient > 32 °C **or** humidity > 80% | +1 | Heat only; cold is deliberately never scored (see §5) |
+| 6 | Rising trend | stress score strictly increased across the last 3 readings | +1 | |
+
+Body temperature was rule 3 here until it was dropped as a classifier input (ADR-012 — FurFeel doesn't promote invasive procedures to gather stress data).
 
 **Score → level mapping** (§4 below) determines the final `calm`/`mild`/`moderate`/`high` label from the total.
 
@@ -96,7 +94,7 @@ The dataset makes the consequence concrete: a reading of **95 bpm** scores as ca
 | 4 – 6 | **moderate** |
 | ≥ 7 | **high** |
 
-**Worked example** (from the spec, and reproduced in the sample dataset): baseline HR 90, RR 24. Reading HR 150 (`hr_ratio` 1.67 → +3), RR 46 (`rr_ratio` 1.92 → +2), temp 39.4 °C (+1), motion 0.7 (+1) → **score 7 → high**.
+**Worked example** (from the spec, and reproduced in the sample dataset): baseline HR 90, RR 24. Reading HR 150 (`hr_ratio` 1.67 → +3), RR 46 (`rr_ratio` 1.92 → +2), motion 0.7 (+1) → **score 6 → moderate**.
 
 **Reviewer question:** do these four bands, and the point totals that separate them, correspond to real, distinguishable levels of canine stress in practice?
 
@@ -120,7 +118,6 @@ Shown per-vital in the apps, independent of the overall stress level. Elevated/H
 |---|---|---|---|---|
 | HR ratio | 0.7 | 0.7 – 1.15 | 1.15 | 1.35 |
 | RR ratio | 0.5 | 0.5 – 1.3 | 1.3 | 1.8 |
-| Body temperature | 37.5 °C | 37.5 – 39.2 °C | 39.2 °C | 39.7 °C |
 
 **Reviewer question:** is the "Low" floor (the one number here not already covered by §3) clinically reasonable for each vital?
 
