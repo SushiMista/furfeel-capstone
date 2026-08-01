@@ -103,6 +103,10 @@ export function checkCapturedAtSkew(
 export interface SanitizedTelemetry {
   features: TelemetryFeatures;
   posture_db: Posture;
+  /** Device-reported rolling average alongside features.heart_rate_bpm; not a
+   * classifier input itself (docs/08 scores heart_rate_bpm only) — stored for
+   * display/QA the same way battery_percent is. */
+  avg_heart_rate_bpm: number | null;
   /** 0-100, validated; not a classifier input — device health only (docs/07). */
   battery_percent: number | null;
   is_valid: boolean;
@@ -120,6 +124,9 @@ export function sanitizeTelemetry(
 
   const hr = sanitizeNumericField(body.heart_rate_bpm, ranges.heart_rate_bpm);
   if (hr.invalid) invalidFields.push("heart_rate_bpm");
+
+  const avgHr = sanitizeNumericField(body.avg_heart_rate_bpm, ranges.avg_heart_rate_bpm);
+  if (avgHr.invalid) invalidFields.push("avg_heart_rate_bpm");
 
   const temp = sanitizeNumericField(body.body_temperature_c, ranges.body_temperature_c);
   if (temp.invalid) invalidFields.push("body_temperature_c");
@@ -160,6 +167,7 @@ export function sanitizeTelemetry(
       humidity_percent: humidity.value,
     },
     posture_db: posture.dbValue,
+    avg_heart_rate_bpm: avgHr.value === null ? null : Math.round(avgHr.value),
     // Batteries report whole percents; keep fractional values but round for storage.
     battery_percent: battery.value === null ? null : Math.round(battery.value),
     is_valid: invalidFields.length === 0,
