@@ -293,3 +293,25 @@ Deno.test("sanitizeTelemetry: out-of-range battery_percent -> nulled and flagged
   assertEqual(result.is_valid, false);
   assertEqual(result.invalid_fields.includes("battery_percent"), true);
 });
+
+// ---------------------------------------------------------------------------
+// avg_heart_rate_bpm (device-reported rolling average alongside heart_rate_bpm)
+
+Deno.test("sanitizeTelemetry: valid avg_heart_rate_bpm is kept and rounded", () => {
+  const result = sanitizeTelemetry(minimalBody({ avg_heart_rate_bpm: 91.6 }), NOW);
+  assertEqual(result.avg_heart_rate_bpm, 92);
+  assertEqual(result.is_valid, true);
+});
+
+Deno.test("sanitizeTelemetry: missing avg_heart_rate_bpm -> null, still valid", () => {
+  const result = sanitizeTelemetry(minimalBody(), NOW);
+  assertEqual(result.avg_heart_rate_bpm, null);
+  assertEqual(result.is_valid, true);
+});
+
+Deno.test("sanitizeTelemetry: out-of-range avg_heart_rate_bpm -> nulled and flagged", () => {
+  const result = sanitizeTelemetry(minimalBody({ avg_heart_rate_bpm: 400 }), NOW);
+  assertEqual(result.avg_heart_rate_bpm, null);
+  assertEqual(result.is_valid, false);
+  assertEqual(result.invalid_fields.includes("avg_heart_rate_bpm"), true);
+});
