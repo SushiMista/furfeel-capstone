@@ -151,6 +151,7 @@ async function handleTelemetry(req: Request): Promise<Response> {
         dog_id: device.dog_id,
         captured_at: sanitized.captured_at,
         heart_rate_bpm: sanitized.features.heart_rate_bpm,
+        avg_heart_rate_bpm: sanitized.avg_heart_rate_bpm,
         body_temperature_c: sanitized.features.body_temperature_c,
         respiratory_rate_bpm: sanitized.features.respiratory_rate_bpm,
         motion_activity: sanitized.features.motion_activity,
