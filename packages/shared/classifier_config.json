@@ -101,6 +101,7 @@
   "validation_ranges": {
     "_comment": "docs/07 Validation Ranges. Values outside range are flagged is_valid=false at the row level; the out-of-range field is stored as null in the structured telemetry_readings column (raw_payload always keeps the true received value verbatim per ADR-003). These are sensor/hardware plausibility bounds, not clinical thresholds.",
     "heart_rate_bpm": { "min": 20, "max": 300 },
+    "avg_heart_rate_bpm": { "min": 20, "max": 300 },
     "body_temperature_c": { "min": 30.0, "max": 43.0 },
     "respiratory_rate_bpm": { "min": 3, "max": 200 },
     "motion_activity": { "min": 0.0, "max": 1.0 },
