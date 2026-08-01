@@ -22,6 +22,7 @@ These are the questions to answer before or during the first development sprint.
 - [x] Will Bluetooth be used for phone pairing? Decision: not part of the current telemetry path.
 - [ ] What is the required battery life?
 - [ ] What sampling interval will each sensor use?
+- [ ] **Body temperature has no dedicated sensor.** docs/06 assigns `body_temperature_c` to the MAX30102, but that sensor's temperature reading is its *on-die* temperature (for calibrating the optical HR signal, ~±1 °C), not the dog's core/skin temperature. Yet `body_temperature_c` is a live classifier input (`body_temp_elevated_c` / `body_temp_high_c` in `classifier_config.json`) and appears in the sample dataset's expected rules. Either add a dedicated temp sensor (e.g. MLX90614 IR or a contact DS18B20/thermistor) or drop body temp as a classifier input until real hardware validates it. Raised 2026-07-30 during hardware/dataset alignment review.
 
 ## AI and Data
 - [x] Where will labeled training data come from? Decision: not available yet; needs expert validation.
