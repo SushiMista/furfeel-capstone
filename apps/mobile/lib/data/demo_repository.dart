@@ -36,18 +36,11 @@ class DemoRepository implements FurFeelRepository {
   final List<StressClassification> _classifications = [];
   final List<Alert> _alerts = [];
   final List<MediaSubmission> _media = [];
-<<<<<<< HEAD
-  final UserProfile _profile = const UserProfile(
-    id: 'demo-user',
-    name: 'Demo Explorer',
-    email: 'demo@furfeel.example',
-=======
   final UserProfile _profile = UserProfile(
     id: 'demo-user',
     name: 'Demo Explorer',
     email: 'demo@furfeel.example',
     createdAt: DateTime.utc(2025, 7),
->>>>>>> 860a9051d16a1a1cc05642988f03c354bbed214f
   );
   UserSettings _settings = const UserSettings(theme: 'light');
 
@@ -92,8 +85,6 @@ class DemoRepository implements FurFeelRepository {
         capturedAt: t,
         heartRateBpm: hr,
         respiratoryRateBpm: rr,
-        bodyTemperatureC:
-            double.parse((38.4 + activity * 0.5 + (isHotSpell ? 0.5 : 0)).toStringAsFixed(1)),
         motionActivity: double.parse(activity.toStringAsFixed(3)),
         posture: activity > 0.4 ? 'moving' : (activity < 0.12 ? 'lying' : 'standing'),
         ambientTemperatureC: double.parse(ambient.toStringAsFixed(1)),

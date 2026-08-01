@@ -27,7 +27,6 @@ void main() {
         capturedAt: DateTime.now().subtract(const Duration(minutes: 2)),
         heartRateBpm: 92,
         respiratoryRateBpm: 22,
-        bodyTemperatureC: 38.5,
         motionActivity: 0.3,
       ),
       latestClassification: StressClassification(

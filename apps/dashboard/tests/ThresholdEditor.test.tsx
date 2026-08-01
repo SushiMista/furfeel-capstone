@@ -21,8 +21,6 @@ const NULL_OVERRIDES = {
   hr_ratio_high_min: null,
   rr_ratio_elevated_min: null,
   rr_ratio_high_min: null,
-  body_temp_elevated_c: null,
-  body_temp_high_c: null,
   motion_elevated_min: null,
   motion_high_min: null,
   ambient_heat_c: null,
@@ -94,7 +92,6 @@ describe("ThresholdEditor", () => {
       dog_id: "dog-1",
       resting_heart_rate_bpm: null,
       resting_respiratory_rate_bpm: null,
-      normal_body_temperature_c: null,
       ...NULL_OVERRIDES,
       threshold_mild_min: 1,
       updated_at: "2026-07-21T00:00:00Z",
@@ -158,23 +155,22 @@ describe("ThresholdEditor", () => {
       dog_id: "dog-1",
       resting_heart_rate_bpm: null,
       resting_respiratory_rate_bpm: null,
-      normal_body_temperature_c: null,
       ...NULL_OVERRIDES,
-      body_temp_elevated_c: 38.9,
+      motion_elevated_min: 0.7,
       updated_at: "2026-07-21T00:00:00Z",
     });
 
     render(<ThresholdEditor dogId="dog-1" />);
     await screen.findByText("Default · 2");
 
-    await userEvent.click(screen.getByRole("tab", { name: "Body temperature" }));
-    await userEvent.type(document.getElementById("body_temp_elevated_c")!, "38.9");
+    await userEvent.click(screen.getByRole("tab", { name: "Motion activity" }));
+    await userEvent.type(document.getElementById("motion_elevated_min")!, "0.7");
     await userEvent.click(screen.getByRole("button", { name: /save thresholds/i }));
 
     await waitFor(() =>
       expect(saveDogThresholds).toHaveBeenCalledWith({}, "dog-1", {
         ...NULL_OVERRIDES,
-        body_temp_elevated_c: 38.9,
+        motion_elevated_min: 0.7,
       }),
     );
   });

@@ -165,10 +165,10 @@ values
   '0.1.0'
 );
 
-insert into public.dog_baselines (dog_id, resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c)
+insert into public.dog_baselines (dog_id, resting_heart_rate_bpm, resting_respiratory_rate_bpm)
 values
-('00000000-0000-0000-0000-000000000003', 90, 20, 38.5),
-('00000000-0000-0000-0000-000000000006', 100, 24, 38.6);
+('00000000-0000-0000-0000-000000000003', 90, 20),
+('00000000-0000-0000-0000-000000000006', 100, 24);
 
 -- Explicit user_settings rows for the seed users (the on_auth_user_created
 -- trigger also creates them; idempotent either way).

@@ -22,7 +22,6 @@ TelemetryReading reading({int? hr = 92, int? rr = 22}) => TelemetryReading(
       capturedAt: DateTime.now().subtract(const Duration(minutes: 2)),
       heartRateBpm: hr,
       respiratoryRateBpm: rr,
-      bodyTemperatureC: 38.5,
       motionActivity: 0.3,
     );
 

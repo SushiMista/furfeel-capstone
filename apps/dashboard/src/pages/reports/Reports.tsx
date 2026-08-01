@@ -366,12 +366,6 @@ export function Reports() {
                         summary={report.respiratoryRate}
                       />
                       <VitalRow
-                        label="Body temperature"
-                        unit="°C"
-                        summary={report.temperature}
-                        decimals={1}
-                      />
-                      <VitalRow
                         label="Motion activity"
                         unit="index 0–1"
                         summary={report.motion}

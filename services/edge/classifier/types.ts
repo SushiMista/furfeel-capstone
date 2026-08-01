@@ -12,7 +12,6 @@ export type { StressLevel } from "../../../packages/shared/types/stress.ts";
 export interface TelemetryFeatures {
   heart_rate_bpm: number | null;
   respiratory_rate_bpm: number | null;
-  body_temperature_c: number | null;
   motion_activity: number | null;
   posture: Posture | null;
   ambient_temperature_c: number | null;
@@ -23,7 +22,6 @@ export interface TelemetryFeatures {
 export interface Baselines {
   heart_rate_bpm: number;
   respiratory_rate_bpm: number;
-  body_temperature_c: number;
   motion_activity: number;
 }
 
@@ -42,7 +40,7 @@ export interface ScoringTier {
 }
 
 export interface ScoringRule {
-  input: "hr_ratio" | "rr_ratio" | "body_temperature_c" | "motion_activity";
+  input: "hr_ratio" | "rr_ratio" | "motion_activity";
   tiers: ScoringTier[];
 }
 
@@ -87,13 +85,11 @@ export interface ClassifierConfig {
   global_baselines: {
     heart_rate_bpm: number;
     respiratory_rate_bpm: number;
-    body_temperature_c: number;
     motion_activity: number;
   };
   scoring_rules: {
     heart_rate_elevated: ScoringRule;
     respiratory_elevated: ScoringRule;
-    body_temperature: ScoringRule;
     motion_restlessness: ScoringRule;
     posture_moving_with_high_motion: PostureRule;
     environmental_amplifier: EnvironmentalRule;
@@ -113,7 +109,6 @@ export interface ClassifierConfig {
   };
   validation_ranges: {
     heart_rate_bpm: ValidationRange;
-    body_temperature_c: ValidationRange;
     respiratory_rate_bpm: ValidationRange;
     motion_activity: ValidationRange;
     ambient_temperature_c: ValidationRange;

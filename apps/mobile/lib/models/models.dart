@@ -462,7 +462,6 @@ class TelemetryReading {
     required this.dogId,
     required this.capturedAt,
     this.heartRateBpm,
-    this.bodyTemperatureC,
     this.respiratoryRateBpm,
     this.motionActivity,
     this.posture,
@@ -475,7 +474,6 @@ class TelemetryReading {
   final String dogId;
   final DateTime capturedAt;
   final int? heartRateBpm;
-  final double? bodyTemperatureC;
   final int? respiratoryRateBpm;
   final double? motionActivity;
   final String? posture;
@@ -492,7 +490,6 @@ class TelemetryReading {
         dogId: map['dog_id'] as String,
         capturedAt: DateTime.parse(map['captured_at'] as String).toLocal(),
         heartRateBpm: _toInt(map['heart_rate_bpm']),
-        bodyTemperatureC: _toDouble(map['body_temperature_c']),
         respiratoryRateBpm: _toInt(map['respiratory_rate_bpm']),
         motionActivity: _toDouble(map['motion_activity']),
         posture: map['posture'] as String?,
@@ -712,17 +709,14 @@ class DogBaseline {
   const DogBaseline({
     this.restingHeartRateBpm,
     this.restingRespiratoryRateBpm,
-    this.normalBodyTemperatureC,
   });
 
   final int? restingHeartRateBpm;
   final int? restingRespiratoryRateBpm;
-  final double? normalBodyTemperatureC;
 
   factory DogBaseline.fromMap(Map<String, dynamic> map) => DogBaseline(
         restingHeartRateBpm: _toInt(map['resting_heart_rate_bpm']),
         restingRespiratoryRateBpm: _toInt(map['resting_respiratory_rate_bpm']),
-        normalBodyTemperatureC: _toDouble(map['normal_body_temperature_c']),
       );
 }
 

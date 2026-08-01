@@ -192,7 +192,6 @@ export function DogDetail() {
           <div className="flex flex-wrap gap-3">
             <Vital label="Heart rate" value={latestReading?.heart_rate_bpm} unit="bpm" />
             <Vital label="Respiratory" value={latestReading?.respiratory_rate_bpm} unit="bpm" />
-            <Vital label="Temperature" value={latestReading?.body_temperature_c} unit="°C" />
             <Vital label="Motion" value={latestReading?.motion_activity} unit="" />
           </div>
           {latestReading && (

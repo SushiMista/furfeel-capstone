@@ -14,7 +14,6 @@ function reading(overrides: Partial<TelemetryReading>): TelemetryReading {
     captured_at: "2026-07-11T08:00:00Z",
     received_at: "2026-07-11T08:00:01Z",
     heart_rate_bpm: 90,
-    body_temperature_c: 38.5,
     respiratory_rate_bpm: 22,
     motion_activity: 0.3,
     posture: "standing",

@@ -254,7 +254,6 @@ export function MonitoringBoard() {
                 <Th>Device</Th>
                 <Th>Stress level</Th>
                 <Th className="text-right">HR (bpm)</Th>
-                <Th className="text-right">Temp (°C)</Th>
                 <Th className="text-right">RR (bpm)</Th>
                 <Th className="text-right">Motion</Th>
                 <Th>Last reading</Th>
@@ -288,7 +287,6 @@ export function MonitoringBoard() {
                       )}
                     </Td>
                     <Td className="text-right tabular-nums">{row.latestReading?.heart_rate_bpm ?? "—"}</Td>
-                    <Td className="text-right tabular-nums">{row.latestReading?.body_temperature_c ?? "—"}</Td>
                     <Td className="text-right tabular-nums">{row.latestReading?.respiratory_rate_bpm ?? "—"}</Td>
                     <Td className="text-right tabular-nums">{row.latestReading?.motion_activity ?? "—"}</Td>
                     <Td className="text-xs text-ink-muted">

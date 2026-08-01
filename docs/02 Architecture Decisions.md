@@ -134,3 +134,16 @@ Linked notes:
 - [[04 Mobile App Design]]
 - [[09 Database Schema]]
 - [[12 Security and Privacy]]
+
+## ADR-012: Drop Body Temperature as a Data Point
+Status: Accepted
+
+Decision: Remove body temperature entirely — as a wearable sensor, a telemetry field, a classifier input, a per-dog threshold override, and a displayed vital — across firmware/simulator, telemetry-intake, the classifier, the dashboard, and the mobile app. `dog_baselines.normal_body_temperature_c`/`body_temp_elevated_c`/`body_temp_high_c` are dropped by migration. `telemetry_readings.body_temperature_c` is left in place but no longer written, since raw telemetry history is never deleted (ADR-003) — only config/override columns are safe to drop outright.
+
+Reason: FurFeel doesn't promote invasive procedures to gather stress data. Heart rate, respiratory rate, motion/posture, and ambient conditions stay as non-invasive wearable/environmental signals.
+
+Linked notes:
+- [[06 IoT Wearable Device Design]]
+- [[07 Sensor Data Pipeline]]
+- [[08 AI Classification Pipeline]]
+- [[09 Database Schema]]

@@ -14,12 +14,10 @@ String _csvCell(Object? v) => v == null ? '' : v.toString();
 
 String _stamp(DateTime t) => t.toIso8601String();
 
-/// RFC-4180-enough CSV of raw readings, oldest-first. Temperature stays in °C
-/// (a data export shouldn't depend on a display preference); the app's PDF
-/// report is the friendly, unit-aware artifact.
+/// RFC-4180-enough CSV of raw readings, oldest-first.
 String buildReadingsCsv(List<TelemetryReading> readings) {
   final buffer = StringBuffer(
-    'captured_at,heart_rate_bpm,respiratory_rate_bpm,body_temperature_c,'
+    'captured_at,heart_rate_bpm,respiratory_rate_bpm,'
     'motion_activity,posture,ambient_temperature_c,humidity_percent,battery_percent\n',
   );
   for (final r in readings) {
@@ -28,7 +26,6 @@ String buildReadingsCsv(List<TelemetryReading> readings) {
         _stamp(r.capturedAt),
         _csvCell(r.heartRateBpm),
         _csvCell(r.respiratoryRateBpm),
-        _csvCell(r.bodyTemperatureC),
         _csvCell(r.motionActivity),
         _csvCell(r.posture),
         _csvCell(r.ambientTemperatureC),
@@ -385,12 +382,6 @@ Future<Uint8List> buildHealthReportPdf({
               'Respiratory rate',
               'breaths/min',
               vitalSummary(readings, (r) => r.respiratoryRateBpm?.toDouble()),
-            ),
-            vitalRow(
-              'Body temperature',
-              '°C',
-              vitalSummary(readings, (r) => r.bodyTemperatureC),
-              decimals: 1,
             ),
             vitalRow(
               'Motion activity',

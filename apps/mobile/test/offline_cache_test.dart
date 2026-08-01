@@ -86,14 +86,12 @@ void main() {
         dogId: 'dog-1',
         capturedAt: DateTime.utc(2026, 7, 19, 8),
         heartRateBpm: 88,
-        bodyTemperatureC: 38.4,
       ),
     );
     final cached = await StatusCache.load();
     expect(cached, isNotNull);
     expect(cached!.dogs.single.name, 'Biscuit');
     expect(cached.reading!.heartRateBpm, 88);
-    expect(cached.reading!.bodyTemperatureC, 38.4);
     expect(cached.classification, isNull);
 
     await StatusCache.clear();

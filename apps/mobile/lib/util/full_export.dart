@@ -106,7 +106,6 @@ String buildFullExportJson({
         : {
             'resting_heart_rate_bpm': baseline.restingHeartRateBpm,
             'resting_respiratory_rate_bpm': baseline.restingRespiratoryRateBpm,
-            'normal_body_temperature_c': baseline.normalBodyTemperatureC,
           },
     'device': device == null
         ? null
@@ -122,7 +121,6 @@ String buildFullExportJson({
           'captured_at': _ts(r.capturedAt),
           'heart_rate_bpm': r.heartRateBpm,
           'respiratory_rate_bpm': r.respiratoryRateBpm,
-          'body_temperature_c': r.bodyTemperatureC,
           'motion_activity': r.motionActivity,
           'posture': r.posture,
           'ambient_temperature_c': r.ambientTemperatureC,

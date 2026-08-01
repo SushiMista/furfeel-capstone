@@ -18,7 +18,6 @@ function row(overrides: Partial<DogBaselinesRow>): DogBaselinesRow {
   return {
     resting_heart_rate_bpm: null,
     resting_respiratory_rate_bpm: null,
-    normal_body_temperature_c: null,
     threshold_mild_min: null,
     threshold_moderate_min: null,
     threshold_high_min: null,
@@ -27,8 +26,6 @@ function row(overrides: Partial<DogBaselinesRow>): DogBaselinesRow {
     hr_ratio_high_min: null,
     rr_ratio_elevated_min: null,
     rr_ratio_high_min: null,
-    body_temp_elevated_c: null,
-    body_temp_high_c: null,
     motion_elevated_min: null,
     motion_high_min: null,
     ambient_heat_c: null,
@@ -41,7 +38,6 @@ Deno.test("resolveBaselines: no dog_baselines row -> all global defaults", () =>
   const result = resolveBaselines(null);
   assertEqual(result.heart_rate_bpm, globals.heart_rate_bpm);
   assertEqual(result.respiratory_rate_bpm, globals.respiratory_rate_bpm);
-  assertEqual(result.body_temperature_c, globals.body_temperature_c);
   assertEqual(result.motion_activity, globals.motion_activity);
 });
 
@@ -49,11 +45,9 @@ Deno.test("resolveBaselines: full row -> per-dog values used", () => {
   const result = resolveBaselines(row({
     resting_heart_rate_bpm: 110,
     resting_respiratory_rate_bpm: 30,
-    normal_body_temperature_c: 39.0,
   }));
   assertEqual(result.heart_rate_bpm, 110);
   assertEqual(result.respiratory_rate_bpm, 30);
-  assertEqual(result.body_temperature_c, 39.0);
   // No per-dog motion column exists at all -> always the global default.
   assertEqual(result.motion_activity, globals.motion_activity);
 });
@@ -62,11 +56,9 @@ Deno.test("resolveBaselines: partial row -> per-field fallback to global default
   const result = resolveBaselines(row({
     resting_heart_rate_bpm: 110,
     resting_respiratory_rate_bpm: null,
-    normal_body_temperature_c: null,
   }));
   assertEqual(result.heart_rate_bpm, 110);
   assertEqual(result.respiratory_rate_bpm, globals.respiratory_rate_bpm);
-  assertEqual(result.body_temperature_c, globals.body_temperature_c);
 });
 
 Deno.test("resolveLevelThresholds: no row -> reproduces the global config exactly", () => {
@@ -140,19 +132,14 @@ Deno.test("resolveScoringRules: partial heart-rate override -> untouched tiers f
   assertEqual(tiers[2].min, scoringGlobals.heart_rate_elevated.tiers[2].min);
 });
 
-Deno.test("resolveScoringRules: respiratory + temperature overrides are independent of each other", () => {
+Deno.test("resolveScoringRules: respiratory override", () => {
   const result = resolveScoringRules(row({
     rr_ratio_elevated_min: 1.2,
     rr_ratio_high_min: 1.6,
-    body_temp_elevated_c: 38.9,
-    body_temp_high_c: 39.4,
   }));
   assertEqual(result.respiratory_elevated.tiers[0].min, 1.2);
   assertEqual(result.respiratory_elevated.tiers[0].max, 1.6);
   assertEqual(result.respiratory_elevated.tiers[1].min, 1.6);
-  assertEqual(result.body_temperature.tiers[0].min, 38.9);
-  assertEqual(result.body_temperature.tiers[0].max, 39.4);
-  assertEqual(result.body_temperature.tiers[1].min, 39.4);
 });
 
 Deno.test("resolveScoringRules: motion override also moves the posture-rule floor", () => {

@@ -27,13 +27,11 @@ void main() {
         'dog_id': 'd1',
         'captured_at': '2026-07-11T08:00:00Z',
         'heart_rate_bpm': 92,
-        'body_temperature_c': 38, // integer from JSON, must not throw
         'respiratory_rate_bpm': 22.0, // double from JSON, must not throw
         'motion_activity': 0.3,
         'posture': 'standing',
       });
       expect(reading.heartRateBpm, 92);
-      expect(reading.bodyTemperatureC, 38.0);
       expect(reading.respiratoryRateBpm, 22);
       expect(reading.capturedAt.isUtc, isFalse); // converted to local time
     });
@@ -45,7 +43,6 @@ void main() {
         'captured_at': '2026-07-11T08:00:00Z',
       });
       expect(reading.heartRateBpm, isNull);
-      expect(reading.bodyTemperatureC, isNull);
     });
   });
 
