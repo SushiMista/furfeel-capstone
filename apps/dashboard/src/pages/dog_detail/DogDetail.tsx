@@ -1,7 +1,7 @@
 import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ClipboardCheck } from "lucide-react";
+import { Activity, ArrowLeft, ClipboardCheck, Heart, Thermometer, Wind, type LucideIcon } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   acknowledgeAlert,
@@ -17,6 +17,7 @@ import { TelemetryChart } from "../../components/TelemetryChart.tsx";
 import { StressMixChart } from "../../components/StressMixChart.tsx";
 import { StressTimeline } from "../../components/StressTimeline.tsx";
 import { StressLevelBadge } from "../../components/StressLevelBadge.tsx";
+import { MicroSparkline } from "../../components/MicroSparkline.tsx";
 import { AlertCard } from "../../components/AlertCard.tsx";
 import { VetNotes } from "../../components/VetNotes.tsx";
 import { ThresholdEditor } from "../../components/ThresholdEditor.tsx";
@@ -44,25 +45,49 @@ const TABS = [
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
-/** Vital card (docs/19 §7): label, big tabular value, small unit. */
+/** Vital card (docs/19 §7, docs/21 Phase 2): icon + label header, big tabular
+ * value, small unit, and a recent-trend micro-sparkline — a number carrying a
+ * short trend beats a number alone. Kept dense/flat per docs/19 §4; no
+ * plain-language descriptor here because the dashboard has no client-side
+ * baseline to derive one from, and inventing a threshold is a guardrail break. */
 function Vital({
   label,
+  icon: Icon,
   value,
   unit,
+  series,
 }: {
   label: string;
+  icon: LucideIcon;
   value: number | string | null | undefined;
   unit: string;
+  series: number[];
 }) {
   return (
-    <div className="min-w-28 flex-1 rounded-md bg-surface-alt px-4 py-3">
+    <div className="flex min-w-28 flex-1 flex-col gap-1.5 rounded-md bg-surface-alt px-4 py-3">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+        <Icon size={14} aria-hidden="true" className="text-brand" />
+        {label}
+      </div>
       <div className="text-3xl font-bold leading-tight tabular-nums text-ink">
         {value ?? "—"}
         <span className="ml-1 text-xs font-normal text-ink-muted">{unit}</span>
       </div>
-      <div className="text-xs text-ink-muted">{label}</div>
+      <MicroSparkline series={series} track className="mt-0.5" />
     </div>
   );
+}
+
+/** Last N non-null values of a vital, oldest → newest, for the sparkline. */
+function seriesOf(
+  readings: TelemetryReading[],
+  pick: (r: TelemetryReading) => number | null | undefined,
+  limit = 12,
+): number[] {
+  return readings
+    .map(pick)
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v))
+    .slice(-limit);
 }
 
 export function DogDetail() {
@@ -190,10 +215,34 @@ export function DogDetail() {
             {dog.name} {latest && <StressLevelBadge level={latest.stress_level} />}
           </h1>
           <div className="flex flex-wrap gap-3">
-            <Vital label="Heart rate" value={latestReading?.heart_rate_bpm} unit="bpm" />
-            <Vital label="Respiratory" value={latestReading?.respiratory_rate_bpm} unit="bpm" />
-            <Vital label="Temperature" value={latestReading?.body_temperature_c} unit="°C" />
-            <Vital label="Motion" value={latestReading?.motion_activity} unit="" />
+            <Vital
+              label="Heart rate"
+              icon={Heart}
+              value={latestReading?.heart_rate_bpm}
+              unit="bpm"
+              series={seriesOf(readings, (r) => r.heart_rate_bpm)}
+            />
+            <Vital
+              label="Respiratory"
+              icon={Wind}
+              value={latestReading?.respiratory_rate_bpm}
+              unit="bpm"
+              series={seriesOf(readings, (r) => r.respiratory_rate_bpm)}
+            />
+            <Vital
+              label="Temperature"
+              icon={Thermometer}
+              value={latestReading?.body_temperature_c}
+              unit="°C"
+              series={seriesOf(readings, (r) => r.body_temperature_c)}
+            />
+            <Vital
+              label="Motion"
+              icon={Activity}
+              value={latestReading?.motion_activity}
+              unit=""
+              series={seriesOf(readings, (r) => r.motion_activity)}
+            />
           </div>
           {latestReading && (
             <p className="m-0 mt-3 text-xs text-ink-muted">

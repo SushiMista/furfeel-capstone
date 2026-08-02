@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:furfeel_mobile/pages/splash_page.dart';
+import 'package:furfeel_mobile/screens/auth/splash_page.dart';
 import 'package:furfeel_mobile/theme/furfeel_theme.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 

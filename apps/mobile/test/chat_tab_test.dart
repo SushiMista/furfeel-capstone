@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/chat_tab.dart';
+import 'package:furfeel_mobile/screens/home/chat_tab.dart';
 
 import 'fakes.dart';
 
@@ -49,7 +49,7 @@ void main() {
 
     // Straight to the conversation list — no one-row dog picker in the way.
     expect(find.text('Messages'), findsNothing);
-    expect(find.text('CONVERSATIONS'), findsOneWidget);
+    expect(find.text('Conversations'), findsOneWidget);
     expect(find.text('He was pacing after the walk'), findsOneWidget);
   });
 
@@ -96,7 +96,7 @@ void main() {
     await tester.pumpWidget(app(repo, const [_biscuit]));
     await tester.pumpAndSettle();
 
-    expect(find.text('FROM YOUR CARE TEAM'), findsOneWidget);
+    expect(find.text('From your care team'), findsOneWidget);
     expect(find.text('Keep the evening walks short this week.'), findsOneWidget);
     expect(find.text('Dr. Alex Kim'), findsOneWidget);
     // Only the newest is pinned; the rest are counted, not dumped inline.

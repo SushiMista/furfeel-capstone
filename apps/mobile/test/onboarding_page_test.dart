@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:furfeel_mobile/pages/onboarding_page.dart';
+import 'package:furfeel_mobile/screens/auth/onboarding_page.dart';
 
 void main() {
   testWidgets('walks through all three slides and finishes', (tester) async {

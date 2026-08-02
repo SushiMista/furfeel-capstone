@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabaseClient.ts";
 import { getMediaSignedUrl, uploadDogPhoto, type MonitoringBoardRow } from "../lib/queries.ts";
 import { StressLevelBadge, stressLevelColor } from "./StressLevelBadge.tsx";
 import { cn } from "../lib/cn.ts";
+import { dogTint } from "../lib/dogTint.ts";
 import type { StressLevel } from "../../../../packages/shared/types/index.ts";
 
 const RING_CLASS: Record<StressLevel, string> = {
@@ -111,8 +112,11 @@ export function DogCard({
         <div className="relative flex-shrink-0">
           <span
             className={cn(
-              "block h-14 w-14 overflow-hidden rounded-pill bg-brand-soft ring-2 ring-offset-2",
+              "block h-14 w-14 overflow-hidden rounded-pill ring-2 ring-offset-2",
               "ring-offset-surface transition-colors duration-slow",
+              // Deterministic per-dog tinted ground — shows behind the
+              // placeholder mark, and the same tint the owner app uses.
+              dogTint(dog.id),
               level ? RING_CLASS[level] : "ring-hairline",
             )}
           >

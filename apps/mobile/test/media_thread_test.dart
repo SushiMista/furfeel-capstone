@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/media_thread_page.dart';
+import 'package:furfeel_mobile/screens/observations/media_thread_page.dart';
 
 import 'fakes.dart';
 
