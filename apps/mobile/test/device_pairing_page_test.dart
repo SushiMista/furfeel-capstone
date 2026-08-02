@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/device_pairing_page.dart';
+import 'package:furfeel_mobile/screens/dogs/device_pairing_page.dart';
 
 import 'fakes.dart';
 
@@ -16,7 +16,7 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    expect(find.text('PAIR A HARNESS'), findsOneWidget);
+    expect(find.text('Pair a harness'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'FURFEEL-DEV-0002');
     await tester.tap(find.text('Pair harness'));

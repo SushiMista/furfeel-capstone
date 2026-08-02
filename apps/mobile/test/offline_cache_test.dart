@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/data/status_cache.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/consent_page.dart';
-import 'package:furfeel_mobile/pages/root_shell.dart';
+import 'package:furfeel_mobile/screens/auth/consent_page.dart';
+import 'package:furfeel_mobile/screens/home/root_shell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes.dart';
@@ -60,7 +60,7 @@ void main() {
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
 
-    expect(find.text('Biscuit'), findsWidgets);
+    expect(find.text('Health overview'), findsOneWidget); // landed on the home
     expect(find.textContaining('Showing last known reading'), findsOneWidget);
     expect(find.textContaining("Couldn't load"), findsNothing);
   });

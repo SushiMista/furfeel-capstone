@@ -38,7 +38,10 @@ export default {
       "800": "#126E6D",
       "900": "#115459",
       "950": "#103E48",
-      "DEFAULT": "var(--ff-accent)"
+      "DEFAULT": "var(--ff-accent)",
+      "soft": "var(--ff-accent-soft)",
+      "strong": "var(--ff-accent-strong)",
+      "ink": "var(--ff-accent-ink)"
     },
     "warm": {
       "50": "#F9F6F0",
@@ -55,6 +58,10 @@ export default {
       "DEFAULT": "var(--ff-warm)",
       "soft": "var(--ff-warm-soft)"
     },
+    "tint-blue": "var(--ff-tint-blue)",
+    "tint-teal": "var(--ff-tint-teal)",
+    "tint-periwinkle": "var(--ff-tint-periwinkle)",
+    "tint-slate": "var(--ff-tint-slate)",
     "calm": {
       "50": "#F0F7F6",
       "100": "#DDEDEB",
@@ -69,7 +76,8 @@ export default {
       "950": "#0E2F3B",
       "DEFAULT": "var(--ff-status-calm-fg)",
       "fg": "var(--ff-status-calm-fg)",
-      "soft": "var(--ff-status-calm-bg)"
+      "soft": "var(--ff-status-calm-bg)",
+      "mid": "var(--ff-status-calm-mid)"
     },
     "mild": {
       "50": "#F9F6F0",
@@ -85,7 +93,8 @@ export default {
       "950": "#2F2A21",
       "DEFAULT": "var(--ff-status-mild-fg)",
       "fg": "var(--ff-status-mild-fg)",
-      "soft": "var(--ff-status-mild-bg)"
+      "soft": "var(--ff-status-mild-bg)",
+      "mid": "var(--ff-status-mild-mid)"
     },
     "moderate": {
       "50": "#FAF5F1",
@@ -101,7 +110,8 @@ export default {
       "950": "#342524",
       "DEFAULT": "var(--ff-status-moderate-fg)",
       "fg": "var(--ff-status-moderate-fg)",
-      "soft": "var(--ff-status-moderate-bg)"
+      "soft": "var(--ff-status-moderate-bg)",
+      "mid": "var(--ff-status-moderate-mid)"
     },
     "high": {
       "50": "#FCF2F2",
@@ -118,6 +128,7 @@ export default {
       "DEFAULT": "var(--ff-status-high-fg)",
       "fg": "var(--ff-status-high-fg)",
       "soft": "var(--ff-status-high-bg)",
+      "mid": "var(--ff-status-high-mid)",
       "owner": "var(--ff-status-high-owner)"
     }
   },

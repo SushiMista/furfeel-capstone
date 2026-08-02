@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/root_shell.dart';
+import 'package:furfeel_mobile/screens/home/root_shell.dart';
 
 import 'fakes.dart';
 
@@ -69,12 +69,11 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    expect(find.text('Biscuit'), findsWidgets); // header switcher chip
-    expect(find.text('Calm'), findsOneWidget);
+    expect(find.text('Health overview'), findsOneWidget); // immersive home loaded
+    expect(find.text('Calm'), findsOneWidget); // the classification, as the hero
     expect(find.text('Biscuit is calm right now'), findsOneWidget);
-    expect(find.textContaining('Last updated'), findsOneWidget);
-    
-    // Scroll to vitals so 92 bpm is built/rendered in the lazy ListView
+
+    // Scroll to the heart-rate waveform row (value + unit are one rich span).
     await tester.scrollUntilVisible(
       find.textContaining('92 bpm', findRichText: true),
       200,
@@ -104,8 +103,7 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    // Care Insights sits on Vitals now (the landing tab) -- the Care Team tab
-    // was retired once the vet-note feed moved to Chat.
+    // Care Insights is a section in the one-scroll home now (docs/22 v7).
     expect(find.text('Care Team'), findsNothing);
     await tester.scrollUntilVisible(find.text('A little uneasy'), 200,
         scrollable: find.byType(Scrollable).first);
@@ -232,7 +230,7 @@ void main() {
     await tester.tap(find.text('Heart rate'));
     await tester.pumpAndSettle();
 
-    expect(find.text('TYPICAL AT REST'), findsOneWidget);
+    expect(find.text('Typical at rest'), findsOneWidget);
     expect(find.textContaining('60–120 bpm'), findsOneWidget); // general default
   });
 
@@ -289,7 +287,7 @@ void main() {
     await tester.tap(navTab('Trends'));
     await tester.pumpAndSettle();
 
-    expect(find.text('CALM TIME THIS WEEK'), findsOneWidget);
+    expect(find.text('Calm time this week'), findsOneWidget);
     expect(find.text('90%'), findsOneWidget);
     expect(find.textContaining('vs last week'), findsOneWidget);
 
@@ -311,6 +309,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Trends appear after a day or two'), findsOneWidget);
-    expect(find.text('CALM TIME THIS WEEK'), findsNothing);
+    expect(find.text('Calm time this week'), findsNothing);
   });
 }

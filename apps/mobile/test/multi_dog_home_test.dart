@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/multi_dog_home.dart';
+import 'package:furfeel_mobile/screens/home/multi_dog_home.dart';
 
 import 'fakes.dart';
 
@@ -57,8 +57,12 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    expect(find.text('Biscuit'), findsOneWidget);
-    expect(find.text('Mochi'), findsOneWidget);
+    // The name also appears in the pet-selector strip now, so scope the
+    // "one card per dog" assertion to the card itself.
+    Finder nameInCard(String name) => find.descendant(
+        of: find.byType(DogOverviewCard), matching: find.text(name));
+    expect(nameInCard('Biscuit'), findsOneWidget);
+    expect(nameInCard('Mochi'), findsOneWidget);
     expect(find.text('Calm'), findsWidgets); // stress pill
     // Wellness and battery are removed from the minimalist glance card
     expect(find.text('82'), findsNothing);
@@ -71,12 +75,13 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Biscuit'));
+    await tester.tap(find.descendant(
+        of: find.byType(DogOverviewCard), matching: find.text('Biscuit')));
     await tester.pumpAndSettle();
 
-    // Detail page app bar + the rich home content underneath.
-    expect(find.widgetWithText(AppBar, 'Biscuit'), findsOneWidget);
-    expect(find.textContaining('No stress reading yet', findRichText: true),
+    // The dog's immersive home detail (no app bar now — a floating back button).
+    expect(find.byTooltip('Back'), findsOneWidget);
+    expect(find.textContaining('Waiting for the first reading'),
         findsOneWidget);
   });
 }

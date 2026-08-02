@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:furfeel_mobile/pages/detailed_log_page.dart';
+import 'package:furfeel_mobile/screens/vitals/detailed_log_page.dart';
 
 void main() {
   group('downsampleToSpots', () {

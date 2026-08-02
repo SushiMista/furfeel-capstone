@@ -16,10 +16,10 @@ void main() {
     '../../services/edge/alerts/rules.ts',
     // App-side owner copy added in this pass.
     'lib/insights/biometrics.dart',
-    'lib/pages/consent_page.dart',
-    'lib/pages/media_thread_page.dart',
-    'lib/pages/detailed_log_page.dart',
-    'lib/pages/multi_dog_home.dart',
+    'lib/screens/auth/consent_page.dart',
+    'lib/screens/observations/media_thread_page.dart',
+    'lib/screens/vitals/detailed_log_page.dart',
+    'lib/screens/home/multi_dog_home.dart',
     'lib/widgets/wellness_card.dart',
     'lib/util/exports.dart',
     // Owner-delight pass copy.
@@ -31,7 +31,7 @@ void main() {
     'lib/util/errors.dart',
     'lib/util/full_export.dart',
     'lib/data/demo_repository.dart',
-    'lib/pages/root_shell.dart',
+    'lib/screens/home/root_shell.dart',
   ];
 
   // Clinical / causal language that must never appear in owner copy.

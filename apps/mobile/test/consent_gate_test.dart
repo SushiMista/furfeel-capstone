@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/consent_page.dart';
-import 'package:furfeel_mobile/pages/root_shell.dart';
+import 'package:furfeel_mobile/screens/auth/consent_page.dart';
+import 'package:furfeel_mobile/screens/home/root_shell.dart';
 
 import 'fakes.dart';
 
@@ -50,7 +50,7 @@ void main() {
 
     expect(repo.acceptedConsentVersions, [kConsentPolicyVersion]);
     expect(find.text('Before we start monitoring'), findsNothing);
-    expect(find.text('Biscuit'), findsWidgets);
+    expect(find.text('Health overview'), findsOneWidget); // landed on the home
   });
 
   testWidgets('already-consented users go straight in', (tester) async {
@@ -59,6 +59,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Before we start monitoring'), findsNothing);
-    expect(find.text('Biscuit'), findsWidgets);
+    expect(find.text('Health overview'), findsOneWidget); // landed on the home
   });
 }
