@@ -34,7 +34,8 @@ PAGE = """<!doctype html>
 body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
 h1 { font-size: 20px; }
 #label { font-size: 28px; font-weight: bold; padding: 14px; background: #eef2ff; border-radius: 8px; text-align: center; margin: 16px 0; }
-#rows { color: #666; margin-bottom: 16px; }
+#rows { color: #666; margin-bottom: 4px; }
+#total { color: #999; font-size: 13px; margin-bottom: 16px; }
 .postures button { font-size: 16px; padding: 12px 16px; margin: 4px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
 .postures button:hover { background: #eef2ff; }
 .custom { margin-top: 20px; }
@@ -47,6 +48,7 @@ h1 { font-size: 20px; }
 <div>Dog: <b>__DOG__</b> (__SIZE__)</div>
 <div id="label">loading...</div>
 <div id="rows"></div>
+<div id="total"></div>
 <div class="postures">
   <button onclick="setLabel('sitting')">Sitting</button>
   <button onclick="setLabel('standing')">Standing</button>
@@ -65,11 +67,12 @@ function setCustom() { var v = document.getElementById('custom').value.trim(); i
 function refresh() {
   fetch('/status').then(r => r.json()).then(d => {
     document.getElementById('label').textContent = d.label;
-    document.getElementById('rows').textContent = d.rows + ' rows recorded';
+    document.getElementById('rows').textContent = d.label_rows + ' rows / ' + d.label_seconds + 's for this label';
+    document.getElementById('total').textContent = d.rows + ' rows total this session';
   });
 }
 refresh();
-setInterval(refresh, 2000);
+setInterval(refresh, 1000);
 </script>
 </body>
 </html>
@@ -77,7 +80,7 @@ setInterval(refresh, 2000);
 
 
 def make_handler(writer, out_file, dog, size):
-    seen = {"label": None, "rows": 0}
+    seen = {"label": None, "rows": 0, "label_rows": 0, "label_start": None}
     page = PAGE.replace("__DOG__", dog).replace("__SIZE__", size)
 
     class Handler(BaseHTTPRequestHandler):
@@ -92,7 +95,9 @@ def make_handler(writer, out_file, dog, size):
                     print(f"-> label set to '{value}'")
                 self._json({"ok": True, "label": state["label"]})
             elif self.path == "/status":
-                self._json({"label": state["label"], "rows": seen["rows"]})
+                label_seconds = round(time.time() - seen["label_start"], 1) if seen["label_start"] else 0
+                self._json({"label": state["label"], "rows": seen["rows"],
+                             "label_rows": seen["label_rows"], "label_seconds": label_seconds})
             else:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html")
@@ -119,12 +124,15 @@ def make_handler(writer, out_file, dog, size):
             if seen["label"] != label:
                 print(f"** now recording with label '{label}' **")
                 seen["label"] = label
+                seen["label_rows"] = 0
+                seen["label_start"] = time.time()
             for row in rows:
                 writer.writerow([time.time(), row["millis_ms"], row["accel_x"], row["accel_y"],
                                   row["accel_z"], row["gyro_x"], row["gyro_y"], row["gyro_z"],
                                   label, dog, size])
             out_file.flush()
             seen["rows"] += len(rows)
+            seen["label_rows"] += len(rows)
             if seen["rows"] % 200 < len(rows):  # print roughly every ~10s of data
                 print(f"   ({seen['rows']} rows written so far)")
             self.send_response(200)
