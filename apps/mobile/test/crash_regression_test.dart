@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/dog_form_page.dart';
-import 'package:furfeel_mobile/pages/root_shell.dart';
+import 'package:furfeel_mobile/screens/dogs/dog_form_page.dart';
+import 'package:furfeel_mobile/screens/home/root_shell.dart';
 
 import 'fakes.dart';
 

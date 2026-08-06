@@ -51,13 +51,18 @@ function scaleFromBase(hex) {
 // ---------- CSS ----------
 // ADDED: dark theme — color vars are emitted twice (light in :root, dark under
 // [data-theme="dark"]) so the whole dashboard re-skins by flipping one attribute.
+/** design_tokens.json carries "$comment" keys for provenance; they are
+ * documentation, not colors, and must never reach a generated file. */
+const swatches = (group) => Object.entries(group ?? {}).filter(([k]) => !k.startsWith("$"));
+
 function colorVarLines(colorSet, indent = "  ") {
   const lines = [];
-  for (const [k, v] of Object.entries(colorSet.base)) lines.push(`${indent}--ff-${kebab(k)}: ${v};`);
-  for (const [k, v] of Object.entries(colorSet.brand)) lines.push(`${indent}--ff-${kebab(k)}: ${v};`);
-  for (const [k, v] of Object.entries(colorSet.warm)) lines.push(`${indent}--ff-${kebab(k)}: ${v};`);
-  for (const [level, c] of Object.entries(colorSet.status)) {
+  for (const group of ["base", "brand", "warm", "tint", "vital"]) {
+    for (const [k, v] of swatches(colorSet[group])) lines.push(`${indent}--ff-${kebab(k)}: ${v};`);
+  }
+  for (const [level, c] of swatches(colorSet.status)) {
     lines.push(`${indent}--ff-status-${level}-fg: ${c.fg};`);
+    if (c.mid) lines.push(`${indent}--ff-status-${level}-mid: ${c.mid};`);
     lines.push(`${indent}--ff-status-${level}-bg: ${c.bg};`);
   }
   lines.push(`${indent}--ff-status-high-owner: ${colorSet.statusHighOwner};`);
@@ -109,15 +114,25 @@ function tailwind() {
       strong: "var(--ff-brand-strong)",
       ink: "var(--ff-brand-ink)",
     },
-    accent: { ...scaleFromBase(br.accent), DEFAULT: "var(--ff-accent)" },
+    accent: {
+      ...scaleFromBase(br.accent),
+      DEFAULT: "var(--ff-accent)",
+      soft: "var(--ff-accent-soft)",
+      strong: "var(--ff-accent-strong)",
+      ink: "var(--ff-accent-ink)",
+    },
     warm: { ...scaleFromBase(w.warm), DEFAULT: "var(--ff-warm)", soft: "var(--ff-warm-soft)" },
   };
-  for (const [level, c] of Object.entries(tokens.color.status)) {
+  // Cool tinted grounds for pet photography (owner app, mirrored here so the
+  // dashboard's vet-review thumbnails match the mobile treatment).
+  for (const [k] of swatches(tokens.color.tint)) colors[kebab(k)] = `var(--ff-${kebab(k)})`;
+  for (const [level, c] of swatches(tokens.color.status)) {
     colors[level] = {
       ...scaleFromBase(c.fg),
       DEFAULT: `var(--ff-status-${level}-fg)`,
       fg: `var(--ff-status-${level}-fg)`,
       soft: `var(--ff-status-${level}-bg)`,
+      ...(c.mid ? { mid: `var(--ff-status-${level}-mid)` } : {}),
     };
   }
   colors.high.owner = "var(--ff-status-high-owner)";
@@ -141,12 +156,13 @@ const dartColor = (hex) => `Color(0xFF${hex.slice(1).toUpperCase()})`;
 // [name, hex] pairs using the Dart naming convention.
 function dartColorEntries(colorSet) {
   const entries = [];
-  for (const [k, v] of Object.entries(colorSet.base)) entries.push([k, v]);
-  for (const [k, v] of Object.entries(colorSet.brand)) entries.push([k, v]);
-  for (const [k, v] of Object.entries(colorSet.warm)) entries.push([k, v]);
-  for (const [level, c] of Object.entries(colorSet.status)) {
+  for (const group of ["base", "brand", "warm", "tint", "vital"]) {
+    for (const [k, v] of swatches(colorSet[group])) entries.push([k, v]);
+  }
+  for (const [level, c] of swatches(colorSet.status)) {
     const cap = level[0].toUpperCase() + level.slice(1);
     entries.push([`status${cap}Fg`, c.fg]);
+    if (c.mid) entries.push([`status${cap}Mid`, c.mid]);
     entries.push([`status${cap}Bg`, c.bg]);
   }
   entries.push(["statusHighOwner", colorSet.statusHighOwner]);

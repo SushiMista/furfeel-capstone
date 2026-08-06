@@ -34,7 +34,24 @@ Put these in `packages/shared/design_tokens.json`; generate the dashboard CSS va
 | `brand-strong` | `#1D4ED8` | hover / pressed |
 | `brand-ink` | `#1E3A8A` | headings accent, deep brand |
 | `brand-soft` | `#EAF1FE` | selected rows, chips, tinted panels |
-| `accent` | `#14B8A6` | teal — secondary/positive, "healthy" states |
+| `accent` | `#14B8A6` | teal — **fill only** (chart series, dots, rings). Not a text colour: 2.3:1 on white. |
+| `accent-strong` | `#0D9488` | hover / pressed on teal surfaces |
+| `accent-ink` | `#0F766E` | the teal **text** stop — use this, never `accent`, for type |
+| `accent-soft` | `#E3F4F1` | teal tinted panels, secondary chips |
+
+> Teal and the `calm` status share a hue family by design — "healthy" reads teal everywhere in FurFeel. They are distinct tokens, not aliases: `calm` means *this dog is calm right now*, `accent` means *this is a positive, non-status UI element*. Don't substitute one for the other.
+>
+> Note `accent-ink` is `#0F766E`, not the `calm` foreground `#0C7C6F` it resembles — the latter measures 4.48:1 on `accent-soft` and fails AA. Verify, don't eyeball (ADR-022).
+
+### Pet photography grounds (added 2026-08-01)
+Cool tinted backgrounds behind dog photos and avatars. Dog fur is overwhelmingly warm — brown, gold, cream — so a cool ground is a deliberate complementary contrast. Assign **deterministically from the dog's `id`**, never from list position or random, so a dog keeps the same tint everywhere.
+
+| Token | Hex | Use |
+|---|---|---|
+| `tint-blue` | `#E7EEFD` | pet photo ground |
+| `tint-teal` | `#E1F3F0` | pet photo ground |
+| `tint-periwinkle` | `#EAEAFB` | pet photo ground |
+| `tint-slate` | `#EDF1F6` | pet photo ground |
 
 ### Neutrals (clean, cool)
 | Token | Hex | Use |
@@ -46,23 +63,27 @@ Put these in `packages/shared/design_tokens.json`; generate the dashboard CSS va
 | `ink-muted` | `#64748B` | secondary text, labels, axis |
 | `hairline` | `#E2E8F0` | dividers, card borders (1px) |
 
-### Owner-app warmth (Design 3 accent layer)
+### Owner-app warmth (Design 3 accent layer) — **narrowed 2026-08-01**
 | Token | Hex | Use |
 |---|---|---|
-| `warm` | `#9A6407` | friendly highlights, streaks, encouragement (darkened 2026-07-19 so warm **text** passes 4.5:1 on `warm-soft` and white — §9) |
-| `warm-soft` | `#FEF3E2` | warm tinted cards on the owner app only |
+| `warm` | `#9A6407` | **encouragement copy only** — streaks, praise, milestones (darkened 2026-07-19 so warm **text** passes 4.5:1 on `warm-soft` and white — §9) |
+| `warm-soft` | `#FEF3E2` | the ground for the above, owner app only |
+
+> **Demoted by ADR-022.** Warm brown is no longer available for photo frames, avatars, chips, or general decoration — use the `tint` set or the teal accent family. The redesign direction is "less warm brown, more blue and teal"; warm survives as a rare moment of praise, not as an ambient layer. If a warm surface is doing anything other than congratulating the owner, it is the wrong token.
 
 ### Stress status ramp (accessible, one canonical ramp)
 Pair color with **word + dot/icon** always — never color alone.
 
 > Contrast-verified 2026-07-19: every `fg` below reads at **≥ 4.5:1** on its soft bg *and* on white/`bg` (the §9 requirement — the original brighter shades failed as text). CI enforces this: `apps/dashboard/tests/contrast.test.ts` recomputes the ratios from `design_tokens.json` on every run.
 
-| Level | text/icon | soft bg | notes |
-|---|---|---|---|
-| `calm` | `#0C7C6F` teal-green | `#E6F6F3` | reassuring, "normal" |
-| `mild` | `#956603` amber | `#FBF3D6` | gentle heads-up |
-| `moderate` | `#A85311` orange | `#FCEBD9` | attention |
-| `high` | `#CA2323` red | `#FBE4E2` | urgent (dashboard uses full red; owner app may soften to coral `#B74231` for a less alarming feel — both from tokens) |
+| Level | text/icon (`fg`) | chart fill (`mid`) | soft bg | notes |
+|---|---|---|---|---|
+| `calm` | `#0C7C6F` teal-green | `#2CA089` | `#E6F6F3` | reassuring, "normal" |
+| `mild` | `#956603` amber | `#BE8927` | `#FBF3D6` | gentle heads-up |
+| `moderate` | `#A85311` orange | `#D9773F` | `#FCEBD9` | attention |
+| `high` | `#CA2323` red | `#E05A4E` | `#FBE4E2` | urgent (dashboard uses full red; owner app may soften to coral `#B74231` for a less alarming feel — both from tokens) |
+
+**The `mid` stop answers to a different rule than `fg`.** Added 2026-08-01 for bars, sparklines, and `fl_chart` series. A chart fill is a *graphical object*, not text, so it is governed by WCAG 1.4.11 at **3:1** — not the 4.5:1 that §9 imposes on type. Holding chart fills to the text rule would force them nearly as dark as `fg` and collapse the tonal separation a chart depends on. `mid` is never used for text; `fg` is the only contrast-guaranteed type colour in the ramp. CI enforces both rules separately (`apps/dashboard/tests/contrast.test.ts`).
 
 ## 3. Typography
 - **Font:** **Inter** across both surfaces (clean, neutral, excellent at small sizes for dense clinical data; pairs natively with shadcn/Tremor). Flutter via `google_fonts` (Inter). Numbers use tabular figures for aligned vitals.

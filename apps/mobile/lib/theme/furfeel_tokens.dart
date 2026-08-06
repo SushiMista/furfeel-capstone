@@ -19,15 +19,29 @@ class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
     required this.brandInk,
     required this.brandSoft,
     required this.accent,
+    required this.accentStrong,
+    required this.accentInk,
+    required this.accentSoft,
     required this.warm,
     required this.warmSoft,
+    required this.tintBlue,
+    required this.tintTeal,
+    required this.tintPeriwinkle,
+    required this.tintSlate,
+    required this.vitalHeart,
+    required this.vitalBreathing,
+    required this.vitalActivity,
     required this.statusCalmFg,
+    required this.statusCalmMid,
     required this.statusCalmBg,
     required this.statusMildFg,
+    required this.statusMildMid,
     required this.statusMildBg,
     required this.statusModerateFg,
+    required this.statusModerateMid,
     required this.statusModerateBg,
     required this.statusHighFg,
+    required this.statusHighMid,
     required this.statusHighBg,
     required this.statusHighOwner,
   });
@@ -43,15 +57,29 @@ class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
   final Color brandInk;
   final Color brandSoft;
   final Color accent;
+  final Color accentStrong;
+  final Color accentInk;
+  final Color accentSoft;
   final Color warm;
   final Color warmSoft;
+  final Color tintBlue;
+  final Color tintTeal;
+  final Color tintPeriwinkle;
+  final Color tintSlate;
+  final Color vitalHeart;
+  final Color vitalBreathing;
+  final Color vitalActivity;
   final Color statusCalmFg;
+  final Color statusCalmMid;
   final Color statusCalmBg;
   final Color statusMildFg;
+  final Color statusMildMid;
   final Color statusMildBg;
   final Color statusModerateFg;
+  final Color statusModerateMid;
   final Color statusModerateBg;
   final Color statusHighFg;
+  final Color statusHighMid;
   final Color statusHighBg;
   final Color statusHighOwner;
 
@@ -67,15 +95,29 @@ class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
     brandInk: Color(0xFF1E3A8A),
     brandSoft: Color(0xFFEAF1FE),
     accent: Color(0xFF14B8A6),
+    accentStrong: Color(0xFF0D9488),
+    accentInk: Color(0xFF0F766E),
+    accentSoft: Color(0xFFE3F4F1),
     warm: Color(0xFF9A6407),
     warmSoft: Color(0xFFFEF3E2),
+    tintBlue: Color(0xFFE7EEFD),
+    tintTeal: Color(0xFFE1F3F0),
+    tintPeriwinkle: Color(0xFFEAEAFB),
+    tintSlate: Color(0xFFEDF1F6),
+    vitalHeart: Color(0xFFE0466F),
+    vitalBreathing: Color(0xFF0E9E90),
+    vitalActivity: Color(0xFF6A61DE),
     statusCalmFg: Color(0xFF0C7C6F),
+    statusCalmMid: Color(0xFF2CA089),
     statusCalmBg: Color(0xFFE6F6F3),
     statusMildFg: Color(0xFF956603),
+    statusMildMid: Color(0xFFBE8927),
     statusMildBg: Color(0xFFFBF3D6),
     statusModerateFg: Color(0xFFA85311),
+    statusModerateMid: Color(0xFFD9773F),
     statusModerateBg: Color(0xFFFCEBD9),
     statusHighFg: Color(0xFFCA2323),
+    statusHighMid: Color(0xFFE05A4E),
     statusHighBg: Color(0xFFFBE4E2),
     statusHighOwner: Color(0xFFB74231),
   );
@@ -92,15 +134,29 @@ class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
     brandInk: Color(0xFFBFD2F8),
     brandSoft: Color(0xFF17294B),
     accent: Color(0xFF2DD4BF),
+    accentStrong: Color(0xFF5EEAD4),
+    accentInk: Color(0xFF99F6E4),
+    accentSoft: Color(0xFF10312D),
     warm: Color(0xFFF5B04A),
     warmSoft: Color(0xFF33270F),
+    tintBlue: Color(0xFF1A2540),
+    tintTeal: Color(0xFF12302C),
+    tintPeriwinkle: Color(0xFF22213F),
+    tintSlate: Color(0xFF1B2433),
+    vitalHeart: Color(0xFFF386A5),
+    vitalBreathing: Color(0xFF3CC6B6),
+    vitalActivity: Color(0xFF9A93F0),
     statusCalmFg: Color(0xFF3BC9B4),
+    statusCalmMid: Color(0xFF34BFA8),
     statusCalmBg: Color(0xFF0D2B27),
     statusMildFg: Color(0xFFE3B93B),
+    statusMildMid: Color(0xFFD2A63F),
     statusMildBg: Color(0xFF2C2409),
     statusModerateFg: Color(0xFFF0914B),
+    statusModerateMid: Color(0xFFE08A4F),
     statusModerateBg: Color(0xFF33200D),
     statusHighFg: Color(0xFFF07364),
+    statusHighMid: Color(0xFFE0685C),
     statusHighBg: Color(0xFF391411),
     statusHighOwner: Color(0xFFF08A7B),
   );
@@ -118,15 +174,29 @@ class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
     Color? brandInk,
     Color? brandSoft,
     Color? accent,
+    Color? accentStrong,
+    Color? accentInk,
+    Color? accentSoft,
     Color? warm,
     Color? warmSoft,
+    Color? tintBlue,
+    Color? tintTeal,
+    Color? tintPeriwinkle,
+    Color? tintSlate,
+    Color? vitalHeart,
+    Color? vitalBreathing,
+    Color? vitalActivity,
     Color? statusCalmFg,
+    Color? statusCalmMid,
     Color? statusCalmBg,
     Color? statusMildFg,
+    Color? statusMildMid,
     Color? statusMildBg,
     Color? statusModerateFg,
+    Color? statusModerateMid,
     Color? statusModerateBg,
     Color? statusHighFg,
+    Color? statusHighMid,
     Color? statusHighBg,
     Color? statusHighOwner,
   }) =>
@@ -142,15 +212,29 @@ class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
         brandInk: brandInk ?? this.brandInk,
         brandSoft: brandSoft ?? this.brandSoft,
         accent: accent ?? this.accent,
+        accentStrong: accentStrong ?? this.accentStrong,
+        accentInk: accentInk ?? this.accentInk,
+        accentSoft: accentSoft ?? this.accentSoft,
         warm: warm ?? this.warm,
         warmSoft: warmSoft ?? this.warmSoft,
+        tintBlue: tintBlue ?? this.tintBlue,
+        tintTeal: tintTeal ?? this.tintTeal,
+        tintPeriwinkle: tintPeriwinkle ?? this.tintPeriwinkle,
+        tintSlate: tintSlate ?? this.tintSlate,
+        vitalHeart: vitalHeart ?? this.vitalHeart,
+        vitalBreathing: vitalBreathing ?? this.vitalBreathing,
+        vitalActivity: vitalActivity ?? this.vitalActivity,
         statusCalmFg: statusCalmFg ?? this.statusCalmFg,
+        statusCalmMid: statusCalmMid ?? this.statusCalmMid,
         statusCalmBg: statusCalmBg ?? this.statusCalmBg,
         statusMildFg: statusMildFg ?? this.statusMildFg,
+        statusMildMid: statusMildMid ?? this.statusMildMid,
         statusMildBg: statusMildBg ?? this.statusMildBg,
         statusModerateFg: statusModerateFg ?? this.statusModerateFg,
+        statusModerateMid: statusModerateMid ?? this.statusModerateMid,
         statusModerateBg: statusModerateBg ?? this.statusModerateBg,
         statusHighFg: statusHighFg ?? this.statusHighFg,
+        statusHighMid: statusHighMid ?? this.statusHighMid,
         statusHighBg: statusHighBg ?? this.statusHighBg,
         statusHighOwner: statusHighOwner ?? this.statusHighOwner,
       );
@@ -170,15 +254,29 @@ class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
       brandInk: Color.lerp(brandInk, other.brandInk, t)!,
       brandSoft: Color.lerp(brandSoft, other.brandSoft, t)!,
       accent: Color.lerp(accent, other.accent, t)!,
+      accentStrong: Color.lerp(accentStrong, other.accentStrong, t)!,
+      accentInk: Color.lerp(accentInk, other.accentInk, t)!,
+      accentSoft: Color.lerp(accentSoft, other.accentSoft, t)!,
       warm: Color.lerp(warm, other.warm, t)!,
       warmSoft: Color.lerp(warmSoft, other.warmSoft, t)!,
+      tintBlue: Color.lerp(tintBlue, other.tintBlue, t)!,
+      tintTeal: Color.lerp(tintTeal, other.tintTeal, t)!,
+      tintPeriwinkle: Color.lerp(tintPeriwinkle, other.tintPeriwinkle, t)!,
+      tintSlate: Color.lerp(tintSlate, other.tintSlate, t)!,
+      vitalHeart: Color.lerp(vitalHeart, other.vitalHeart, t)!,
+      vitalBreathing: Color.lerp(vitalBreathing, other.vitalBreathing, t)!,
+      vitalActivity: Color.lerp(vitalActivity, other.vitalActivity, t)!,
       statusCalmFg: Color.lerp(statusCalmFg, other.statusCalmFg, t)!,
+      statusCalmMid: Color.lerp(statusCalmMid, other.statusCalmMid, t)!,
       statusCalmBg: Color.lerp(statusCalmBg, other.statusCalmBg, t)!,
       statusMildFg: Color.lerp(statusMildFg, other.statusMildFg, t)!,
+      statusMildMid: Color.lerp(statusMildMid, other.statusMildMid, t)!,
       statusMildBg: Color.lerp(statusMildBg, other.statusMildBg, t)!,
       statusModerateFg: Color.lerp(statusModerateFg, other.statusModerateFg, t)!,
+      statusModerateMid: Color.lerp(statusModerateMid, other.statusModerateMid, t)!,
       statusModerateBg: Color.lerp(statusModerateBg, other.statusModerateBg, t)!,
       statusHighFg: Color.lerp(statusHighFg, other.statusHighFg, t)!,
+      statusHighMid: Color.lerp(statusHighMid, other.statusHighMid, t)!,
       statusHighBg: Color.lerp(statusHighBg, other.statusHighBg, t)!,
       statusHighOwner: Color.lerp(statusHighOwner, other.statusHighOwner, t)!,
     );
