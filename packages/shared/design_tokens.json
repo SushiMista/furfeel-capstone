@@ -1,5 +1,5 @@
 {
-  "$comment": "FurFeel design tokens \u2014 single source of truth (docs/19 Design Guide: blue + white). Do not hardcode these values in components; regenerate platform files with: node packages/shared/scripts/generate_design_tokens.mjs",
+  "$comment": "FurFeel design tokens — single source of truth (docs/19 Design Guide: blue + white). Do not hardcode these values in components; regenerate platform files with: node packages/shared/scripts/generate_design_tokens.mjs",
   "font": {
     "family": "Inter",
     "fallback": "system-ui, -apple-system, 'Segoe UI', sans-serif"
@@ -58,31 +58,53 @@
       "brandStrong": "#1D4ED8",
       "brandInk": "#1E3A8A",
       "brandSoft": "#EAF1FE",
-      "accent": "#14B8A6"
+      "accent": "#14B8A6",
+      "accentStrong": "#0D9488",
+      "accentInk": "#0F766E",
+      "accentSoft": "#E3F4F1"
     },
     "warm": {
+      "$comment": "DEMOTED 2026-08-01: warm brown is now a rare encouragement-only accent (streaks, praise copy). It is NOT for photo frames, avatars, chips, or decoration — use the cool `tint` set or the teal accent family instead.",
       "warm": "#9A6407",
       "warmSoft": "#FEF3E2"
     },
+    "tint": {
+      "$comment": "ADDED 2026-08-01: cool tinted grounds behind pet photos and avatars (owner app). Warm subjects (dog fur) read best on these; every one holds `ink` well above 4.5:1.",
+      "tintBlue": "#E7EEFD",
+      "tintTeal": "#E1F3F0",
+      "tintPeriwinkle": "#EAEAFB",
+      "tintSlate": "#EDF1F6"
+    },
     "status": {
+      "$comment": "ADDED 2026-08-01: `mid` is a chart-fill stop (bars, sparklines, fl_chart series). It is never text — only `fg` is contrast-guaranteed for type.",
       "calm": {
         "fg": "#0C7C6F",
+        "mid": "#2CA089",
         "bg": "#E6F6F3"
       },
       "mild": {
         "fg": "#956603",
+        "mid": "#BE8927",
         "bg": "#FBF3D6"
       },
       "moderate": {
         "fg": "#A85311",
+        "mid": "#D9773F",
         "bg": "#FCEBD9"
       },
       "high": {
         "fg": "#CA2323",
+        "mid": "#E05A4E",
         "bg": "#FBE4E2"
       }
     },
-    "statusHighOwner": "#B74231"
+    "statusHighOwner": "#B74231",
+    "vital": {
+      "$comment": "ADDED 2026-08-02 (ADR-024): per-metric identity colours for the owner Home waveforms. Override of the monochrome-chart rule; status still lives in the FurFeel-score hero + worded flags. Temperature omitted (ADR-021 drops body temperature as a displayed vital).",
+      "vitalHeart": "#E0466F",
+      "vitalBreathing": "#0E9E90",
+      "vitalActivity": "#6A61DE"
+    }
   },
   "colorDark": {
     "$comment": "ADDED: dark-theme palette for the user_settings theme option (docs/04/05). Same cool-slate + blue family as docs/19; every fg/bg pair keeps >=4.5:1 contrast. Status ramp keeps the canonical hues, lifted for dark surfaces.",
@@ -99,31 +121,49 @@
       "brandStrong": "#7DA4F3",
       "brandInk": "#BFD2F8",
       "brandSoft": "#17294B",
-      "accent": "#2DD4BF"
+      "accent": "#2DD4BF",
+      "accentStrong": "#5EEAD4",
+      "accentInk": "#99F6E4",
+      "accentSoft": "#10312D"
     },
     "warm": {
       "warm": "#F5B04A",
       "warmSoft": "#33270F"
     },
+    "tint": {
+      "tintBlue": "#1A2540",
+      "tintTeal": "#12302C",
+      "tintPeriwinkle": "#22213F",
+      "tintSlate": "#1B2433"
+    },
     "status": {
       "calm": {
         "fg": "#3BC9B4",
+        "mid": "#34BFA8",
         "bg": "#0D2B27"
       },
       "mild": {
         "fg": "#E3B93B",
+        "mid": "#D2A63F",
         "bg": "#2C2409"
       },
       "moderate": {
         "fg": "#F0914B",
+        "mid": "#E08A4F",
         "bg": "#33200D"
       },
       "high": {
         "fg": "#F07364",
+        "mid": "#E0685C",
         "bg": "#391411"
       }
     },
-    "statusHighOwner": "#F08A7B"
+    "statusHighOwner": "#F08A7B",
+    "vital": {
+      "vitalHeart": "#F386A5",
+      "vitalBreathing": "#3CC6B6",
+      "vitalActivity": "#9A93F0"
+    }
   },
   "radius": {
     "dashboard": {

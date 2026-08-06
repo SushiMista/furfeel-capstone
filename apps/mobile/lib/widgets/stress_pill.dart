@@ -19,6 +19,19 @@ Color stressLevelSoftBg(BuildContext context, StressLevel level) => switch (leve
       StressLevel.high => context.ff.statusHighBg,
     };
 
+/// Fill colour for bars, sparklines and `fl_chart` series (docs/19 status ramp).
+///
+/// A chart fill is a graphical object, not text: it answers to WCAG 1.4.11 at
+/// 3:1, where the `fg` stops answer to 4.5:1. Using `fg` here would be legible
+/// but tonally flat against the card; using `bg` would vanish. Hence a third
+/// stop. Never pass these to a [Text] — only `fg` is guaranteed for type.
+Color stressLevelChartFill(BuildContext context, StressLevel level) => switch (level) {
+      StressLevel.calm => context.ff.statusCalmMid,
+      StressLevel.mild => context.ff.statusMildMid,
+      StressLevel.moderate => context.ff.statusModerateMid,
+      StressLevel.high => context.ff.statusHighMid,
+    };
+
 /// Status pill (docs/19): soft-bg fill + colored text + a small dot, always
 /// paired with the word so meaning never rides on color alone. Stress-level
 /// changes cross-fade rather than snapping, with a single soft scale pulse

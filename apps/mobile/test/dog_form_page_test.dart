@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/dog_form_page.dart';
+import 'package:furfeel_mobile/screens/dogs/dog_form_page.dart';
 
 import 'fakes.dart';
 
@@ -35,8 +35,12 @@ void main() {
     // Clinic linkage (docs/04): pick the clinic so the dog lands on its board.
     await tester.scrollUntilVisible(find.text('Home monitoring only'), 200,
         scrollable: find.byType(Scrollable).first);
+    // Fully in view (not just at the edge) so the tap opens the dropdown.
+    await tester.ensureVisible(find.text('Home monitoring only'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Home monitoring only'));
     await tester.pumpAndSettle();
+    // Clinic options are in the dropdown overlay now.
     await tester.tap(find.text('Sunrise Veterinary Clinic').last);
     await tester.pumpAndSettle();
 

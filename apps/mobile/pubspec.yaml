@@ -37,6 +37,7 @@ dependencies:
   supabase_flutter: ^2.16.0
   google_fonts: ^8.1.0
   fl_chart: ^1.2.0
+  flutter_svg: ^2.0.10
   image_picker: ^1.2.3
   # ADDED: declarative motion for the owner app (docs/19 §5a names it).
   flutter_animate: ^4.5.2
@@ -70,10 +71,13 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    # Flat-vector illustration set (ADR-022). Rendering (flutter_svg) is wired
+    # when the first illustration ships on a screen — see the folder README.
+    - assets/illustrations/
+    # Curated stock photography for generic slots (welcome/onboarding), shown
+    # through BrandPhotoFrame with a tinted fallback until files are dropped in.
+    - assets/photos/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:furfeel_mobile/pages/login_page.dart';
+import 'package:furfeel_mobile/screens/auth/login_page.dart';
 
 void main() {
   testWidgets('submits credentials and shows no error on success', (tester) async {

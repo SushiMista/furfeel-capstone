@@ -1,0 +1,456 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
+import 'package:furfeel_mobile/util/motion.dart';
+import 'package:furfeel_mobile/data/demo_repository.dart';
+import 'package:furfeel_mobile/widgets/auth_form.dart';
+import 'package:furfeel_mobile/widgets/brand_photo_frame.dart';
+import 'package:furfeel_mobile/widgets/furfeel_logo.dart';
+import 'package:furfeel_mobile/screens/auth/login_page.dart';
+import 'package:furfeel_mobile/screens/home/root_shell.dart';
+
+/// ADDED: real first-run flow (docs/04 Onboarding/sign-up): a warm animated
+/// welcome, then create account (Supabase Auth) or sign in. After sign-up the
+/// auth stream flips the app into RootShell, whose guided setup takes over
+/// (add your dog → pair the harness → done).
+class WelcomePage extends StatelessWidget {
+  const WelcomePage({super.key, required this.client});
+
+  final SupabaseClient client;
+
+  Future<String?> _signIn(String email, String password) async {
+    try {
+      await client.auth.signInWithPassword(email: email, password: password);
+      return null;
+    } on AuthException catch (e) {
+      if (e.message.contains('SocketException') ||
+          e.message.contains('Failed host lookup') ||
+          e.message.contains('ClientException')) {
+        return 'Unable to connect to FurFeel servers. Please check your connection and try again.';
+      }
+      return e.message;
+    } catch (_) {
+      return 'Could not sign in. Check your connection and try again.';
+    }
+  }
+
+  /// Google OAuth (ADR-011). On web this redirects the page to Google and the
+  /// session is restored on return; on Android/iOS it opens the browser and
+  /// comes back through the io.furfeel.app://login-callback deep link. Either
+  /// way the root auth stream flips the app to the home shell.
+  Future<String?> _signInWithGoogle() async {
+    try {
+      await client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        // Web must pass its own origin: with no redirect_to GoTrue falls back
+        // to the project Site URL (the dashboard's port), which reads as
+        // "site can't be reached" when that app isn't running. The origin
+        // must be in the Auth redirect allow-list — dev runs pin the port via
+        // `flutter run -d chrome --web-port 5175`.
+        redirectTo: kIsWeb ? Uri.base.origin : 'io.furfeel.app://login-callback',
+        authScreenLaunchMode:
+            kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+        // Always show Google's account chooser instead of silently reusing
+        // the active Google session -- the owner picks which account to use.
+        queryParams: {'prompt': 'select_account'},
+      );
+      return null;
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (_) {
+      return 'Could not start Google sign-in. Check your connection and try again.';
+    }
+  }
+
+  // Login and sign-up cross-link to each other with pushReplacement, so the
+  // back gesture always returns to this welcome screen, never ping-pongs.
+  void _openLogin(BuildContext context, {bool replace = false}) {
+    final route = MaterialPageRoute<void>(
+      builder: (_) => LoginPage(
+        signIn: _signIn,
+        onGoogleSignIn: _signInWithGoogle,
+        onCreateAccount: () => _openSignUp(context, replace: true),
+      ),
+    );
+    final navigator = Navigator.of(context);
+    replace ? navigator.pushReplacement(route) : navigator.push(route);
+  }
+
+  void _openSignUp(BuildContext context, {bool replace = false}) {
+    final route = MaterialPageRoute<void>(
+      builder: (_) => SignUpPage(
+        client: client,
+        onGoogleSignIn: _signInWithGoogle,
+        onSignIn: () => _openLogin(context, replace: true),
+      ),
+    );
+    final navigator = Navigator.of(context);
+    replace ? navigator.pushReplacement(route) : navigator.push(route);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final reduce = context.reduceMotion;
+
+    Widget staggered(Widget child, int index) {
+      if (reduce) return child;
+      return child
+          .animate(delay: Duration(milliseconds: 120 * index))
+          .fadeIn(duration: 400.ms, curve: Curves.easeOut)
+          .slideY(begin: 0.08, end: 0, duration: 400.ms, curve: Curves.easeOut);
+    }
+
+    // Arch-framed brand photo (the mood board's hero). A curated stock photo
+    // dropped at assets/photos/welcome_hero.jpg fills it; until then the frame
+    // shows its tinted fallback, so it reads as intentional either way.
+    Widget hero = const BrandPhotoFrame(
+      asset: 'assets/photos/welcome_hero.jpg',
+      width: 210,
+      semanticLabel: 'A calm dog',
+    );
+    if (!reduce) {
+      // One gentle settle-in, then still — welcoming, not busy.
+      hero = hero
+          .animate()
+          .scale(
+            begin: const Offset(0.85, 0.85),
+            end: const Offset(1, 1),
+            duration: 500.ms,
+            curve: Curves.easeOutBack,
+          )
+          .fadeIn(duration: 300.ms);
+    }
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(FurFeelTokens.space6),
+          child: Column(
+            children: [
+              const Spacer(),
+              hero,
+              const SizedBox(height: FurFeelTokens.space4),
+              staggered(
+                Text(
+                  'FurFeel',
+                  style: textTheme.displaySmall?.copyWith(
+                    color: context.ff.brandInk,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                1,
+              ),
+              const SizedBox(height: FurFeelTokens.space2),
+              staggered(
+                Text(
+                  'Know how your dog is feeling, at home '
+                  'or with your clinic, in real time.',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
+                ),
+                2,
+              ),
+              const Spacer(),
+              staggered(
+                ElevatedButton(
+                  onPressed: () => _openSignUp(context),
+                  child: const Text('Create account'),
+                ),
+                3,
+              ),
+              const SizedBox(height: FurFeelTokens.space3),
+              staggered(
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(FurFeelTokens.touchTargetMin),
+                    shape: const StadiumBorder(),
+                  ),
+                  onPressed: () => _openLogin(context),
+                  child: const Text('I already have an account'),
+                ),
+                4,
+              ),
+              const SizedBox(height: FurFeelTokens.space2),
+              // ADDED (step 10): evaluators can explore with zero setup —
+              // fully local sample data, clearly bannered inside.
+              staggered(
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RootShell(
+                        repository: DemoRepository(),
+                        demo: true,
+                        onSignOut: () async => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ),
+                  child: const Text('Explore the demo (sample data)'),
+                ),
+                5,
+              ),
+              const SizedBox(height: FurFeelTokens.space2),
+              staggered(
+                Text(
+                  'Decision support for you and your care team, never a diagnosis.',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodySmall,
+                ),
+                6,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Create account (Supabase Auth). The signup trigger creates the users +
+/// user_settings rows server-side; the name travels in user metadata.
+/// Same skeleton as the sign-in screen: left-aligned headline, full-width
+/// fields, inline error, one primary action.
+class SignUpPage extends StatefulWidget {
+  const SignUpPage({
+    super.key,
+    required this.client,
+    this.onGoogleSignIn,
+    this.onSignIn,
+  });
+
+  final SupabaseClient client;
+
+  /// Optional Google OAuth starter (also creates the account on first use).
+  final Future<String?> Function()? onGoogleSignIn;
+
+  /// Optional cross-link to the sign-in screen.
+  final VoidCallback? onSignIn;
+
+  @override
+  State<SignUpPage> createState() => _SignUpPageState();
+}
+
+class _SignUpPageState extends State<SignUpPage> {
+  final _name = TextEditingController();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  String? _error;
+  bool _submitting = false;
+  bool _googleBusy = false;
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitGoogle() async {
+    setState(() {
+      _googleBusy = true;
+      _error = null;
+    });
+    final error = await widget.onGoogleSignIn!();
+    if (!mounted) return;
+    if (error == null) return; // Redirecting; root auth stream takes over.
+    setState(() {
+      _googleBusy = false;
+      _error = error;
+    });
+  }
+
+  Future<void> _submit() async {
+    final name = _name.text.trim();
+    final email = _email.text.trim();
+    if (name.isEmpty || email.isEmpty || _password.text.length < 8) {
+      setState(() {
+        _error = name.isEmpty
+            ? 'Please tell us your name, so the app feels like yours.'
+            : email.isEmpty
+                ? 'Please enter your email.'
+                : 'Password needs at least 8 characters.';
+      });
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final response = await widget.client.auth
+          .signUp(email: email, password: _password.text, data: {'name': name});
+      if (!mounted) return;
+      if (response.session == null) {
+        // Email confirmation is on: no session until the link is clicked.
+        setState(() {
+          _submitting = false;
+          _error = 'Almost there. Check your inbox and confirm your email to continue.';
+        });
+        return;
+      }
+      // Signed in: the root auth stream swaps to the guided setup.
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = 'Could not create the account. Check your connection and try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Scaffold(
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      extendBodyBehindAppBar: true,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: FurFeelTokens.space5,
+                vertical: FurFeelTokens.space4,
+              ),
+              children: [
+                // ── Branding header ──────────────────────────────────────
+                const SizedBox(height: FurFeelTokens.space4),
+                const Center(child: FurFeelLogo.auth(size: 48, animate: true)),
+                const SizedBox(height: FurFeelTokens.space5),
+                // Subtle brand-tinted separator
+                Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        context.ff.brand.withValues(alpha: 0.20),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: FurFeelTokens.space5),
+                // ── Headline ─────────────────────────────────────────────
+                Text(
+                  'Create your account',
+                  style: textTheme.headlineSmall?.copyWith(
+                    color: context.ff.brandInk,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ).entrance(context),
+                const SizedBox(height: FurFeelTokens.space2),
+                Text(
+                  'One account for all your dogs.',
+                  style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
+                ).entrance(context, index: 1),
+                const SizedBox(height: FurFeelTokens.space5),
+                AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _name,
+                        textCapitalization: TextCapitalization.words,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.name],
+                        decoration: const InputDecoration(
+                          labelText: 'Your name',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
+                      ),
+                      const SizedBox(height: FurFeelTokens.space3),
+                      TextField(
+                        controller: _email,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.email_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: FurFeelTokens.space3),
+                      TextField(
+                        controller: _password,
+                        obscureText: _obscure,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.newPassword],
+                        onSubmitted: (_) => _submit(),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          helperText: 'At least 8 characters',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            onPressed: () => setState(() => _obscure = !_obscure),
+                            tooltip: _obscure ? 'Show password' : 'Hide password',
+                            icon: Icon(
+                              _obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: context.ff.inkMuted,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ).entrance(context, index: 2),
+                if (_error != null) ...[
+                  const SizedBox(height: FurFeelTokens.space4),
+                  InlineFormError(message: _error!),
+                ],
+                const SizedBox(height: FurFeelTokens.space5),
+                ElevatedButton(
+                  onPressed: _submitting || _googleBusy ? null : _submit,
+                  child: _submitting
+                      ? const BusyButtonLabel(label: 'Creating account')
+                      : const Text('Create account'),
+                ).entrance(context, index: 3),
+                if (widget.onGoogleSignIn != null) ...[
+                  const SizedBox(height: FurFeelTokens.space4),
+                  const OrDivider(),
+                  const SizedBox(height: FurFeelTokens.space4),
+                  GoogleSignInButton(
+                    busy: _googleBusy,
+                    onPressed: _submitting ? null : _submitGoogle,
+                  ).entrance(context, index: 4),
+                ],
+                if (widget.onSignIn != null) ...[
+                  const SizedBox(height: FurFeelTokens.space3),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Already have an account?',
+                        style: textTheme.bodyMedium
+                            ?.copyWith(color: context.ff.inkMuted),
+                      ),
+                      TextButton(
+                        onPressed: widget.onSignIn,
+                        child: const Text('Sign in'),
+                      ),
+                    ],
+                  ).entrance(context, index: 5),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

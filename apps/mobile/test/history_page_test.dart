@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/furfeel_repository.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/history_page.dart';
+import 'package:furfeel_mobile/screens/vitals/history_page.dart';
 
 import 'fakes.dart';
 

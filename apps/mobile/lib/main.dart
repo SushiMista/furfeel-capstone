@@ -6,10 +6,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/furfeel_repository.dart';
 import 'data/settings_controller.dart';
 import 'data/status_cache.dart';
-import 'pages/onboarding_page.dart';
-import 'pages/root_shell.dart';
-import 'pages/splash_page.dart';
-import 'pages/welcome_page.dart';
+import 'package:furfeel_mobile/screens/auth/onboarding_page.dart';
+import 'package:furfeel_mobile/screens/home/root_shell.dart';
+import 'package:furfeel_mobile/screens/auth/splash_page.dart';
+import 'package:furfeel_mobile/screens/auth/welcome_page.dart';
 import 'theme/furfeel_theme.dart';
 import 'theme/furfeel_tokens.dart';
 

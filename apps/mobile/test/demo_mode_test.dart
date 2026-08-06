@@ -4,7 +4,7 @@ import 'package:furfeel_mobile/data/demo_repository.dart';
 import 'package:furfeel_mobile/data/furfeel_repository.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
-import 'package:furfeel_mobile/pages/root_shell.dart';
+import 'package:furfeel_mobile/screens/home/root_shell.dart';
 
 /// Demo mode (improvement pass step 10): a full week of realistic sample data
 /// with no account, no hardware, no network — clearly labeled.
@@ -58,6 +58,6 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('Demo mode — sample data'), findsOneWidget);
-    expect(find.text('Buddy'), findsWidgets);
+    expect(find.textContaining('Buddy'), findsWidgets);
   });
 }

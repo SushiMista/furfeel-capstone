@@ -29,9 +29,15 @@ type ColorSet = {
   base: Record<string, string>;
   brand: Record<string, string>;
   warm: Record<string, string>;
-  status: Record<string, { fg: string; bg: string }>;
+  tint: Record<string, string>;
+  status: Record<string, { fg: string; mid?: string; bg: string }>;
   statusHighOwner: string;
 };
+
+/** "$comment" keys document provenance in the token file — filter them out
+ * before treating a group's values as colors. */
+const swatches = <T>(group: Record<string, T>): [string, T][] =>
+  Object.entries(group ?? {}).filter(([k]) => !k.startsWith("$"));
 
 function textPairs(c: ColorSet, dark: boolean): [string, string, string][] {
   const pairs: [string, string, string][] = [
@@ -43,8 +49,17 @@ function textPairs(c: ColorSet, dark: boolean): [string, string, string][] {
     ["button label on brand", dark ? c.base.bg : c.base.surface, c.brand.brand],
     ["warm text on warmSoft", c.warm.warm, c.warm.warmSoft],
     ["warm text on surface", c.warm.warm, c.base.surface],
+    // Teal accent family. `accent` itself is a FILL (chart series, dots, rings)
+    // and is deliberately not asserted as text — `accentInk` is the text stop.
+    ["accentInk on accentSoft", c.brand.accentInk, c.brand.accentSoft],
+    ["accentInk on surface", c.brand.accentInk, c.base.surface],
+    ["accentInk on bg", c.brand.accentInk, c.base.bg],
   ];
-  for (const [level, s] of Object.entries(c.status)) {
+  // Pet names and captions sit directly on the tinted photo grounds.
+  for (const [name, hex] of swatches(c.tint)) {
+    pairs.push([`ink on ${name}`, c.base.ink, hex]);
+  }
+  for (const [level, s] of swatches(c.status)) {
     pairs.push([`status ${level} word on its soft bg`, s.fg, s.bg]);
     pairs.push([`status ${level} word on surface`, s.fg, c.base.surface]);
   }
@@ -60,6 +75,24 @@ describe("docs/19 token contrast (WCAG AA)", () => {
       for (const [name, fg, bg] of textPairs(tokens[mode], dark)) {
         const r = contrastRatio(fg, bg);
         if (r < 4.5) failures.push(`${name}: ${fg} on ${bg} = ${r.toFixed(2)}`);
+      }
+      expect(failures, failures.join("\n")).toEqual([]);
+    });
+  }
+
+  /**
+   * Status `mid` stops fill bars and sparklines rather than setting type, so
+   * they answer to WCAG 1.4.11 (non-text contrast, 3:1) instead of 4.5:1.
+   * Without this a "calm" bar can wash out to invisible on a white card.
+   */
+  for (const [mode, dark] of [["color", false], ["colorDark", true]] as const) {
+    it(`${dark ? "dark" : "light"} palette: every chart mid stop ≥ 3:1 on surface`, () => {
+      const set = tokens[mode] as ColorSet;
+      const failures: string[] = [];
+      for (const [level, s] of swatches(set.status)) {
+        if (!s.mid) continue;
+        const r = contrastRatio(s.mid, set.base.surface);
+        if (r < 3) failures.push(`${level} mid: ${s.mid} on ${set.base.surface} = ${r.toFixed(2)}`);
       }
       expect(failures, failures.join("\n")).toEqual([]);
     });
