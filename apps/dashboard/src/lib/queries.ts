@@ -14,7 +14,7 @@ import type {
 
 const DEVICE_COLUMNS = "id, dog_id, device_code, status, last_seen_at, firmware_version, created_at";
 const READING_COLUMNS =
-  "id, device_id, dog_id, captured_at, received_at, heart_rate_bpm, body_temperature_c, " +
+  "id, device_id, dog_id, captured_at, received_at, heart_rate_bpm, " +
   "respiratory_rate_bpm, motion_activity, posture, ambient_temperature_c, humidity_percent, " +
   "is_valid, raw_payload";
 const CLASSIFICATION_COLUMNS =
@@ -46,10 +46,10 @@ export async function fetchDog(client: SupabaseClient, dogId: string): Promise<D
 }
 
 const DOG_BASELINES_COLUMNS =
-  "id, dog_id, resting_heart_rate_bpm, resting_respiratory_rate_bpm, normal_body_temperature_c, " +
+  "id, dog_id, resting_heart_rate_bpm, resting_respiratory_rate_bpm, " +
   "threshold_mild_min, threshold_moderate_min, threshold_high_min, " +
   "hr_ratio_elevated_min, hr_ratio_moderate_min, hr_ratio_high_min, " +
-  "rr_ratio_elevated_min, rr_ratio_high_min, body_temp_elevated_c, body_temp_high_c, " +
+  "rr_ratio_elevated_min, rr_ratio_high_min, " +
   "motion_elevated_min, motion_high_min, ambient_heat_c, humidity_heat_pct, updated_at";
 
 /** 0-or-1 row per dog (docs/08); null means every field falls back to the
@@ -80,8 +80,6 @@ export interface DogThresholdOverrides {
   hr_ratio_high_min: number | null;
   rr_ratio_elevated_min: number | null;
   rr_ratio_high_min: number | null;
-  body_temp_elevated_c: number | null;
-  body_temp_high_c: number | null;
   motion_elevated_min: number | null;
   motion_high_min: number | null;
   ambient_heat_c: number | null;
@@ -106,6 +104,25 @@ export async function saveDogThresholds(
     .single();
   if (error) throw error;
   return data as unknown as DogBaselines;
+}
+
+const DEVICE_LIST_COLUMNS =
+  "id, dog_id, device_code, status, last_seen_at, firmware_version, battery_percent, created_at, dog:dogs(name)";
+
+export interface DeviceWithDog extends Device {
+  dog: { name: string } | null;
+}
+
+/** Devices tab (docs/05): read-only fleet list under devices_select_owner_or_clinic
+ * RLS -- the caller's own dogs, or their whole clinic. No insert/update/delete
+ * here; device registration and assignment stay in Admin → Devices. */
+export async function fetchDevicesReadOnly(client: SupabaseClient): Promise<DeviceWithDog[]> {
+  const { data, error } = await client
+    .from("devices")
+    .select(DEVICE_LIST_COLUMNS)
+    .order("device_code");
+  if (error) throw error;
+  return (data ?? []) as unknown as DeviceWithDog[];
 }
 
 async function fetchDeviceForDog(client: SupabaseClient, dogId: string): Promise<Device | null> {

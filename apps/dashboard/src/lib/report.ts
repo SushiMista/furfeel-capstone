@@ -21,7 +21,6 @@ export interface DogReport {
   invalidReadingCount: number;
   heartRate: VitalSummary | null;
   respiratoryRate: VitalSummary | null;
-  temperature: VitalSummary | null;
   /** Environmental + behavioral vitals — parity with the mobile PDF health
    * record's 6-row vitals table (apps/mobile/lib/util/exports.dart). */
   motion: VitalSummary | null;
@@ -115,7 +114,6 @@ export function buildDogReport(
     invalidReadingCount: readings.filter((r) => !r.is_valid).length,
     heartRate: summarize(pick((r) => r.heart_rate_bpm)),
     respiratoryRate: summarize(pick((r) => r.respiratory_rate_bpm)),
-    temperature: summarize(pick((r) => r.body_temperature_c)),
     motion: summarize(pick((r) => r.motion_activity)),
     ambientTemperature: summarize(pick((r) => r.ambient_temperature_c)),
     humidity: summarize(pick((r) => r.humidity_percent)),

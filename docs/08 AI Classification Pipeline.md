@@ -12,6 +12,8 @@ tags: [furfeel, ai, rule-based, random-forest]
 ## Classification Goal
 Classify canine stress into actionable levels using physiological, behavioral, and environmental features.
 
+> Body temperature was removed as a classifier input and data point (ADR-021): FurFeel doesn't promote invasive procedures to gather stress data, so only non-invasive wearable/environmental signals are collected.
+
 ## Target Labels
 `calm` · `mild` · `moderate` · `high`
 
@@ -32,14 +34,13 @@ Classify canine stress into actionable levels using physiological, behavioral, a
 |---|---|---|
 | Heart rate | 60–100 bpm | 90 bpm |
 | Respiratory rate | 10–35 bpm | 24 bpm |
-| Body temperature | 38.3–39.2 °C | 38.7 °C |
 | Motion activity | 0.0–1.0 (0=still) | 0.3 |
 
 Per-dog values in `dog_baselines` override these when available.
 
 **Vet-tunable per-dog overrides (2026-07-24):** beyond the resting values above, clinic staff can override two independent, complementary things per dog from the dashboard's Dog detail → Thresholds tab, each falling back to the clinic-wide default in `classifier_config.json` when left blank — dogs vary by size, so a small dog's normal heart rate can be a large dog's elevated one:
 - **Score cutoffs** (`threshold_mild_min` / `threshold_moderate_min` / `threshold_high_min`): how many total points reach each level (ADR-015).
-- **Per-variable tiers** (`hr_ratio_*`, `rr_ratio_*`, `body_temp_*`, `motion_*`, `ambient_heat_c`, `humidity_heat_pct`): when each individual signal in the Scoring Rules table below starts contributing points in the first place, independent of the score cutoffs (ADR-016).
+- **Per-variable tiers** (`hr_ratio_*`, `rr_ratio_*`, `motion_*`, `ambient_heat_c`, `humidity_heat_pct`): when each individual signal in the Scoring Rules table below starts contributing points in the first place, independent of the score cutoffs (ADR-016).
 
 Both live as nullable columns on `dog_baselines` (schema: [[09 Database Schema]]); see `services/edge/telemetry-intake/baselines.ts` for the resolver the classifier actually calls.
 
@@ -54,8 +55,6 @@ Each rule adds points. `hr_ratio = heart_rate / baseline_hr`, `rr_ratio = respir
 |  | `hr_ratio` > 1.6 | +3 |
 | Respiratory elevated | `rr_ratio` 1.3–1.8 | +1 |
 |  | `rr_ratio` > 1.8 (panting) | +2 |
-| Body temperature | 39.2–39.7 °C | +1 |
-|  | > 39.7 °C | +2 |
 | Motion / restlessness | `motion_activity` 0.6–0.8 | +1 |
 |  | `motion_activity` > 0.8 | +2 |
 | Posture | `posture = 'moving'` sustained with high motion | +1 |
@@ -74,7 +73,7 @@ Each rule adds points. `hr_ratio = heart_rate / baseline_hr`, `rr_ratio = respir
 Store which rules fired in `reasons` (jsonb) for transparency and Capstone defense evidence. `confidence` stays null for `rule-v1` (populated later by the model).
 
 ### Reason codes → owner-facing "why"
-Each rule emits a stable `code` plus the raw detail. Classifications also expose a **`primary_reason`** = the highest-point rule that fired (ties broken by this order: environmental → heart_rate → respiratory → temperature → motion → trend). The owner app maps `primary_reason` to plain, non-clinical language; the dashboard can show the full technical list.
+Each rule emits a stable `code` plus the raw detail. Classifications also expose a **`primary_reason`** = the highest-point rule that fired (ties broken by this order: environmental → heart_rate → respiratory → motion → trend). The owner app maps `primary_reason` to plain, non-clinical language; the dashboard can show the full technical list.
 
 | reason code | owner-facing phrase |
 |---|---|
@@ -82,7 +81,6 @@ Each rule emits a stable `code` plus the raw detail. Classifications also expose
 | `environmental_cold` | "It's chilly out — worth a warm spot" (context only, see below) |
 | `heart_rate_elevated` | "Heart rate is higher than usual" |
 | `respiratory_elevated` | "Breathing fast / panting" |
-| `body_temperature` | "Body temperature is up" |
 | `motion_restlessness` | "Restless and moving a lot" |
 | `rising_trend` | "Stress has been climbing" |
 | (none — calm) | "Relaxed and comfortable" |
@@ -96,7 +94,7 @@ Keep the phrase table in config alongside the thresholds so it's tunable and tra
 The owner app derives a *combination context* from the latest reading + classification and prefers a matching `care_guidance.context_key` row over the per-level default: `cold_stressed`, `hot_stressed`, `panting_hot`, `restless_high_hr`, `cold_calm`, `hot_calm`. Hot/cold use the environmental amplifier + cold-context thresholds; "restless" = motion ≥ 0.6; "high HR / panting" use the biometric status bands below. Seeded copy is provisional and clinic-overridable — **a vet should review it**.
 
 ### Biometric status bands (owner-facing, provisional)
-Each vital shows a plain status word (Low / Normal / Elevated / High) relative to the dog's baseline (`dog_baselines`, else the global defaults). Bands align with the rule tiers: HR ratio <0.7 Low · <1.15 Normal · <1.35 Elevated · else High; RR ratio <0.5 / <1.3 / <1.8; temperature <37.5 / <39.2 / <39.7 °C. The Elevated/High floors are **derived from the scoring tiers**; only the Low floors are separate config (`classifier_config.json → biometric_status_bands`). All of it is **code-generated** into `apps/mobile/lib/insights/biometric_bands.g.dart` by `node packages/shared/scripts/generate_classifier_bands.mjs`, and a staleness test (`biometric_bands_codegen_test.dart`) fails CI if the config changes without regenerating — no hand-mirroring. Strictly observational wording.
+Each vital shows a plain status word (Low / Normal / Elevated / High) relative to the dog's baseline (`dog_baselines`, else the global defaults). Bands align with the rule tiers: HR ratio <0.7 Low · <1.15 Normal · <1.35 Elevated · else High; RR ratio <0.5 / <1.3 / <1.8. The Elevated/High floors are **derived from the scoring tiers**; only the Low floors are separate config (`classifier_config.json → biometric_status_bands`). All of it is **code-generated** into `apps/mobile/lib/insights/biometric_bands.g.dart` by `node packages/shared/scripts/generate_classifier_bands.mjs`, and a staleness test (`biometric_bands_codegen_test.dart`) fails CI if the config changes without regenerating — no hand-mirroring. Strictly observational wording.
 
 ## Daily Wellness Score (provisional engineering metric)
 `dog_wellness_score(dog_id, day)` (SECURITY INVOKER RPC) returns a 0–100 daily score — **an engineering composite, not a clinical measure**, and labeled as such in the app:
@@ -110,13 +108,13 @@ score             = clamp(round(calm + balance − penalty), 0, 100)
 Returns no row when the day has no classifications. Every constant here is vet-tunable in the migration; log changes as ADRs.
 
 ## Worked Example
-Baseline HR 90, RR 24. Reading: HR 150 (`hr_ratio`=1.67 → +3), RR 46 (`rr_ratio`=1.92 → +2), temp 39.4 (+1), motion 0.7 (+1) → score 7 → **high**. Reasons: `["hr_ratio>1.6","rr panting","temp 39.2-39.7","motion 0.6-0.8"]`.
+Baseline HR 90, RR 24. Reading: HR 150 (`hr_ratio`=1.67 → +3), RR 46 (`rr_ratio`=1.92 → +2), motion 0.7 (+1) → score 6 → **moderate**. Reasons: `["hr_ratio>1.6","rr panting","motion 0.6-0.8"]`.
 
 ## Future Random Forest Pipeline
 After expert validation and labeled-data collection, add a Random Forest trained on the structured features below. It **replaces the score→level step**, not the ingestion/storage/alert steps. Keep `rule-v1` available as a fallback and for comparison. Bump `model_version` (e.g. `rf-v1`).
 
 ### Candidate Features
-Current heart rate · HR change from baseline · body temperature · respiratory rate · motion intensity · posture category · ambient temperature · humidity · recent trend over the time window.
+Current heart rate · HR change from baseline · respiratory rate · motion intensity · posture category · ambient temperature · humidity · recent trend over the time window.
 
 ## Evaluation Metrics
 Accuracy · precision/recall per class · confusion matrix · false-alert rate · classification latency.

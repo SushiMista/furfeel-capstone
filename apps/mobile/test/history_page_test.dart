@@ -55,7 +55,6 @@ void main() {
           capturedAt: DateTime(2026, 7, 11, 8, 30),
           heartRateBpm: 130,
           respiratoryRateBpm: 34,
-          bodyTemperatureC: 39.1,
         ),
         TelemetryReading(
           id: 'r2',
@@ -63,7 +62,6 @@ void main() {
           capturedAt: DateTime(2026, 7, 11, 8, 31),
           heartRateBpm: 128,
           respiratoryRateBpm: 33,
-          bodyTemperatureC: 39.0,
         ),
       ],
     );

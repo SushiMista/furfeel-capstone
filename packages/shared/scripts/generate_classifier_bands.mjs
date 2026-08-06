@@ -35,10 +35,6 @@ const kRrRatioLowBelow = ${num(bands.rr_ratio_low_below)};
 const kRrRatioElevatedAt = ${num(rules.respiratory_elevated.tiers[0].min)};
 const kRrRatioHighAt = ${num(rules.respiratory_elevated.tiers[1].min)};
 
-const kTempLowBelowC = ${num(bands.body_temperature_c_low_below)};
-const kTempElevatedAtC = ${num(rules.body_temperature.tiers[0].min)};
-const kTempHighAtC = ${num(rules.body_temperature.tiers[1].min)};
-
 /// Environment thresholds (environmental_amplifier / context_rules).
 const kHotAmbientAboveC = ${num(rules.environmental_amplifier.ambient_temperature_c_above)};
 const kHotHumidityAbovePercent = ${num(rules.environmental_amplifier.humidity_percent_above)};

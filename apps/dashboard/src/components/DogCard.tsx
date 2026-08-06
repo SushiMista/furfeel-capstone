@@ -214,9 +214,9 @@ export function DogCard({
 
       <div className="grid grid-cols-4 gap-2">
         <Vital label="Heart" value={latestReading?.heart_rate_bpm?.toString() ?? "—"} unit="bpm" />
-        <Vital label="Temp" value={latestReading?.body_temperature_c?.toString() ?? "—"} unit="°C" />
         <Vital label="Resp" value={latestReading?.respiratory_rate_bpm?.toString() ?? "—"} unit="bpm" />
         <Vital label="Motion" value={latestReading?.motion_activity?.toString() ?? "—"} />
+        <Vital label="Ambient" value={latestReading?.ambient_temperature_c?.toString() ?? "—"} unit="°C" />
       </div>
 
       <StressRibbon levels={recentLevels} />

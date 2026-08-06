@@ -6,7 +6,6 @@ import type { Baselines, ClassifierConfig } from "../classifier/index.ts";
 export interface DogBaselinesRow {
   resting_heart_rate_bpm: number | null;
   resting_respiratory_rate_bpm: number | null;
-  normal_body_temperature_c: number | null;
   threshold_mild_min: number | null;
   threshold_moderate_min: number | null;
   threshold_high_min: number | null;
@@ -15,8 +14,6 @@ export interface DogBaselinesRow {
   hr_ratio_high_min: number | null;
   rr_ratio_elevated_min: number | null;
   rr_ratio_high_min: number | null;
-  body_temp_elevated_c: number | null;
-  body_temp_high_c: number | null;
   motion_elevated_min: number | null;
   motion_high_min: number | null;
   ambient_heat_c: number | null;
@@ -36,7 +33,6 @@ export function resolveBaselines(
   return {
     heart_rate_bpm: row?.resting_heart_rate_bpm ?? globals.heart_rate_bpm,
     respiratory_rate_bpm: row?.resting_respiratory_rate_bpm ?? globals.respiratory_rate_bpm,
-    body_temperature_c: row?.normal_body_temperature_c ?? globals.body_temperature_c,
     motion_activity: globals.motion_activity,
   };
 }
@@ -67,8 +63,8 @@ export function resolveLevelThresholds(
 /**
  * Resolve per-dog scoring-rule tier floors, same fallback shape as
  * [resolveLevelThresholds] but one level finer: this overrides where each
- * individual SIGNAL (heart rate, respiratory rate, temperature, motion,
- * ambient heat/humidity) starts scoring, as opposed to how many total points
+ * individual SIGNAL (heart rate, respiratory rate, motion, ambient
+ * heat/humidity) starts scoring, as opposed to how many total points
  * it takes to reach a stress level. Both are vet-tunable independently.
  *
  * Only each tier's `min` (and posture_moving_with_high_motion's inferred
@@ -91,9 +87,6 @@ export function resolveScoringRules(
   const rr1 = row?.rr_ratio_elevated_min ?? g.respiratory_elevated.tiers[0].min;
   const rr2 = row?.rr_ratio_high_min ?? g.respiratory_elevated.tiers[1].min;
 
-  const temp1 = row?.body_temp_elevated_c ?? g.body_temperature.tiers[0].min;
-  const temp2 = row?.body_temp_high_c ?? g.body_temperature.tiers[1].min;
-
   const motion1 = row?.motion_elevated_min ?? g.motion_restlessness.tiers[0].min;
   const motion2 = row?.motion_high_min ?? g.motion_restlessness.tiers[1].min;
 
@@ -115,13 +108,6 @@ export function resolveScoringRules(
       tiers: [
         { ...g.respiratory_elevated.tiers[0], min: rr1, max: rr2 },
         { ...g.respiratory_elevated.tiers[1], min: rr2, max: null },
-      ],
-    },
-    body_temperature: {
-      ...g.body_temperature,
-      tiers: [
-        { ...g.body_temperature.tiers[0], min: temp1, max: temp2 },
-        { ...g.body_temperature.tiers[1], min: temp2, max: null },
       ],
     },
     motion_restlessness: {

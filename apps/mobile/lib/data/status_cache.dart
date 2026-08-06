@@ -47,7 +47,6 @@ abstract final class StatusCache {
         'dog_id': r.dogId,
         'captured_at': r.capturedAt.toUtc().toIso8601String(),
         'heart_rate_bpm': r.heartRateBpm,
-        'body_temperature_c': r.bodyTemperatureC,
         'respiratory_rate_bpm': r.respiratoryRateBpm,
         'motion_activity': r.motionActivity,
         'posture': r.posture,

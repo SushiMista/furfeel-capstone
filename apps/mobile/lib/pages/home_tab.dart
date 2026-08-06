@@ -249,8 +249,6 @@ class _VitalGridState extends State<_VitalGrid> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = SettingsScope.of(context);
-
     // Activity shows what the dog is doing, not a raw 0-1 index -- posture +
     // intensity mapped to a word (docs/04: a glance should answer without a
     // sensor feed). Squares with no reading show a dash.
@@ -265,10 +263,6 @@ class _VitalGridState extends State<_VitalGrid> {
           VitalKind.heartRate => (reading?.heartRateBpm?.toString() ?? '—', 'bpm'),
           VitalKind.breathing =>
             (reading?.respiratoryRateBpm?.toString() ?? '—', 'bpm'),
-          VitalKind.temperature => (
-              settings.formatTemperature(reading?.bodyTemperatureC),
-              settings.temperatureUnitLabel,
-            ),
           VitalKind.activity => (activityState.label, ''),
         };
 
@@ -278,7 +272,6 @@ class _VitalGridState extends State<_VitalGrid> {
           VitalKind.heartRate => heartRateStatus(reading?.heartRateBpm, _baseline),
           VitalKind.breathing =>
             respiratoryStatus(reading?.respiratoryRateBpm, _baseline),
-          VitalKind.temperature => temperatureStatus(reading?.bodyTemperatureC),
           VitalKind.activity => null, // activity already reads as a word
         };
 

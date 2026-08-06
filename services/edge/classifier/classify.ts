@@ -78,14 +78,6 @@ export function classifyStress(
     }
   }
 
-  if (reading.body_temperature_c !== null) {
-    const tier = matchTier(reading.body_temperature_c, rules.body_temperature.tiers);
-    if (tier) {
-      score += tier.points;
-      reasons.push(tier.reason);
-    }
-  }
-
   if (reading.motion_activity !== null) {
     const tier = matchTier(reading.motion_activity, rules.motion_restlessness.tiers);
     if (tier) {

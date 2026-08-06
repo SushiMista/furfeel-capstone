@@ -9,6 +9,7 @@ import {
   FileText,
   LayoutDashboard,
   PawPrint,
+  Radio,
   Table2,
   Users,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const NAV = [
   { to: "/alerts", label: "Alerts", icon: Bell },
   { to: "/handover", label: "Handover", icon: ArrowLeftRight },
   { to: "/reports", label: "Reports", icon: FileText },
+  { to: "/devices", label: "Devices", icon: Radio },
 ];
 
 const ADMIN_NAV = [
@@ -32,8 +34,8 @@ const ADMIN_NAV = [
   { to: "/admin/health", label: "Health", icon: Activity },
 ];
 
-/** Dashboard chrome (docs/19 §7): left sidebar — Overview, Board, Alerts, Reports,
- * Admin (admin role only). Clinical, crisp, blue + white. */
+/** Dashboard chrome (docs/19 §7): left sidebar — Overview, Board, Alerts, Handover,
+ * Reports, Devices (read-only), Admin (admin role only). Clinical, crisp, blue + white. */
 export function AppShell({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const { role } = useCurrentRole();

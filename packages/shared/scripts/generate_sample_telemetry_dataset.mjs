@@ -27,11 +27,11 @@ const outPath = join(here, "..", "..", "..", "docs", "Sample Telemetry Dataset.c
 // supports, just spelled out here for a concrete worked dataset).
 const DOGS = [
   { name: "Mochi", breed: "Shiba Inu", size_class: "small", weight_kg: 9.8,
-    baseline: { heart_rate_bpm: 110, respiratory_rate_bpm: 26, body_temperature_c: 38.6 } },
+    baseline: { heart_rate_bpm: 110, respiratory_rate_bpm: 26 } },
   { name: "Rio", breed: "Border Collie", size_class: "medium", weight_kg: 18.0,
     baseline: cfg.global_baselines }, // medium ~= the global default persona
   { name: "Duke", breed: "Great Dane", size_class: "large", weight_kg: 55.0,
-    baseline: { heart_rate_bpm: 72, respiratory_rate_bpm: 18, body_temperature_c: 38.4 } },
+    baseline: { heart_rate_bpm: 72, respiratory_rate_bpm: 18 } },
 ];
 
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -71,10 +71,6 @@ function scoreReading(reading, baseline, prior3Scores) {
     const hit = tier(reading.respiratory_rate_bpm / baseline.respiratory_rate_bpm, cfg.scoring_rules.respiratory_elevated.tiers);
     if (hit) { score += hit.points; reasons.push(hit.reason); }
   }
-  if (reading.body_temperature_c != null) {
-    const hit = tier(reading.body_temperature_c, cfg.scoring_rules.body_temperature.tiers);
-    if (hit) { score += hit.points; reasons.push(hit.reason); }
-  }
   if (reading.motion_activity != null) {
     const hit = tier(reading.motion_activity, cfg.scoring_rules.motion_restlessness.tiers);
     if (hit) { score += hit.points; reasons.push(hit.reason); }
@@ -102,8 +98,8 @@ function scoreReading(reading, baseline, prior3Scores) {
 }
 
 function buildSweepRows(dog, rng, startTick) {
-  const CALM = { heart_rate_bpm: dog.baseline.heart_rate_bpm, respiratory_rate_bpm: dog.baseline.respiratory_rate_bpm, body_temperature_c: dog.baseline.body_temperature_c, motion_activity: 0.25 };
-  const HIGH = { heart_rate_bpm: Math.round(dog.baseline.heart_rate_bpm * 1.7), respiratory_rate_bpm: Math.round(dog.baseline.respiratory_rate_bpm * 1.9), body_temperature_c: dog.baseline.body_temperature_c + 1.1, motion_activity: 0.85 };
+  const CALM = { heart_rate_bpm: dog.baseline.heart_rate_bpm, respiratory_rate_bpm: dog.baseline.respiratory_rate_bpm, motion_activity: 0.25 };
+  const HIGH = { heart_rate_bpm: Math.round(dog.baseline.heart_rate_bpm * 1.7), respiratory_rate_bpm: Math.round(dog.baseline.respiratory_rate_bpm * 1.9), motion_activity: 0.85 };
   const TICKS = 12; // calm -> high
   const rows = [];
   const recentScores = [];
@@ -112,13 +108,12 @@ function buildSweepRows(dog, rng, startTick) {
     const t = clamp((up ? i : TICKS - i) / (TICKS / 2), 0, 1);
     const heart_rate_bpm = Math.round(jitter(lerp(CALM.heart_rate_bpm, HIGH.heart_rate_bpm, t), 3, rng));
     const respiratory_rate_bpm = Math.round(jitter(lerp(CALM.respiratory_rate_bpm, HIGH.respiratory_rate_bpm, t), 2, rng));
-    const body_temperature_c = round(jitter(lerp(CALM.body_temperature_c, HIGH.body_temperature_c, t), 0.1, rng), 1);
     const motion_activity = round(clamp(jitter(lerp(CALM.motion_activity, HIGH.motion_activity, t), 0.05, rng), 0, 1), 3);
     const posture = motion_activity > 0.6 ? "moving" : t > 0.3 ? "standing" : "lying";
     const reading = {
       device_code: `FURFEEL-DEV-${dog.size_class.toUpperCase()}`,
       captured_at: new Date(Date.UTC(2026, 6, 20, 8, 0, 0) + (startTick + i) * 10_000).toISOString(),
-      heart_rate_bpm, body_temperature_c, respiratory_rate_bpm, motion_activity, posture,
+      heart_rate_bpm, respiratory_rate_bpm, motion_activity, posture,
       ambient_temperature_c: round(jitter(26, 1.5, rng), 1),
       humidity_percent: round(jitter(60, 4, rng), 1),
       battery_percent: Math.max(20, 96 - (startTick + i)),
@@ -141,27 +136,27 @@ function buildEdgeCaseRows(dog, rng) {
     {
       dog, valid: false, note: "heart_rate_bpm 310 > validation max 300 -> flagged is_valid=false, field stored null",
       reading: { ...base, captured_at: new Date(Date.UTC(2026, 6, 20, 9, 0, 0)).toISOString(),
-        heart_rate_bpm: 310, respiratory_rate_bpm: 24, body_temperature_c: 38.6, motion_activity: 0.3 },
+        heart_rate_bpm: 310, respiratory_rate_bpm: 24, motion_activity: 0.3 },
     },
     {
       dog, valid: false, note: "respiratory_rate_bpm missing (sensor dropout) -> stored null, classifier skips that rule only",
       reading: { ...base, captured_at: new Date(Date.UTC(2026, 6, 20, 9, 0, 10)).toISOString(),
-        heart_rate_bpm: 95, respiratory_rate_bpm: null, body_temperature_c: 38.7, motion_activity: 0.3 },
+        heart_rate_bpm: 95, respiratory_rate_bpm: null, motion_activity: 0.3 },
     },
     {
       dog, valid: false, note: "captured_at 3h old, outside +/-1h skew -> flagged",
       reading: { ...base, captured_at: new Date(Date.UTC(2026, 6, 20, 5, 0, 0)).toISOString(),
-        heart_rate_bpm: 92, respiratory_rate_bpm: 22, body_temperature_c: 38.6, motion_activity: 0.25 },
+        heart_rate_bpm: 92, respiratory_rate_bpm: 22, motion_activity: 0.25 },
     },
     {
       dog, valid: true, note: "environmental_amplifier: ambient 34C AND humidity 85% -> heat-stress context +1",
       reading: { ...base, ambient_temperature_c: 34, humidity_percent: 85, captured_at: new Date(Date.UTC(2026, 6, 20, 14, 0, 0)).toISOString(),
-        heart_rate_bpm: 100, respiratory_rate_bpm: 30, body_temperature_c: 38.9, motion_activity: 0.4 },
+        heart_rate_bpm: 100, respiratory_rate_bpm: 30, motion_activity: 0.4 },
     },
     {
       dog, valid: true, note: "device_alerts.low_battery_percent (15) breached -- device health only, never a classifier input",
       reading: { ...base, battery_percent: 12, captured_at: new Date(Date.UTC(2026, 6, 20, 15, 0, 0)).toISOString(),
-        heart_rate_bpm: 91, respiratory_rate_bpm: 23, body_temperature_c: 38.6, motion_activity: 0.28 },
+        heart_rate_bpm: 91, respiratory_rate_bpm: 23, motion_activity: 0.28 },
     },
   ].map((r) => {
     if (r.reading.heart_rate_bpm === 310) {
@@ -176,7 +171,7 @@ function buildEdgeCaseRows(dog, rng) {
 
 const HEADER = [
   "dog_name", "breed", "size_class", // context only -- not part of the device payload
-  "device_code", "captured_at", "heart_rate_bpm", "body_temperature_c", "respiratory_rate_bpm",
+  "device_code", "captured_at", "heart_rate_bpm", "respiratory_rate_bpm",
   "motion_activity", "posture", "ambient_temperature_c", "humidity_percent", "battery_percent", // <- exact docs/07 payload fields
   "is_valid", "expected_score", "expected_level", "fired_rules", "note", // reference/annotation only
 ];
@@ -195,7 +190,7 @@ for (const dog of DOGS) {
     lines.push(HEADER.map((h) => csvCell({
       dog_name: dog.name, breed: dog.breed, size_class: dog.size_class,
       device_code: row.reading.device_code, captured_at: row.reading.captured_at,
-      heart_rate_bpm: row.reading.heart_rate_bpm, body_temperature_c: row.reading.body_temperature_c,
+      heart_rate_bpm: row.reading.heart_rate_bpm,
       respiratory_rate_bpm: row.reading.respiratory_rate_bpm, motion_activity: row.reading.motion_activity,
       posture: row.reading.posture, ambient_temperature_c: row.reading.ambient_temperature_c,
       humidity_percent: row.reading.humidity_percent, battery_percent: row.reading.battery_percent,
@@ -208,7 +203,7 @@ for (const dog of DOGS) {
     lines.push(HEADER.map((h) => csvCell({
       dog_name: dog.name, breed: dog.breed, size_class: dog.size_class,
       device_code: row.reading.device_code, captured_at: row.reading.captured_at,
-      heart_rate_bpm: row.reading.heart_rate_bpm, body_temperature_c: row.reading.body_temperature_c,
+      heart_rate_bpm: row.reading.heart_rate_bpm,
       respiratory_rate_bpm: row.reading.respiratory_rate_bpm, motion_activity: row.reading.motion_activity,
       posture: row.reading.posture, ambient_temperature_c: row.reading.ambient_temperature_c,
       humidity_percent: row.reading.humidity_percent, battery_percent: row.reading.battery_percent,

@@ -19,7 +19,6 @@ function assertArrayEqual(actual: string[], expected: string[], msg?: string) {
 const GLOBAL_BASELINES: Baselines = {
   heart_rate_bpm: 90,
   respiratory_rate_bpm: 24,
-  body_temperature_c: 38.7,
   motion_activity: 0.3,
 };
 
@@ -27,7 +26,6 @@ function reading(overrides: Partial<TelemetryFeatures> = {}): TelemetryFeatures 
   return {
     heart_rate_bpm: null,
     respiratory_rate_bpm: null,
-    body_temperature_c: null,
     motion_activity: null,
     posture: null,
     ambient_temperature_c: null,
@@ -36,24 +34,22 @@ function reading(overrides: Partial<TelemetryFeatures> = {}): TelemetryFeatures 
   };
 }
 
-Deno.test("worked example from docs/08 -> high, score 7", () => {
+Deno.test("worked example from docs/08 -> moderate, score 6", () => {
   const result = classifyStress(
     reading({
       heart_rate_bpm: 150,
       respiratory_rate_bpm: 46,
-      body_temperature_c: 39.4,
       motion_activity: 0.7,
     }),
     GLOBAL_BASELINES,
   );
 
-  assertEqual(result.score, 7);
-  assertEqual(result.stress_level, "high");
+  assertEqual(result.score, 6);
+  assertEqual(result.stress_level, "moderate");
   assertEqual(result.model_version, "rule-v1");
   assertArrayEqual(result.reasons, [
     "hr_ratio>1.6",
     "rr panting",
-    "temp 39.2-39.7",
     "motion 0.6-0.8",
   ]);
 });
@@ -63,7 +59,6 @@ Deno.test("all readings at baseline -> calm, score 0", () => {
     reading({
       heart_rate_bpm: 90,
       respiratory_rate_bpm: 24,
-      body_temperature_c: 38.7,
       motion_activity: 0.3,
     }),
     GLOBAL_BASELINES,
@@ -94,10 +89,10 @@ Deno.test("mild: hr tier1 + rr tier1 -> score 2", () => {
   assertArrayEqual(result.reasons, ["hr_ratio 1.15-1.35", "rr_ratio 1.3-1.8"]);
 });
 
-Deno.test("moderate: hr tier2 + rr tier1 + temp tier1 -> score 4", () => {
-  // hr_ratio = 126/90 = 1.4 -> tier2 (+2); rr_ratio = 32/24 = 1.333 -> tier1 (+1); temp 39.4 -> tier1 (+1)
+Deno.test("moderate: hr tier2 + rr tier1 + motion tier1 -> score 4", () => {
+  // hr_ratio = 126/90 = 1.4 -> tier2 (+2); rr_ratio = 32/24 = 1.333 -> tier1 (+1); motion 0.65 -> tier1 (+1)
   const result = classifyStress(
-    reading({ heart_rate_bpm: 126, respiratory_rate_bpm: 32, body_temperature_c: 39.4 }),
+    reading({ heart_rate_bpm: 126, respiratory_rate_bpm: 32, motion_activity: 0.65 }),
     GLOBAL_BASELINES,
   );
 
@@ -106,14 +101,14 @@ Deno.test("moderate: hr tier2 + rr tier1 + temp tier1 -> score 4", () => {
   assertArrayEqual(result.reasons, [
     "hr_ratio 1.35-1.6",
     "rr_ratio 1.3-1.8",
-    "temp 39.2-39.7",
+    "motion 0.6-0.8",
   ]);
 });
 
 Deno.test("high: score exactly at the 7 boundary from a different combination", () => {
-  // hr_ratio > 1.6 (+3), temp > 39.7 (+2), motion > 0.8 (+2) -> score 7
+  // hr_ratio > 1.6 (+3), rr panting (+2), motion > 0.8 (+2) -> score 7
   const result = classifyStress(
-    reading({ heart_rate_bpm: 160, body_temperature_c: 40.0, motion_activity: 0.9 }),
+    reading({ heart_rate_bpm: 160, respiratory_rate_bpm: 46, motion_activity: 0.9 }),
     GLOBAL_BASELINES,
   );
 
@@ -129,16 +124,16 @@ Deno.test("level boundaries: score 1 is calm, score 2 is mild, score 4 is modera
   );
   assertEqual(
     classifyStress(
-      reading({ heart_rate_bpm: 126, respiratory_rate_bpm: 32, body_temperature_c: 39.3 }),
+      reading({ heart_rate_bpm: 126, respiratory_rate_bpm: 32, motion_activity: 0.65 }),
       GLOBAL_BASELINES,
     ).score,
     4,
   );
   assertEqual(
     classifyStress(
-      reading({ heart_rate_bpm: 145, respiratory_rate_bpm: 32, body_temperature_c: 39.3 }),
+      reading({ heart_rate_bpm: 145, respiratory_rate_bpm: 32 }),
       GLOBAL_BASELINES,
-    ).stress_level, // hr_ratio 1.611 -> +3, rr +1, temp +1 = 5
+    ).stress_level, // hr_ratio 1.611 -> +3, rr +1 = 4
     "moderate",
   );
 });
@@ -227,10 +222,9 @@ Deno.test("cold + stressed: cold reason rides along without inflating the score"
   // Worked-example vitals (score 7 -> high) in cold weather: same level, plus context.
   const result = classifyStress(
     reading({
-      heart_rate_bpm: 150,
+      heart_rate_bpm: 160,
       respiratory_rate_bpm: 46,
-      body_temperature_c: 39.4,
-      motion_activity: 0.7,
+      motion_activity: 0.9,
       ambient_temperature_c: 3.0,
     }),
     GLOBAL_BASELINES,
