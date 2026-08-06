@@ -85,8 +85,6 @@ class DemoRepository implements FurFeelRepository {
         capturedAt: t,
         heartRateBpm: hr,
         respiratoryRateBpm: rr,
-        bodyTemperatureC:
-            double.parse((38.4 + activity * 0.5 + (isHotSpell ? 0.5 : 0)).toStringAsFixed(1)),
         motionActivity: double.parse(activity.toStringAsFixed(3)),
         posture: activity > 0.4 ? 'moving' : (activity < 0.12 ? 'lying' : 'standing'),
         ambientTemperatureC: double.parse(ambient.toStringAsFixed(1)),

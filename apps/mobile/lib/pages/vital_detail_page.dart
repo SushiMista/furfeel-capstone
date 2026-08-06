@@ -16,20 +16,18 @@ import '../widgets/activity_indicator.dart';
 /// baseline when available, otherwise the general reference the classifier
 /// uses) and plain-language owner guidance. Informational only — ranges vary
 /// by breed, size, and age; never a diagnosis.
-enum VitalKind { heartRate, breathing, temperature, activity }
+enum VitalKind { heartRate, breathing, activity }
 
 extension VitalKindInfo on VitalKind {
   String get label => switch (this) {
         VitalKind.heartRate => 'Heart rate',
         VitalKind.breathing => 'Breathing',
-        VitalKind.temperature => 'Temperature',
         VitalKind.activity => 'Activity',
       };
 
   IconData get icon => switch (this) {
         VitalKind.heartRate => Icons.favorite_outline,
         VitalKind.breathing => Icons.air,
-        VitalKind.temperature => Icons.thermostat_outlined,
         VitalKind.activity => Icons.directions_run_outlined,
       };
 }
@@ -76,9 +74,6 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
       switch (widget.kind) {
         VitalKind.heartRate => r.heartRateBpm?.toDouble(),
         VitalKind.breathing => r.respiratoryRateBpm?.toDouble(),
-        VitalKind.temperature => r.bodyTemperatureC == null
-            ? null
-            : double.parse(settings.formatTemperature(r.bodyTemperatureC)),
         VitalKind.activity => r.motionActivity,
       };
 
@@ -110,20 +105,6 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
           value: '15–35 breaths/min at rest',
           source: 'general reference for adult dogs',
         );
-      case VitalKind.temperature:
-        if (b?.normalBodyTemperatureC != null) {
-          final v = settings.formatTemperature(b!.normalBodyTemperatureC);
-          return (
-            value: 'around $v${settings.temperatureUnitLabel}',
-            source: 'set by your clinic for ${widget.dog.name}',
-          );
-        }
-        final lo = settings.formatTemperature(37.5);
-        final hi = settings.formatTemperature(39.2);
-        return (
-          value: '$lo–$hi${settings.temperatureUnitLabel}',
-          source: 'general reference for adult dogs',
-        );
       case VitalKind.activity:
         return (
           value: 'below 0.6 when resting (scale 0–1)',
@@ -143,11 +124,6 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
           'Breaths per minute, measured at the chest. Panting after play or '
               'in warm weather is expected; fast breathing while resting in a '
               'cool, calm place is what FurFeel watches for.',
-        VitalKind.temperature =>
-          'Dogs run warmer than people. A little variation through the day '
-              'is normal; sustained readings above the typical range count '
-              'toward the stress level and can be worth mentioning to your '
-              'clinic.',
         VitalKind.activity =>
           'A 0-to-1 movement index from the harness motion sensor — 0 is '
               'still, 1 is constant motion. Restless pacing scores high even '
@@ -159,8 +135,6 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
           heartRateStatus(widget.reading?.heartRateBpm, _baseline),
         VitalKind.breathing =>
           respiratoryStatus(widget.reading?.respiratoryRateBpm, _baseline),
-        VitalKind.temperature =>
-          temperatureStatus(widget.reading?.bodyTemperatureC),
         VitalKind.activity => null,
       };
 
@@ -185,7 +159,6 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
     return switch (widget.kind) {
       VitalKind.heartRate => r?.heartRateBpm?.toString() ?? '—',
       VitalKind.breathing => r?.respiratoryRateBpm?.toString() ?? '—',
-      VitalKind.temperature => settings.formatTemperature(r?.bodyTemperatureC),
       VitalKind.activity => _activityState.label,
     };
   }
@@ -193,7 +166,6 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
   String _unit(SettingsController settings) => switch (widget.kind) {
         VitalKind.heartRate => 'bpm',
         VitalKind.breathing => 'breaths/min',
-        VitalKind.temperature => settings.temperatureUnitLabel,
         VitalKind.activity => '',
       };
 

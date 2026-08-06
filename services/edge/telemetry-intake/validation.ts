@@ -128,9 +128,6 @@ export function sanitizeTelemetry(
   const avgHr = sanitizeNumericField(body.avg_heart_rate_bpm, ranges.avg_heart_rate_bpm);
   if (avgHr.invalid) invalidFields.push("avg_heart_rate_bpm");
 
-  const temp = sanitizeNumericField(body.body_temperature_c, ranges.body_temperature_c);
-  if (temp.invalid) invalidFields.push("body_temperature_c");
-
   const rr = sanitizeNumericField(body.respiratory_rate_bpm, ranges.respiratory_rate_bpm);
   if (rr.invalid) invalidFields.push("respiratory_rate_bpm");
 
@@ -160,7 +157,6 @@ export function sanitizeTelemetry(
     features: {
       heart_rate_bpm: hr.value,
       respiratory_rate_bpm: rr.value,
-      body_temperature_c: temp.value,
       motion_activity: motion.value,
       posture: posture.feature,
       ambient_temperature_c: ambient.value,

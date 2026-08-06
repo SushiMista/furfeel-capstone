@@ -25,7 +25,6 @@ tags: [furfeel, telemetry, data]
 | Signal | Sensor | Sample rate | Sent to backend |
 |---|---|---|---|
 | Heart rate | MAX30102 | 1 Hz internal | aggregated every 10 s |
-| Body temperature | MAX30102 | 0.2 Hz | every 10 s |
 | Respiratory rate | Flex sensor | 1 Hz internal | every 10 s |
 | Motion / posture | MPU9250 | 20 Hz internal | summarized every 10 s |
 | Ambient temp / humidity | DHT22 | 0.1 Hz | every 10 s |
@@ -38,7 +37,6 @@ tags: [furfeel, telemetry, data]
   "device_code": "ff-device-001",
   "captured_at": "2026-07-09T08:00:00Z",
   "heart_rate_bpm": 92,
-  "body_temperature_c": 38.4,
   "respiratory_rate_bpm": 24,
   "motion_activity": 0.62,
   "posture": "standing",
@@ -55,7 +53,6 @@ tags: [furfeel, telemetry, data]
 | Field | Accept if | Else |
 |---|---|---|
 | heart_rate_bpm | 20–300 | flag |
-| body_temperature_c | 30.0–43.0 | flag |
 | respiratory_rate_bpm | 3–200 | flag |
 | motion_activity | 0.0–1.0 | clamp/flag |
 | ambient_temperature_c | -10–60 | flag |

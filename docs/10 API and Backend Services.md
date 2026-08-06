@@ -54,7 +54,6 @@ Called via `supabase.rpc(...)`; each runs under the caller's RLS or is `security
     "device_code": "ff-device-001",
     "captured_at": "2026-07-09T08:00:00Z",
     "heart_rate_bpm": 92,
-    "body_temperature_c": 38.4,
     "respiratory_rate_bpm": 24,
     "motion_activity": 0.62,
     "posture": "standing",

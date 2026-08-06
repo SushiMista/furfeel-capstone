@@ -3,10 +3,9 @@
   "model_version": "rule-v1",
 
   "global_baselines": {
-    "_comment": "docs/08 Global Default Baselines (medium adult dog, resting). dog_baselines rows override heart_rate/respiratory/temperature per-dog; there is no per-dog motion baseline column, so motion_activity always uses this default.",
+    "_comment": "docs/08 Global Default Baselines (medium adult dog, resting). dog_baselines rows override heart_rate/respiratory per-dog; there is no per-dog motion baseline column, so motion_activity always uses this default.",
     "heart_rate_bpm": 90,
     "respiratory_rate_bpm": 24,
-    "body_temperature_c": 38.7,
     "motion_activity": 0.3
   },
 
@@ -27,14 +26,6 @@
       "tiers": [
         { "min": 1.3, "max": 1.8, "points": 1, "reason": "rr_ratio 1.3-1.8" },
         { "min": 1.8, "max": null, "points": 2, "reason": "rr panting" }
-      ]
-    },
-
-    "body_temperature": {
-      "input": "body_temperature_c",
-      "tiers": [
-        { "min": 39.2, "max": 39.7, "points": 1, "reason": "temp 39.2-39.7" },
-        { "min": 39.7, "max": null, "points": 2, "reason": "temp>39.7" }
       ]
     },
 
@@ -73,8 +64,7 @@
   "biometric_status_bands": {
     "_comment": "Owner-facing Low/Normal/Elevated/High status words (docs/08). Only the Low floors live here — the Elevated/High floors are DERIVED from the scoring_rules tiers above (tier 1 min = Elevated, tier 2 min = High) so they can never drift from what actually scores. Consumed by generate_classifier_bands.mjs -> apps/mobile/lib/insights/biometric_bands.g.dart. Provisional, vet-tunable.",
     "hr_ratio_low_below": 0.7,
-    "rr_ratio_low_below": 0.5,
-    "body_temperature_c_low_below": 37.5
+    "rr_ratio_low_below": 0.5
   },
 
   "context_rules": {
@@ -102,7 +92,6 @@
     "_comment": "docs/07 Validation Ranges. Values outside range are flagged is_valid=false at the row level; the out-of-range field is stored as null in the structured telemetry_readings column (raw_payload always keeps the true received value verbatim per ADR-003). These are sensor/hardware plausibility bounds, not clinical thresholds.",
     "heart_rate_bpm": { "min": 20, "max": 300 },
     "avg_heart_rate_bpm": { "min": 20, "max": 300 },
-    "body_temperature_c": { "min": 30.0, "max": 43.0 },
     "respiratory_rate_bpm": { "min": 3, "max": 200 },
     "motion_activity": { "min": 0.0, "max": 1.0 },
     "ambient_temperature_c": { "min": -10, "max": 60 },

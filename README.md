@@ -20,7 +20,7 @@ A wearable ESP32 harness streams physiological, behavioral, and environmental te
 
 ## What it does
 
-- **Wearable telemetry** — heart rate, respiratory rate, body temperature, motion/posture, ambient temperature & humidity (ESP32 over Wi-Fi; a software simulator stands in until hardware is ready).
+- **Wearable telemetry** — heart rate, respiratory rate, motion/posture, ambient temperature & humidity (ESP32 over Wi-Fi; a software simulator stands in until hardware is ready).
 - **Rule-based stress classification** (`rule-v1`) with transparent scoring, a plain-language "why," and a clear upgrade path to a **Random Forest** once expert-labeled data exists.
 - **Alerts** on moderate/high stress and device-offline, with acknowledge + history.
 - **Owner mobile app (Flutter)** — personalized home, trends & insights, care guidance, pet profiles, device pairing, accounts, settings, dark mode.

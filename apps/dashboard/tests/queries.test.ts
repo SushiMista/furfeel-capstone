@@ -93,7 +93,6 @@ describe("fetchMonitoringBoardRowForDog", () => {
           captured_at: "2026-07-10T17:00:00Z",
           received_at: "2026-07-10T17:00:01Z",
           heart_rate_bpm: 95,
-          body_temperature_c: 38.6,
           respiratory_rate_bpm: 22,
           motion_activity: 0.3,
           posture: "standing",

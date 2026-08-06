@@ -70,7 +70,7 @@ Animated **Splash → Welcome → Onboarding → Guided Setup** (create account 
 Primary status screen for the selected dog. Always shows valuable info at a glance — never a bare/empty screen.
 - Stress hero: large stress pill (cross-fading color) + reassuring copy.
 - **The "why" (important):** a plain-language reason under the pill, derived from the classification's `reasons` (stress_classifications.reasons). Surface the **top driver** in owner-friendly words, e.g. high ambient temp/humidity → "Feeling the heat — it's warm and humid today"; elevated HR → "Heart rate is higher than usual"; high motion → "Restless and moving a lot"; calm → "Relaxed and comfortable." Mapping lives in a small reason→phrase table (see `08 AI Classification Pipeline`). This turns a label into something an owner understands and can act on.
-- Vital cards: heart rate, respiratory rate, body temperature, motion — big tabular values + units + "updated Xs ago". Include ambient temp/humidity when they're the driver (so "it's hot" is visible).
+- Vital cards: heart rate, respiratory rate, motion — big tabular values + units + "updated Xs ago". Include ambient temp/humidity when they're the driver (so "it's hot" is visible).
 - 24h trend sparkline + a "what you can do" care tip (Care Insights) tied to the current driver.
 - Live via Supabase Realtime. Pull-to-refresh. Loading/offline/error states visible.
 

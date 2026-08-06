@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
-import '../data/settings_controller.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../widgets/stress_pill.dart';
@@ -201,11 +200,8 @@ class _HistoryReadingTile extends StatelessWidget {
         children: [
           Expanded(child: Text(_timestamp(reading.capturedAt), style: textTheme.bodySmall)),
           Text(
-            // Preferred unit app-wide (docs/04 Settings).
             'HR ${reading.heartRateBpm ?? '—'} · '
-            'RR ${reading.respiratoryRateBpm ?? '—'} · '
-            '${SettingsScope.of(context).formatTemperature(reading.bodyTemperatureC)}'
-            '${SettingsScope.of(context).temperatureUnitLabel}',
+            'RR ${reading.respiratoryRateBpm ?? '—'}',
             style: textTheme.bodyMedium,
           ),
         ],

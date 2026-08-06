@@ -6,7 +6,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../data/furfeel_repository.dart';
-import '../data/settings_controller.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/exports.dart';
@@ -195,7 +194,6 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final settings = SettingsScope.of(context);
 
     return Scaffold(
       appBar: AppBar(title: Text('${widget.dog.name}\'s detailed log')),
@@ -284,16 +282,6 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
                 color: context.ff.accent,
                 readings: _readings,
                 pick: (r) => r.respiratoryRateBpm?.toDouble(),
-              ),
-              _VitalChartCard(
-                title: 'Body temperature',
-                unit: settings.temperatureUnitLabel,
-                color: context.ff.warm,
-                readings: _readings,
-                pick: (r) => r.bodyTemperatureC == null
-                    ? null
-                    : double.parse(settings.formatTemperature(r.bodyTemperatureC)),
-                decimals: 1,
               ),
               _VitalChartCard(
                 title: 'Movement',

@@ -110,26 +110,6 @@ const VARIABLE_GROUPS: VariableGroup[] = [
     ],
   },
   {
-    title: "Body temperature",
-    unit: "°C",
-    fields: [
-      {
-        key: "body_temp_elevated_c",
-        label: "Elevated at",
-        globalDefault: SCORING.body_temperature.tiers[0].min,
-        help: "Absolute temperature, not relative to baseline.",
-        step: "0.1",
-      },
-      {
-        key: "body_temp_high_c",
-        label: "High at",
-        globalDefault: SCORING.body_temperature.tiers[1].min,
-        help: "",
-        step: "0.1",
-      },
-    ],
-  },
-  {
     title: "Motion activity",
     unit: "0–1 index",
     fields: [
@@ -204,8 +184,8 @@ function draftFromBaselines(baselines: Partial<Record<Key, number | null>> | nul
  * falling back to the clinic-wide default when left blank:
  *  - score cutoffs: how many total points reach mild/moderate/high.
  *  - per-variable thresholds: when each individual signal (heart rate,
- *    respiratory rate, body temperature, motion, ambient heat, humidity)
- *    starts contributing points in the first place.
+ *    respiratory rate, motion, ambient heat, humidity) starts contributing
+ *    points in the first place.
  *
  * Writes go through dog_baselines_insert/update RLS
  * (is_clinic_member(dog_id)) exactly like the resting-value baselines this
@@ -218,11 +198,16 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
   const toast = useToast();
   const [draft, setDraft] = useState<Draft>(draftFromBaselines(null));
   const [savedDraft, setSavedDraft] = useState<Draft>(draftFromBaselines(null));
+  const [baselinesData, setBaselinesData] = useState<{
+    hr: number;
+    rr: number;
+  }>({
+    hr: classifierConfig.global_baselines.heart_rate_bpm,
+    rr: classifierConfig.global_baselines.respiratory_rate_bpm,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Which category is showing -- draft state stays flat across all of them,
-  // so switching tabs never loses an edit made in another one.
   const [category, setCategory] = useState(0);
 
   const load = useCallback(async () => {
@@ -232,6 +217,10 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
       const loaded = draftFromBaselines(baselines);
       setDraft(loaded);
       setSavedDraft(loaded);
+      setBaselinesData({
+        hr: baselines?.resting_heart_rate_bpm ?? classifierConfig.global_baselines.heart_rate_bpm,
+        rr: baselines?.resting_respiratory_rate_bpm ?? classifierConfig.global_baselines.respiratory_rate_bpm,
+      });
       setError(null);
     } catch (err) {
       setError(friendlyError(err, "load thresholds"));
@@ -283,12 +272,11 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
       setError("Mild < moderate < high — each level must start at a higher score than the last.");
       return;
     }
-    // Same ordering check, one level finer, for every multi-tier variable.
+
     const orderedPairs: [Key, Key, string][] = [
       ["hr_ratio_elevated_min", "hr_ratio_moderate_min", "Heart rate: elevated < moderate"],
       ["hr_ratio_moderate_min", "hr_ratio_high_min", "Heart rate: moderate < high"],
       ["rr_ratio_elevated_min", "rr_ratio_high_min", "Respiratory rate: elevated < high"],
-      ["body_temp_elevated_c", "body_temp_high_c", "Body temperature: elevated < high"],
       ["motion_elevated_min", "motion_high_min", "Motion: restless < very restless"],
     ];
     const fieldByKey = Object.fromEntries(ALL_FIELDS.map((f) => [f.key, f]));
@@ -308,6 +296,10 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
       const loaded = draftFromBaselines(saved);
       setDraft(loaded);
       setSavedDraft(loaded);
+      setBaselinesData({
+        hr: saved?.resting_heart_rate_bpm ?? classifierConfig.global_baselines.heart_rate_bpm,
+        rr: saved?.resting_respiratory_rate_bpm ?? classifierConfig.global_baselines.respiratory_rate_bpm,
+      });
       toast("success", "Thresholds saved");
     } catch (err) {
       setError(friendlyError(err, "save thresholds"));
@@ -322,23 +314,47 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
 
   const dirty = ALL_FIELDS.some((f) => draft[f.key] !== savedDraft[f.key]);
 
+  // Helper to render clinical physical conversion badge next to input
+  function renderClinicalBadge(field: Field, value: number) {
+    if (field.key.startsWith("hr_ratio_")) {
+      const targetBpm = Math.round(value * baselinesData.hr);
+      return (
+        <span className="inline-flex items-center gap-1 rounded bg-brand-soft/60 px-2 py-0.5 text-xs font-semibold text-brand-strong">
+          ⚡ Trigger: ~{targetBpm} bpm ({value}× of {baselinesData.hr} resting HR)
+        </span>
+      );
+    }
+    if (field.key.startsWith("rr_ratio_")) {
+      const targetRr = Math.round(value * baselinesData.rr);
+      return (
+        <span className="inline-flex items-center gap-1 rounded bg-brand-soft/60 px-2 py-0.5 text-xs font-semibold text-brand-strong">
+          ⚡ Trigger: ~{targetRr} breaths/min ({value}× of {baselinesData.rr} resting RR)
+        </span>
+      );
+    }
+    return null;
+  }
+
   function renderField(field: Field) {
     const { value, isCustom } = effectiveValue(field);
     return (
-      <div key={field.key} className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <Label htmlFor={field.key}>{field.label}</Label>
+      <div key={field.key} className="flex flex-col gap-2 rounded-lg border border-surface-alt bg-surface-base/50 p-3.5 transition-all">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label htmlFor={field.key} className="font-semibold text-ink">
+            {field.label}
+          </Label>
           <span
             className={
               isCustom
-                ? "rounded-pill bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand-strong"
-                : "rounded-pill bg-surface-alt px-2 py-0.5 text-xs font-semibold text-ink-muted"
+                ? "rounded-pill bg-brand-soft px-2.5 py-0.5 text-xs font-bold text-brand-strong shadow-xs"
+                : "rounded-pill bg-surface-alt px-2.5 py-0.5 text-xs font-medium text-ink-muted"
             }
           >
             {isCustom ? `Custom · effective ${value}` : `Default · ${value}`}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
           <Input
             id={field.key}
             type="number"
@@ -347,37 +363,58 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
             placeholder={`Default: ${field.globalDefault}`}
             value={draft[field.key]}
             onChange={(e) => setDraft((prev) => ({ ...prev, [field.key]: e.target.value }))}
-            className="max-w-40"
+            className="max-w-44 bg-surface-base font-medium"
           />
           {isCustom && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => resetField(field.key)}>
+            <Button type="button" variant="ghost" size="sm" onClick={() => resetField(field.key)} className="text-xs text-ink-muted hover:text-high-fg">
               Reset to default
             </Button>
           )}
         </div>
-        {field.help && <p className="m-0 text-xs text-ink-muted">{field.help}</p>}
+
+        {renderClinicalBadge(field, value)}
+
+        {field.help && <p className="m-0 text-xs text-ink-muted leading-relaxed">{field.help}</p>}
       </div>
     );
   }
 
+  // Current category cutoffs for visual spectrum display
+  const currentCategoryObj = CATEGORIES[category];
+  const mildVal = effectiveValue(SCORE_FIELDS[0]).value;
+  const modVal = effectiveValue(SCORE_FIELDS[1]).value;
+  const highVal = effectiveValue(SCORE_FIELDS[2]).value;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Stress thresholds</CardTitle>
+    <Card className="shadow-xs border-surface-alt">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg font-bold">Stress thresholds</CardTitle>
+            <p className="m-0 mt-1 text-sm text-ink-muted">
+              Customize alert triggers per dog. Numbers default to clinic-wide standards. Fill in a field to override for this patient.
+            </p>
+          </div>
+
+          {/* Resting Baseline Summary Pills */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="flex items-center gap-1.5 rounded-md bg-surface-alt/70 px-2.5 py-1 font-medium text-ink">
+              <span className="text-brand font-bold">HR Baseline:</span> {baselinesData.hr} bpm
+            </div>
+            <div className="flex items-center gap-1.5 rounded-md bg-surface-alt/70 px-2.5 py-1 font-medium text-ink">
+              <span className="text-brand font-bold">RR Baseline:</span> {baselinesData.rr} bpm
+            </div>
+          </div>
+        </div>
       </CardHeader>
+
       <CardContent>
-        <p className="m-0 mb-4 text-sm text-ink-muted">
-          Every number here is clinic-wide by default (docs/08 AI Classification Pipeline).
-          Leave a field blank to keep using it for this dog; fill one in to override it — dogs
-          vary by size, so a small dog's normal heart rate can be a large dog's elevated one.
-        </p>
         {loading ? (
-          <p className="m-0 text-sm text-ink-muted">Loading…</p>
+          <div className="py-6 text-center text-sm text-ink-muted">Loading thresholds & baselines…</div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {/* Categorized tabs (not one long stacked scroll): same tab-bar
-             * style as the dog-detail page's own section tabs. */}
-            <div role="tablist" aria-label="Threshold categories" className="flex flex-wrap gap-2">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {/* Categorized Tab Bar */}
+            <div role="tablist" aria-label="Threshold categories" className="flex flex-wrap gap-1.5 border-b border-surface-alt pb-3">
               {CATEGORIES.map((cat, i) => {
                 const catDirty = cat.fields.some((f) => draft[f.key] !== savedDraft[f.key]);
                 return (
@@ -388,48 +425,76 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
                     aria-selected={category === i}
                     onClick={() => setCategory(i)}
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors duration-fast",
+                      "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all duration-fast",
                       category === i
-                        ? "bg-brand-soft text-brand-strong"
+                        ? "bg-brand-soft text-brand-strong shadow-xs"
                         : "text-ink-muted hover:bg-surface-alt hover:text-ink",
                     )}
                   >
                     {cat.title}
-                    {/* Decorative only -- aria-hidden, not aria-label, so it
-                     * never gets concatenated into this button's own
-                     * accessible name (that broke exact-name tab lookups in
-                     * tests the moment a tab went dirty). The Save button's
-                     * enabled state and each field's "Custom" badge already
-                     * carry the same information for assistive tech. */}
                     {catDirty && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+                      <span className="h-2 w-2 rounded-full bg-brand shadow-xs" aria-hidden="true" />
                     )}
                   </button>
                 );
               })}
             </div>
 
-            <section className="flex flex-col gap-4">
-              {CATEGORIES[category].unit !== "points" && (
-                <h3 className="m-0 text-sm font-semibold text-ink">
-                  {CATEGORIES[category].title}
-                  <span className="ml-2 font-normal text-ink-muted">
-                    ({CATEGORIES[category].unit})
+            {/* Visual Stress Level Spectrum Bar (for Score Cutoffs) */}
+            {currentCategoryObj.title === "Score cutoffs" && (
+              <div className="flex flex-col gap-2 rounded-lg border border-surface-alt bg-surface-alt/20 p-4">
+                <div className="flex items-center justify-between text-xs font-semibold text-ink">
+                  <span>Visual Stress Score Cutoffs Spectrum</span>
+                  <span className="text-ink-muted">Cumulative Classifier Points</span>
+                </div>
+                {/* Spectrum Bar */}
+                <div className="relative h-5 w-full overflow-hidden rounded-full bg-surface-alt flex">
+                  <div className="flex items-center justify-center bg-emerald-500/20 text-[10px] font-bold text-emerald-700 transition-all" style={{ width: `${Math.min(100, (mildVal / 10) * 100)}%` }}>
+                    Calm (0-{mildVal - 1})
+                  </div>
+                  <div className="flex items-center justify-center bg-amber-500/30 text-[10px] font-bold text-amber-800 transition-all" style={{ width: `${Math.min(100, ((modVal - mildVal) / 10) * 100)}%` }}>
+                    Mild ({mildVal}-{modVal - 1})
+                  </div>
+                  <div className="flex items-center justify-center bg-orange-500/30 text-[10px] font-bold text-orange-800 transition-all" style={{ width: `${Math.min(100, ((highVal - modVal) / 10) * 100)}%` }}>
+                    Moderate ({modVal}-{highVal - 1})
+                  </div>
+                  <div className="flex-1 flex items-center justify-center bg-rose-500/30 text-[10px] font-bold text-rose-800 transition-all">
+                    High ({highVal}+)
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Active Category Fields */}
+            <section className="flex flex-col gap-3">
+              {currentCategoryObj.unit !== "points" && (
+                <div className="flex items-center justify-between pb-1 border-b border-surface-alt/50">
+                  <h3 className="m-0 text-sm font-bold text-ink">
+                    {currentCategoryObj.title}
+                  </h3>
+                  <span className="text-xs font-medium text-ink-muted bg-surface-alt px-2 py-0.5 rounded">
+                    Unit: {currentCategoryObj.unit}
                   </span>
-                </h3>
+                </div>
               )}
-              {CATEGORIES[category].fields.map(renderField)}
+              {currentCategoryObj.fields.map(renderField)}
             </section>
 
             {error && (
-              <p role="alert" className="rounded-sm bg-high-soft px-3 py-2 text-sm text-high-fg">
+              <p role="alert" className="rounded-md bg-high-soft px-3.5 py-2.5 text-sm font-medium text-high-fg border border-high-fg/20">
                 {error}
               </p>
             )}
-            <div>
-              <Button type="submit" disabled={saving || !dirty}>
+
+            <div className="flex items-center justify-between pt-2">
+              <Button type="submit" disabled={saving || !dirty} className="font-semibold shadow-xs">
                 {saving ? "Saving…" : "Save thresholds"}
               </Button>
+              {dirty && (
+                <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded">
+                  ⚠️ You have unsaved changes
+                </span>
+              )}
             </div>
           </form>
         )}

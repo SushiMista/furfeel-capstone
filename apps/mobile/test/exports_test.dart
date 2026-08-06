@@ -2,13 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/util/exports.dart';
 
-TelemetryReading reading(int minute, {int? hr, double? temp, int? battery}) =>
+TelemetryReading reading(int minute, {int? hr, int? battery}) =>
     TelemetryReading(
       id: 'r$minute',
       dogId: 'dog-1',
       capturedAt: DateTime.utc(2026, 7, 17, 8, minute),
       heartRateBpm: hr,
-      bodyTemperatureC: temp,
       batteryPercent: battery,
     );
 
@@ -18,7 +17,7 @@ void main() {
   group('buildReadingsCsv (QA item 13)', () {
     test('one header + one row per reading, nulls as empty cells', () {
       final csv = buildReadingsCsv([
-        reading(0, hr: 92, temp: 38.5, battery: 80),
+        reading(0, hr: 92, battery: 80),
         reading(1),
       ]);
       final lines = csv.trim().split('\n');
@@ -54,7 +53,7 @@ void main() {
       dog: _dog,
       from: DateTime(2026, 7, 10),
       to: DateTime(2026, 7, 17),
-      readings: [reading(0, hr: 92, temp: 38.5)],
+      readings: [reading(0, hr: 92)],
       classifications: [
         StressClassification(
           id: 'c1',
@@ -75,7 +74,7 @@ void main() {
       dog: _dog,
       from: DateTime(2026, 7, 10),
       to: DateTime(2026, 7, 17),
-      readings: [reading(0, hr: 92, temp: 38.5, battery: 70)],
+      readings: [reading(0, hr: 92, battery: 70)],
       classifications: [],
       owner: UserProfile(
         id: 'u1',

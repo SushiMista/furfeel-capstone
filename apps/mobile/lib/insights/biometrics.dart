@@ -62,16 +62,6 @@ VitalStatus? respiratoryStatus(int? bpm, DogBaseline? baseline) {
   return VitalStatus.high;
 }
 
-/// Body-temperature status. Absolute bands (rule-v1 scores 39.2/39.7; the
-/// typical resting range 37.5-39.2 matches the vital detail screen).
-VitalStatus? temperatureStatus(double? celsius) {
-  if (celsius == null) return null;
-  if (celsius < kTempLowBelowC) return VitalStatus.low;
-  if (celsius < kTempElevatedAtC) return VitalStatus.normal;
-  if (celsius < kTempHighAtC) return VitalStatus.elevated;
-  return VitalStatus.high;
-}
-
 /// One-line owner phrase: "Heart rate 92 bpm — Normal for Biscuit".
 String vitalStatusPhrase(String vitalLabel, String value, VitalStatus status, String dogName) =>
     '$vitalLabel $value — ${status.label} for $dogName';

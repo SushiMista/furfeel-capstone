@@ -10,7 +10,6 @@ export interface TelemetryPayload {
   captured_at: string;
   heart_rate_bpm?: number;
   avg_heart_rate_bpm?: number;
-  body_temperature_c?: number;
   respiratory_rate_bpm?: number;
   motion_activity?: number;
   posture?: Posture;
