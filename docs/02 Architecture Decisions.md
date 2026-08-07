@@ -260,6 +260,8 @@ Decision: Remove body temperature entirely — as a wearable sensor, a telemetry
 
 Reason: FurFeel doesn't promote invasive procedures to gather stress data. Heart rate, respiratory rate, motion/posture, and ambient conditions stay as non-invasive wearable/environmental signals.
 
+**Amendment (2026-08-07):** `telemetry_readings.body_temperature_c` is now dropped outright (`20260807130000_drop_avg_heart_rate_and_body_temperature.sql`), overriding the "keep it for raw telemetry history" call above — an explicit owner decision, made knowing it deletes any body-temperature readings already collected. The same migration also drops `avg_heart_rate_bpm` (added by ADR-024's predecessor work, `20260802031230_add_avg_heart_rate_bpm.sql`): a device-reported rolling average alongside `heart_rate_bpm`, never a classifier input, and never displayed in either client — write-only from the day it was added, so dropping it loses no user-facing functionality. Every layer that referenced either column (`packages/shared/types/telemetry.ts`, `classifier_config.json`'s `validation_ranges`, `telemetry-intake`'s types/validation/insert, and their tests) was updated in the same pass so nothing references a column that no longer exists.
+
 Linked notes:
 - [[06 IoT Wearable Device Design]]
 - [[07 Sensor Data Pipeline]]

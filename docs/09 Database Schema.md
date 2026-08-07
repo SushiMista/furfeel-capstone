@@ -118,7 +118,7 @@ Per-dog resting reference values used by the classifier. Optional; classifier fa
 
 Two check constraints enforce "null-safe strictly increasing" ordering per rule: `dog_baselines_thresholds_ordered` (the three score cutoffs) and one each for the HR/RR/motion tier pairs. Reads/writes go through the existing `dog_baselines_select/insert/update` RLS (`is_clinic_member(dog_id)`) — no new policy was added for these columns.
 
-`normal_body_temperature_c`, `body_temp_elevated_c`, and `body_temp_high_c` were dropped in `20260802120000_remove_body_temperature.sql` (ADR-021 — FurFeel doesn't promote invasive procedures to gather stress data). Config/override columns are safe to drop outright; only raw telemetry is protected from deletion (ADR-003).
+`normal_body_temperature_c`, `body_temp_elevated_c`, and `body_temp_high_c` were dropped in `20260802120000_remove_body_temperature.sql` (ADR-021 — FurFeel doesn't promote invasive procedures to gather stress data). `telemetry_readings.body_temperature_c` and `avg_heart_rate_bpm` were later dropped outright in `20260807130000_drop_avg_heart_rate_and_body_temperature.sql` (ADR-021 amendment, 2026-08-07) — the ADR-003 "raw telemetry is never deleted" protection was deliberately overridden for this column by owner decision; any body-temperature readings already collected were lost with it.
 
 ### devices
 | column | type | constraints |
@@ -146,7 +146,6 @@ High-volume table. Index on `(dog_id, captured_at desc)` and `(device_id, captur
 | captured_at | timestamptz | not null (device clock) |
 | received_at | timestamptz | not null, default now() (server clock) |
 | heart_rate_bpm | int | null |
-| body_temperature_c | numeric(3,1) | null; **deprecated (ADR-021)** — no longer written by telemetry-intake; column kept only because raw telemetry history is never deleted (ADR-003) |
 | respiratory_rate_bpm | int | null |
 | motion_activity | numeric(4,3) | null (0.000–1.000) |
 | posture | posture_type | not null, default `'unknown'` |
