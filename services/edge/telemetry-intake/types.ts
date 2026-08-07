@@ -4,7 +4,6 @@ export interface TelemetryRequestBody {
   device_code: string;
   captured_at: string;
   heart_rate_bpm?: unknown;
-  avg_heart_rate_bpm?: unknown;
   respiratory_rate_bpm?: unknown;
   motion_activity?: unknown;
   posture?: unknown;
