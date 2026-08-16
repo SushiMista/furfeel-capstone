@@ -9,16 +9,20 @@
 // here; self-signup in the mobile/dashboard apps still requires confirmation.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createServiceRoleClient } from "../_shared/supabase-client.ts";
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 const ROLES = new Set(["owner", "vet_staff", "veterinarian", "admin"]);
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
 Deno.serve(async (req) => {
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
   if (req.method !== "POST") return json(405, { error: "Method not allowed." });
 
   const jwt = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
