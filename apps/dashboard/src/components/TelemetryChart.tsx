@@ -29,17 +29,38 @@ export function TelemetryChart({ readings }: { readings: TelemetryReading[] }) {
     return <EmptyState>No readings yet — waiting for the harness to check in 🐾</EmptyState>;
   }
 
+  const data = buildTelemetryChartRows(readings);
+
   return (
-    <LineChart
-      className="h-56"
-      data={buildTelemetryChartRows(readings)}
-      index="time"
-      categories={[HR_SERIES, RR_SERIES]}
-      colors={["rose", "teal"]}
-      curveType="monotone"
-      showAnimation={false}
-      yAxisWidth={36}
-      aria-label="Heart rate and respiratory rate over time"
-    />
+    <div className="flex flex-col gap-6">
+      <div>
+        <h3 className="text-sm font-semibold text-ink-muted mb-2">{HR_SERIES}</h3>
+        <LineChart
+          className="h-44"
+          data={data}
+          index="time"
+          categories={[HR_SERIES]}
+          colors={["rose"]}
+          curveType="monotone"
+          showAnimation={false}
+          yAxisWidth={36}
+          aria-label="Heart rate over time"
+        />
+      </div>
+      <div>
+        <h3 className="text-sm font-semibold text-ink-muted mb-2">{RR_SERIES}</h3>
+        <LineChart
+          className="h-44"
+          data={data}
+          index="time"
+          categories={[RR_SERIES]}
+          colors={["teal"]}
+          curveType="monotone"
+          showAnimation={false}
+          yAxisWidth={36}
+          aria-label="Respiratory rate over time"
+        />
+      </div>
+    </div>
   );
 }
