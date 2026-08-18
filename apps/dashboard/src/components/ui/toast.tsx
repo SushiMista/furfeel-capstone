@@ -14,11 +14,11 @@ import { cn } from "../../lib/cn.ts";
 
 interface Toast {
   id: number;
-  kind: "success" | "error";
-  message: string;
+  kind: "success" | "error" | "info";
+  message: ReactNode;
 }
 
-const ToastContext = createContext<(kind: Toast["kind"], message: string) => void>(() => {});
+const ToastContext = createContext<(kind: Toast["kind"], message: ReactNode) => void>(() => {});
 
 export function useToast() {
   return useContext(ToastContext);
@@ -28,10 +28,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(1);
 
-  const push = useCallback((kind: Toast["kind"], message: string) => {
+  const push = useCallback((kind: Toast["kind"], message: ReactNode) => {
     const id = nextId.current++;
     setToasts((prev) => [...prev, { id, kind, message }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 6000); // 6s duration for richer notifications
   }, []);
 
   const value = useMemo(() => push, [push]);
@@ -47,15 +47,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={cn(
-              "pointer-events-auto flex items-center gap-2 rounded-md border px-4 py-3 text-sm shadow-card",
+              "pointer-events-auto flex items-center gap-2 rounded-md border px-4 py-3 text-sm shadow-card max-w-sm w-auto",
               "animate-[toast-in_150ms_ease-out]",
-              t.kind === "success"
-                ? "border-hairline bg-calm-soft text-calm-fg"
-                : "border-hairline bg-high-soft text-high-fg",
+              t.kind === "success" && "border-calm/30 bg-calm-soft text-calm-fg",
+              t.kind === "error" && "border-high/30 bg-high-soft text-high-fg",
+              t.kind === "info" && "border-hairline bg-surface text-ink",
             )}
             role="status"
           >
-            {t.kind === "success" ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+            {t.kind === "success" && <CheckCircle2 size={16} className="flex-shrink-0" />}
+            {t.kind === "error" && <XCircle size={16} className="flex-shrink-0" />}
             {t.message}
           </div>
         ))}

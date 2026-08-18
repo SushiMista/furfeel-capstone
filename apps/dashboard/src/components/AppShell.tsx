@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Activity,
@@ -17,6 +17,10 @@ import { useAuth } from "../lib/useAuth.ts";
 import { useCurrentRole } from "../lib/useCurrentRole.ts";
 import { cn } from "../lib/cn.ts";
 import { AccountMenu } from "./AccountMenu.tsx";
+import { supabase } from "../lib/supabaseClient.ts";
+import { useToast } from "./ui/toast.tsx";
+import { ImageAttachmentNotification } from "./ImageAttachmentNotification.tsx";
+import { fetchDog, getMediaSignedUrl } from "../lib/queries.ts";
 
 const NAV = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
@@ -41,6 +45,49 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { role } = useCurrentRole();
   const location = useLocation();
   const isDogPage = location.pathname.startsWith("/dogs/");
+  const toast = useToast();
+
+  useEffect(() => {
+    if (!session) return;
+
+    const channel = supabase
+      .channel("media_submissions_global")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "media_submissions",
+        },
+        async (payload) => {
+          try {
+            const submission = payload.new;
+            const dog = await fetchDog(supabase, submission.dog_id);
+            if (!dog) return;
+
+            const imageUrl = await getMediaSignedUrl(supabase, submission.storage_path, 3600);
+
+            toast(
+              "info",
+              <ImageAttachmentNotification
+                dogId={dog.id}
+                dogName={dog.name}
+                imageUrl={imageUrl}
+                fileName={submission.storage_path.split("/").pop() || "photo.jpg"}
+                metaText="New Upload"
+              />,
+            );
+          } catch (err) {
+            console.error("Failed to process realtime media submission:", err);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session, toast]);
 
   return (
     <div className="flex min-h-screen">
