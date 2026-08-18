@@ -1,7 +1,30 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { StressTimeline } from "../src/components/StressTimeline.tsx";
 import type { StressClassification } from "../../../packages/shared/types/index.ts";
+
+vi.mock("recharts", () => {
+  return {
+    ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
+    LineChart: ({ children, data }: any) => (
+      <div data-testid="line-chart" data-data={JSON.stringify(data)}>
+        {children}
+      </div>
+    ),
+    Line: () => <div />,
+    XAxis: () => <div />,
+    YAxis: () => <div />,
+    CartesianGrid: () => <div />,
+    Tooltip: () => <div />,
+  };
+});
+
+vi.mock("../src/components/ui/chart.tsx", () => {
+  return {
+    ChartContainer: ({ children }: any) => <div>{children}</div>,
+    ChartTooltip: ({ children }: any) => <div>{children}</div>,
+  };
+});
 
 function classification(overrides: Partial<StressClassification>): StressClassification {
   return {
@@ -24,17 +47,22 @@ describe("StressTimeline", () => {
     expect(screen.getByText(/no stress readings yet/i)).toBeInTheDocument();
   });
 
-  it("renders one item per classification", () => {
+  it("renders one item per classification on the line chart", () => {
     render(
       <StressTimeline
         classifications={[
-          classification({ id: "c1", stress_level: "calm" }),
+          classification({ id: "c1", stress_level: "calm", score: 1 }),
           classification({ id: "c2", stress_level: "high", score: 7 }),
         ]}
       />,
     );
-    expect(screen.getByText("calm")).toBeInTheDocument();
-    expect(screen.getByText("high")).toBeInTheDocument();
-    expect(screen.getByText("score 7")).toBeInTheDocument();
+    const chart = screen.getByTestId("line-chart");
+    expect(chart).toBeInTheDocument();
+    const data = JSON.parse(chart.getAttribute("data-data") || "[]");
+    expect(data).toHaveLength(2);
+    expect(data[0].level).toBe("calm");
+    expect(data[0].score).toBe(1);
+    expect(data[1].level).toBe("high");
+    expect(data[1].score).toBe(7);
   });
 });

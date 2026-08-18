@@ -36,7 +36,7 @@ const LEVELS: StressLevel[] = ["calm", "mild", "moderate", "high"];
 /** Confirm/override stress (docs/05 module 2): the vet reviews the latest rule-v1
  * output and records the clinically correct level. Every save becomes a
  * stress_labels ground-truth row — the dataset for the future Random Forest. */
-function ConfirmOverridePanel({
+export function ConfirmOverridePanel({
   dogId,
   latest,
   labels,
@@ -190,7 +190,7 @@ function ConfirmOverridePanel({
 
 /** One owner-submitted media item: signed-URL preview (private bucket), owner note,
  * review status, and a mark-reviewed + annotate flow. */
-function MediaItem({ media, onReviewed }: { media: MediaSubmission; onReviewed: (m: MediaSubmission) => void }) {
+export function MediaItem({ media, onReviewed }: { media: MediaSubmission; onReviewed: (m: MediaSubmission) => void }) {
   const { session } = useAuth();
   const toast = useToast();
   const [url, setUrl] = useState<string | null>(null);

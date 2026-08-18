@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useAuth } from "./lib/useAuth.ts";
 import { AppShell } from "./components/AppShell.tsx";
 import { ToastProvider } from "./components/ui/toast.tsx";
@@ -12,7 +12,6 @@ import { AlertsQueue } from "./pages/alerts/AlertsQueue.tsx";
 import { Handover } from "./pages/handover/Handover.tsx";
 import { Devices } from "./pages/devices/Devices.tsx";
 import { Reports } from "./pages/reports/Reports.tsx";
-import { VetReview } from "./pages/vet_review/VetReview.tsx";
 import { Admin } from "./pages/admin/Admin.tsx";
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -25,6 +24,11 @@ function RequireAuth({ children }: { children: ReactNode }) {
     );
   if (!session) return <Navigate to="/login" replace />;
   return <AppShell>{children}</AppShell>;
+}
+
+function ReviewRedirect() {
+  const { dogId } = useParams<{ dogId: string }>();
+  return <Navigate to={`/dogs/${dogId}?tab=review`} replace />;
 }
 
 export function App() {
@@ -76,7 +80,7 @@ export function App() {
             path="/dogs/:dogId/review"
             element={
               <RequireAuth>
-                <VetReview />
+                <ReviewRedirect />
               </RequireAuth>
             }
           />
