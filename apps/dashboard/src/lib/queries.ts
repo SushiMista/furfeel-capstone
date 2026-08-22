@@ -12,6 +12,8 @@ import type {
   VetNote,
 } from "../../../../packages/shared/types/index.ts";
 
+export type { Dog };
+
 const DEVICE_COLUMNS = "id, dog_id, device_code, status, last_seen_at, firmware_version, created_at";
 const READING_COLUMNS =
   "id, device_id, dog_id, captured_at, received_at, heart_rate_bpm, " +

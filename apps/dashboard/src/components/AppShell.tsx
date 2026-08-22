@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Cpu,
   FileText,
+  Flame,
   LayoutDashboard,
   PawPrint,
   Radio,
@@ -56,6 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/devices", label: "Device fleet", icon: Radio },
       { to: "/reports", label: "Analytics & reports", icon: FileText },
+      { to: "/heatmap", label: "Heatmap analytics", icon: Flame },
     ],
   },
   {

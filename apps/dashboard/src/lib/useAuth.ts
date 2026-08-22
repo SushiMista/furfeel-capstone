@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient.ts";
+import { fetchCurrentUserRole } from "./queries.ts";
 
 export interface AuthState {
   session: Session | null;
@@ -38,7 +39,31 @@ export function useAuth(): AuthState {
 }
 
 export async function signIn(email: string, password: string) {
-  return supabase.auth.signInWithPassword({ email, password });
+  const res = await supabase.auth.signInWithPassword({ email, password });
+  if (res.error) return res;
+
+  const userId = res.data.session?.user.id;
+  if (userId) {
+    try {
+      const role = await fetchCurrentUserRole(supabase, userId);
+      if (role === "owner") {
+        await supabase.auth.signOut();
+        return {
+          data: { user: null, session: null },
+          error: {
+            name: "AuthApiError",
+            status: 403,
+            message:
+              "Access Denied: Dog owner accounts are restricted to the FurFeel Mobile App. Please log in using the mobile application.",
+          },
+        };
+      }
+    } catch {
+      // Role fetch error fallback — allow authentication to proceed or handle safely
+    }
+  }
+
+  return res;
 }
 
 export async function signOut() {
