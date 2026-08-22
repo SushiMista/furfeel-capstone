@@ -160,6 +160,11 @@ export function DogCard({
             {dog.name}
           </Link>
           {dog.breed && <div className="truncate text-xs text-ink-muted">{dog.breed}</div>}
+          {row.ownerName && (
+            <div className="truncate text-[11px] font-medium text-ink-muted">
+              Owner: {row.ownerName}
+            </div>
+          )}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {level ? (
               <StressLevelBadge level={level} className={level !== "calm" ? "bg-surface" : undefined} />

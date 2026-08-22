@@ -28,6 +28,8 @@ export interface MonitoringBoardRow {
   openAlertCount: number;
   /** ADDED: last few stress levels (oldest → newest) for the card mini trend. */
   recentLevels: StressLevel[];
+  ownerName?: string;
+  clinicName?: string;
 }
 
 /** All queries below rely entirely on RLS to scope results to the signed-in user's
@@ -178,6 +180,8 @@ async function fetchOpenAlertCount(client: SupabaseClient, dogId: string): Promi
 export async function fetchMonitoringBoardRowForDog(
   client: SupabaseClient,
   dog: Dog,
+  ownerName?: string,
+  clinicName?: string,
 ): Promise<MonitoringBoardRow> {
   const [device, latestReading, latestClassification, openAlertCount, recent] =
     await Promise.all([
@@ -194,6 +198,8 @@ export async function fetchMonitoringBoardRowForDog(
     latestClassification,
     openAlertCount,
     recentLevels: recent.map((c) => c.stress_level),
+    ownerName,
+    clinicName,
   };
 }
 
@@ -221,7 +227,27 @@ export async function uploadDogPhoto(
 
 export async function fetchMonitoringBoard(client: SupabaseClient): Promise<MonitoringBoardRow[]> {
   const dogs = await fetchDogs(client);
-  return Promise.all(dogs.map((dog) => fetchMonitoringBoardRowForDog(client, dog)));
+  const ownerIds = Array.from(new Set(dogs.map((d) => d.owner_user_id)));
+  const clinicIds = Array.from(new Set(dogs.map((d) => d.clinic_id).filter((id): id is string => Boolean(id))));
+
+  const [usersRes, clinicsRes] = await Promise.all([
+    ownerIds.length > 0 ? client.from("users").select("id, name").in("id", ownerIds) : Promise.resolve({ data: [] }),
+    clinicIds.length > 0 ? client.from("clinics").select("id, name").in("id", clinicIds) : Promise.resolve({ data: [] }),
+  ]);
+
+  const ownerMap = new Map((usersRes.data ?? []).map((u: any) => [u.id, u.name]));
+  const clinicMap = new Map((clinicsRes.data ?? []).map((c: any) => [c.id, c.name]));
+
+  return Promise.all(
+    dogs.map((dog) =>
+      fetchMonitoringBoardRowForDog(
+        client,
+        dog,
+        ownerMap.get(dog.owner_user_id) ?? "Unknown Owner",
+        dog.clinic_id ? (clinicMap.get(dog.clinic_id) ?? "Unassigned Clinic") : "Unassigned Clinic",
+      ),
+    ),
+  );
 }
 
 /** Just what the Overview KPI/needs-attention view actually reads — never
@@ -313,15 +339,37 @@ export async function fetchClinicStressDailySummary(
 
 const STRESS_SEVERITY_RANK: Record<StressLevel, number> = { calm: 0, mild: 1, moderate: 2, high: 3 };
 
-/** docs/19 monitoring board: "Sort so anything above calm floats up." Highest stress first,
- * then unclassified/calm dogs, ties broken by dog name so ordering stays stable.
- * Generic over just the two fields this actually reads, so both the full
- * `MonitoringBoardRow` (Monitoring Board) and the leaner `ClinicBoardRow`
- * (Overview) can share one sort instead of duplicating it. */
+export type BoardSortKey = "stress" | "name" | "owner" | "clinic";
+
+/** docs/19 monitoring board: Sort by stress severity, dog name, owner name, or clinic.
+ * Generic over fields so both MonitoringBoardRow and ClinicBoardRow can share. */
 export function sortBoardRows<
-  T extends { dog: { name: string }; latestClassification: { stress_level: StressLevel } | null },
->(rows: T[]): T[] {
+  T extends {
+    dog: { name: string };
+    latestClassification: { stress_level: StressLevel } | null;
+    ownerName?: string;
+    clinicName?: string;
+  },
+>(rows: T[], sortBy: BoardSortKey = "stress"): T[] {
   return [...rows].sort((a, b) => {
+    if (sortBy === "name") {
+      return a.dog.name.localeCompare(b.dog.name);
+    }
+    if (sortBy === "owner") {
+      const ownerA = a.ownerName ?? "";
+      const ownerB = b.ownerName ?? "";
+      const ownerCmp = ownerA.localeCompare(ownerB);
+      if (ownerCmp !== 0) return ownerCmp;
+      return a.dog.name.localeCompare(b.dog.name);
+    }
+    if (sortBy === "clinic") {
+      const clinicA = a.clinicName ?? "";
+      const clinicB = b.clinicName ?? "";
+      const clinicCmp = clinicA.localeCompare(clinicB);
+      if (clinicCmp !== 0) return clinicCmp;
+      return a.dog.name.localeCompare(b.dog.name);
+    }
+    // Default: Highest stress first, then ties broken by dog name
     const rankA = a.latestClassification ? STRESS_SEVERITY_RANK[a.latestClassification.stress_level] : -1;
     const rankB = b.latestClassification ? STRESS_SEVERITY_RANK[b.latestClassification.stress_level] : -1;
     if (rankA !== rankB) return rankB - rankA;
