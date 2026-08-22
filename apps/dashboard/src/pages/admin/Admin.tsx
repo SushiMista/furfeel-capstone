@@ -827,6 +827,8 @@ function ClinicsTab({
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
+  const [viewingClinic, setViewingClinic] = useState<Clinic | null>(null);
+
   const [editing, setEditing] = useState<Clinic | null>(null);
   const [editName, setEditName] = useState("");
   const [editAddress, setEditAddress] = useState("");
@@ -901,7 +903,12 @@ function ClinicsTab({
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <CardTitle>Clinics</CardTitle>
+        <div>
+          <CardTitle>Clinics</CardTitle>
+          <CardDescription>
+            Manage partner clinics, addresses, and map locations.
+          </CardDescription>
+        </div>
         <Button type="button" onClick={() => setAddOpen(true)}>
           <Plus size={14} /> Add clinic
         </Button>
@@ -913,7 +920,7 @@ function ClinicsTab({
               <Th>Name</Th>
               <Th>Address</Th>
               <Th>Contact</Th>
-              <Th></Th>
+              <Th>Actions</Th>
             </Tr>
           </THead>
           <TBody>
@@ -923,18 +930,34 @@ function ClinicsTab({
                 <Td className="text-ink-muted">{c.address ?? "—"}</Td>
                 <Td className="text-ink-muted">{c.contact_number ?? "—"}</Td>
                 <Td>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" aria-label={`Edit ${c.name}`} onClick={() => startEdit(c)}>
-                      <Pencil size={14} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Delete ${c.name}`}
-                      onClick={() => setPendingDelete(c)}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      aria-label={`View details for ${c.name}`}
+                      title="View Clinic Details & Map"
+                      onClick={() => setViewingClinic(c)}
+                      className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-alt text-ink-muted transition-colors duration-fast hover:bg-brand-soft hover:text-brand-strong"
                     >
-                      <Trash2 size={14} />
-                    </Button>
+                      <Eye size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Edit ${c.name}`}
+                      title="Edit Clinic Details"
+                      onClick={() => startEdit(c)}
+                      className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-soft text-brand-strong transition-colors duration-fast hover:bg-brand hover:text-white"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${c.name}`}
+                      title="Delete Clinic"
+                      onClick={() => setPendingDelete(c)}
+                      className="flex h-8 w-8 items-center justify-center rounded-md bg-high-soft text-high-fg transition-colors duration-fast hover:bg-high hover:text-white"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 </Td>
               </Tr>
@@ -943,6 +966,7 @@ function ClinicsTab({
         </Table>
       </CardContent>
 
+      {/* Add Clinic Dialog */}
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Add clinic">
         <form className="flex flex-col gap-3" onSubmit={submit}>
           <ClinicFields
@@ -965,6 +989,62 @@ function ClinicsTab({
         </form>
       </Dialog>
 
+      {/* View Clinic Dialog */}
+      <Dialog open={viewingClinic !== null} onClose={() => setViewingClinic(null)} title="Clinic details">
+        {viewingClinic && (
+          <div className="flex flex-col gap-4 py-1">
+            <div className="flex flex-col gap-1 border-b border-hairline pb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Clinic Name</span>
+              <span className="text-base font-bold text-ink">{viewingClinic.name}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Address</span>
+                <span className="text-sm font-medium text-ink">{viewingClinic.address ?? "—"}</span>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Contact</span>
+                <span className="text-sm font-medium text-ink">{viewingClinic.contact_number ?? "—"}</span>
+              </div>
+            </div>
+
+            {viewingClinic.address && viewingClinic.address.trim() !== "" && (
+              <div className="overflow-hidden rounded-lg border border-hairline">
+                <iframe
+                  title="Clinic location preview"
+                  className="h-44 w-full"
+                  loading="lazy"
+                  src={clinicMapEmbedUrl(viewingClinic.address)}
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1 rounded-md bg-surface-alt p-3">
+              <span className="text-[11px] font-semibold text-ink-muted">Clinic ID</span>
+              <span className="font-mono text-xs text-ink">{viewingClinic.id}</span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="secondary" onClick={() => setViewingClinic(null)}>
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  const c = viewingClinic;
+                  setViewingClinic(null);
+                  startEdit(c);
+                }}
+              >
+                <Pencil size={14} /> Edit clinic
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* Edit Clinic Dialog */}
       <Dialog open={editing !== null} onClose={() => setEditing(null)} title="Edit clinic">
         <form className="flex flex-col gap-3" onSubmit={saveEdit}>
           <ClinicFields
@@ -1003,6 +1083,13 @@ function ClinicsTab({
   );
 }
 
+const DEVICE_STATUS_BADGE_STYLE: Record<DeviceStatus, string> = {
+  active: "bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold",
+  offline: "bg-red-100 text-red-800 border border-red-200 font-semibold",
+  maintenance: "bg-amber-100 text-amber-800 border border-amber-200 font-semibold",
+  inactive: "bg-slate-100 text-slate-800 border border-slate-200 font-semibold",
+};
+
 function DevicesTab({
   devices,
   dogs,
@@ -1030,6 +1117,14 @@ function DevicesTab({
   const [firmware, setFirmware] = useState("");
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+
+  const [viewingDevice, setViewingDevice] = useState<Device | null>(null);
+
+  const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+  const [editStatus, setEditStatus] = useState<DeviceStatus>("active");
+  const [editDogId, setEditDogId] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
   const [pendingDelete, setPendingDelete] = useState<Device | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -1061,6 +1156,21 @@ function DevicesTab({
       onToast("success", `${device.device_code} updated`);
     } catch (err) {
       onToast("error", friendlyError(err, "update the device"));
+    }
+  }
+
+  async function saveEditDevice(e: FormEvent) {
+    e.preventDefault();
+    if (!editingDevice) return;
+    setEditSaving(true);
+    try {
+      await patch(editingDevice, {
+        status: editStatus,
+        dog_id: editDogId === "" ? null : editDogId,
+      });
+      setEditingDevice(null);
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -1109,8 +1219,8 @@ function DevicesTab({
                 <Th>Code</Th>
                 <Th>Status</Th>
                 <Th>Assigned dog</Th>
-                <Th>Last seen</Th>
-                <Th></Th>
+                <Th>Last seen (PST)</Th>
+                <Th>Actions</Th>
               </Tr>
             </THead>
             <TBody>
@@ -1118,46 +1228,50 @@ function DevicesTab({
                 <Tr key={d.id}>
                   <Td className="font-semibold">{d.device_code}</Td>
                   <Td>
-                    <Select
-                      aria-label={`Status for ${d.device_code}`}
-                      className="h-9 w-36"
-                      value={d.status}
-                      onChange={(e) => patch(d, { status: e.target.value as DeviceStatus })}
-                    >
-                      {DEVICE_STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </Select>
+                    <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", DEVICE_STATUS_BADGE_STYLE[d.status])}>
+                      {d.status}
+                    </span>
                   </Td>
-                  <Td>
-                    <Select
-                      aria-label={`Dog for ${d.device_code}`}
-                      className="h-9 w-44"
-                      value={d.dog_id ?? ""}
-                      onChange={(e) => patch(d, { dog_id: e.target.value === "" ? null : e.target.value })}
-                    >
-                      <option value="">— unassigned —</option>
-                      {dogs.map((dog) => (
-                        <option key={dog.id} value={dog.id}>
-                          {dog.name}
-                        </option>
-                      ))}
-                    </Select>
+                  <Td className="text-ink-muted">
+                    {d.dog_id ? (dogNames.get(d.dog_id) ?? "—") : "— unassigned —"}
                   </Td>
                   <Td className="text-xs text-ink-muted">
-                    {d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : "never"}
+                    {d.last_seen_at ? formatPhilippineTime(d.last_seen_at) : "never"}
                   </Td>
                   <Td>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Delete ${d.device_code}`}
-                      onClick={() => setPendingDelete(d)}
-                    >
-                      <Trash2 size={14} />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label={`View details for ${d.device_code}`}
+                        title="View Device Details"
+                        onClick={() => setViewingDevice(d)}
+                        className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-alt text-ink-muted transition-colors duration-fast hover:bg-brand-soft hover:text-brand-strong"
+                      >
+                        <Eye size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Edit ${d.device_code}`}
+                        title="Edit Status & Dog Assignment"
+                        onClick={() => {
+                          setEditingDevice(d);
+                          setEditStatus(d.status);
+                          setEditDogId(d.dog_id ?? "");
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-soft text-brand-strong transition-colors duration-fast hover:bg-brand hover:text-white"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Delete ${d.device_code}`}
+                        title="Delete Device"
+                        onClick={() => setPendingDelete(d)}
+                        className="flex h-8 w-8 items-center justify-center rounded-md bg-high-soft text-high-fg transition-colors duration-fast hover:bg-high hover:text-white"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </Td>
                 </Tr>
               ))}
@@ -1165,6 +1279,7 @@ function DevicesTab({
           </Table>
         </CardContent>
 
+        {/* Register Device Dialog */}
         <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Register device">
           <form className="flex flex-col gap-3" onSubmit={register}>
             <div className="flex flex-col gap-1">
@@ -1195,6 +1310,124 @@ function DevicesTab({
               </Button>
             </div>
           </form>
+        </Dialog>
+
+        {/* View Device Dialog */}
+        <Dialog open={viewingDevice !== null} onClose={() => setViewingDevice(null)} title="Device details">
+          {viewingDevice && (
+            <div className="flex flex-col gap-4 py-1">
+              <div className="flex flex-col gap-1 border-b border-hairline pb-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Device Code</span>
+                <span className="text-base font-bold text-ink">{viewingDevice.device_code}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Status</span>
+                  <div>
+                    <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", DEVICE_STATUS_BADGE_STYLE[viewingDevice.status])}>
+                      {viewingDevice.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Firmware Version</span>
+                  <span className="text-sm font-medium text-ink">{viewingDevice.firmware_version ?? "—"}</span>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Assigned Dog</span>
+                  <span className="text-sm font-medium text-ink">
+                    {viewingDevice.dog_id ? (dogNames.get(viewingDevice.dog_id) ?? "—") : "— unassigned —"}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Last Seen (PST)</span>
+                  <span className="text-sm font-medium text-ink">
+                    {viewingDevice.last_seen_at ? formatPhilippineTime(viewingDevice.last_seen_at) : "never"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1 rounded-md bg-surface-alt p-3">
+                <span className="text-[11px] font-semibold text-ink-muted">Device ID</span>
+                <span className="font-mono text-xs text-ink">{viewingDevice.id}</span>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="secondary" onClick={() => setViewingDevice(null)}>
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    const d = viewingDevice;
+                    setViewingDevice(null);
+                    setEditingDevice(d);
+                    setEditStatus(d.status);
+                    setEditDogId(d.dog_id ?? "");
+                  }}
+                >
+                  <Pencil size={14} /> Edit device
+                </Button>
+              </div>
+            </div>
+          )}
+        </Dialog>
+
+        {/* Edit Device Dialog */}
+        <Dialog open={editingDevice !== null} onClose={() => setEditingDevice(null)} title="Edit device">
+          {editingDevice && (
+            <form className="flex flex-col gap-4" onSubmit={saveEditDevice}>
+              <div className="flex flex-col gap-1">
+                <Label>Device</Label>
+                <div className="text-sm font-semibold text-ink">{editingDevice.device_code}</div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="edit-device-status">Status</Label>
+                <Select
+                  id="edit-device-status"
+                  className="h-10 w-full"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as DeviceStatus)}
+                >
+                  {DEVICE_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="edit-device-dog">Assigned Dog</Label>
+                <Select
+                  id="edit-device-dog"
+                  className="h-10 w-full"
+                  value={editDogId}
+                  onChange={(e) => setEditDogId(e.target.value)}
+                >
+                  <option value="">— unassigned —</option>
+                  {dogs.map((dog) => (
+                    <option key={dog.id} value={dog.id}>
+                      {dog.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="secondary" onClick={() => setEditingDevice(null)} disabled={editSaving}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={editSaving}>
+                  {editSaving ? "Saving…" : "Save changes"}
+                </Button>
+              </div>
+            </form>
+          )}
         </Dialog>
 
         <ConfirmDeleteDialog
