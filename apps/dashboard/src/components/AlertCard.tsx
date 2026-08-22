@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Cpu, Dog as DogIcon } from "lucide-react";
+import { Cpu, Dog as DogIcon } from "lucide-react";
 import type { Alert } from "../../../../packages/shared/types/index.ts";
 import { cn } from "../lib/cn.ts";
 import { formatAlertMessage, formatPhilippineTime } from "../lib/time.ts";
