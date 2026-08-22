@@ -14,6 +14,8 @@ import type { Alert, Dog } from "../../../../../packages/shared/types/index.ts";
 
 const SEVERITY_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2 };
 
+type TypeFilter = "all" | "device_offline" | "stress";
+
 /** Alerts queue (docs/05): every RLS-visible alert across the clinic's dogs, open
  * first for fast triage, live via Realtime. */
 export function AlertsQueue() {
@@ -21,6 +23,7 @@ export function AlertsQueue() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [showAll, setShowAll] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [loading, setLoading] = useState(true);
   const [acking, setAcking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,24 +54,33 @@ export function AlertsQueue() {
 
   const dogNames = useMemo(() => new Map(dogs.map((d) => [d.id, d.name])), [dogs]);
 
+  const filtered = useMemo(() => {
+    if (typeFilter === "device_offline") {
+      return alerts.filter((a) => a.type === "device_offline");
+    }
+    if (typeFilter === "stress") {
+      return alerts.filter((a) => a.type !== "device_offline");
+    }
+    return alerts;
+  }, [alerts, typeFilter]);
+
   const sorted = useMemo(
     () =>
-      [...alerts].sort((a, b) => {
+      [...filtered].sort((a, b) => {
         const openDiff = Number(b.status === "open") - Number(a.status === "open");
         if (openDiff !== 0) return openDiff;
         const sevDiff = (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9);
         if (sevDiff !== 0) return sevDiff;
         return b.created_at.localeCompare(a.created_at);
       }),
-    [alerts],
+    [filtered],
   );
 
-  // ADDED (step 16): one-click triage for a noisy morning — flips every open
-  // alert with the same guarded update the per-card button uses.
   const openIds = useMemo(
     () => sorted.filter((a) => a.status === "open").map((a) => a.id),
     [sorted],
   );
+
   const acknowledgeAllOpen = async () => {
     const userId = session?.user.id;
     if (!userId || openIds.length === 0) return;
@@ -96,23 +108,50 @@ export function AlertsQueue() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="m-0 text-2xl font-bold text-ink">Alerts queue</h1>
-        <div className="flex items-center gap-3">
-        {openIds.length > 1 && (
-          <Button size="sm" variant="secondary" disabled={acking} onClick={acknowledgeAllOpen}>
-            {acking ? "Acknowledging…" : `Acknowledge all open (${openIds.length})`}
-          </Button>
-        )}
-        <label className="inline-flex items-center gap-2 text-xs font-medium text-ink-muted">
-          <input
-            type="checkbox"
-            className="accent-[--ff-brand]"
-            checked={showAll}
-            onChange={(e) => setShowAll(e.target.checked)}
-          />
-          Include acknowledged &amp; resolved
-        </label>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Alert Type Filters */}
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant={typeFilter === "all" ? "secondary" : "ghost"}
+              onClick={() => setTypeFilter("all")}
+            >
+              All Types
+            </Button>
+            <Button
+              size="sm"
+              variant={typeFilter === "device_offline" ? "secondary" : "ghost"}
+              onClick={() => setTypeFilter("device_offline")}
+            >
+              Device Offline
+            </Button>
+            <Button
+              size="sm"
+              variant={typeFilter === "stress" ? "secondary" : "ghost"}
+              onClick={() => setTypeFilter("stress")}
+            >
+              Stress Alerts
+            </Button>
+          </div>
+
+          {openIds.length > 1 && (
+            <Button size="sm" variant="secondary" disabled={acking} onClick={acknowledgeAllOpen}>
+              {acking ? "Acknowledging…" : `Acknowledge all open (${openIds.length})`}
+            </Button>
+          )}
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-ink-muted">
+            <input
+              type="checkbox"
+              className="accent-[--ff-brand]"
+              checked={showAll}
+              onChange={(e) => setShowAll(e.target.checked)}
+            />
+            Include acknowledged &amp; resolved
+          </label>
         </div>
       </div>
+
       <Card>
         <CardContent className="p-5">
           {sorted.length === 0 ? (

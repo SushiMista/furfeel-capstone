@@ -43,7 +43,14 @@ import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { useToast } from "../../components/ui/toast.tsx";
+import {
+  acknowledgeAlert,
+  fetchAlertsQueue,
+} from "../../lib/queries.ts";
+import { AlertCard } from "../../components/AlertCard.tsx";
+import { formatPhilippineTime } from "../../lib/time.ts";
 import type {
+  Alert,
   Clinic,
   Device,
   DeviceStatus,
@@ -230,12 +237,17 @@ function HealthTab({
   devices: Device[];
   dogs: Dog[];
 }) {
+  const { session } = useAuth();
   const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [openAlertsList, setOpenAlertsList] = useState<Alert[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSystemHealth(supabase)
-      .then(setHealth)
+    Promise.all([fetchSystemHealth(supabase), fetchAlertsQueue(supabase, "open")])
+      .then(([healthData, alertRows]) => {
+        setHealth(healthData);
+        setOpenAlertsList(alertRows);
+      })
       .catch((err) => setError(friendlyError(err, "load system health")));
   }, []);
 
@@ -280,10 +292,40 @@ function HealthTab({
       </div>
       <p className="m-0 text-xs text-ink-muted">
         Last telemetry received:{" "}
-        {health.last_telemetry_at ? new Date(health.last_telemetry_at).toLocaleString() : "never"}
+        {health.last_telemetry_at ? formatPhilippineTime(health.last_telemetry_at) : "never"}
         {" · "}Device fleet: {devices.length} registered (
         {devices.length - online - offline} inactive/maintenance)
       </p>
+
+      {/* System Alerts Triage Card for Admins */}
+      <Card>
+        <CardHeader>
+          <CardTitle>System &amp; Hardware Alerts</CardTitle>
+          <CardDescription>
+            Active hardware or stress alerts requiring attention. Use the direct investigation links to view affected dogs or check offline device status.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-5 pt-0">
+          {openAlertsList.length === 0 ? (
+            <EmptyState>No open system alerts — all hardware and dogs are operating normally 🐾</EmptyState>
+          ) : (
+            openAlertsList.map((alert) => (
+              <AlertCard
+                key={alert.id}
+                alert={alert}
+                onAcknowledge={async (a) => {
+                  const userId = session?.user.id;
+                  if (!userId) return;
+                  const updated = await acknowledgeAlert(supabase, a.id, userId);
+                  if (updated) {
+                    setOpenAlertsList((prev) => prev.filter((x) => x.id !== updated.id));
+                  }
+                }}
+              />
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
