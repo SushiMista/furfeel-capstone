@@ -1,6 +1,3 @@
-// ADDED: vet account menu (docs/05): avatar + name, with theme setting,
-// profile-photo upload, and sign out — so the dashboard is a real signed-in
-// product, not an email string in a corner.
 import { useEffect, useRef, useState } from "react";
 import { Camera, Check, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { signOut } from "../lib/useAuth.ts";
@@ -35,7 +32,7 @@ function Avatar({ url, name, size = 32 }: { url: string | null; name: string; si
   );
 }
 
-export function AccountMenu({ email }: { email: string }) {
+export function AccountMenu({ email, isCollapsed = false }: { email: string; isCollapsed?: boolean }) {
   const { profile, avatarUrl, theme, setTheme, changeAvatar } = useAccount();
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -68,24 +65,28 @@ export function AccountMenu({ email }: { email: string }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        title={isCollapsed ? `${name} (${email})` : undefined}
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left",
-          "transition-colors duration-fast hover:bg-surface-alt",
+          "flex w-full items-center gap-2.5 rounded-md text-left transition-colors duration-fast hover:bg-surface-alt",
+          isCollapsed ? "justify-center p-1.5" : "px-2 py-2",
         )}
       >
         <Avatar url={avatarUrl} name={name} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-ink">{name}</span>
-          <span className="block truncate text-xs text-ink-muted">{email}</span>
-        </span>
+        {!isCollapsed && (
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-ink">{name}</span>
+            <span className="block truncate text-xs text-ink-muted">{email}</span>
+          </span>
+        )}
       </button>
 
       {open && (
         <div
           className={cn(
-            "absolute bottom-full left-0 z-20 mb-2 w-60 rounded-lg border border-hairline",
+            "absolute bottom-full z-20 mb-2 w-60 rounded-lg border border-hairline",
             "bg-surface p-2 shadow-card",
             "motion-safe:animate-[ff-pop_var(--ff-motion-fast)_var(--ff-motion-easing)]",
+            isCollapsed ? "left-0" : "left-0",
           )}
         >
           <div className="px-2 pb-2 pt-1">
