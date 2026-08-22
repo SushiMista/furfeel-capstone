@@ -199,6 +199,22 @@ describe("sortBoardRows", () => {
     expect(sortBoardRows(rows).map((r) => r.dog.name)).toEqual(["Apollo", "Ziggy"]);
   });
 
+  it("sorts by owner name when sortBy is 'owner'", () => {
+    const rows = [
+      { ...boardRow("Rover", "calm"), ownerName: "Zack Owner" },
+      { ...boardRow("Fido", "calm"), ownerName: "Alice Owner" },
+    ];
+    expect(sortBoardRows(rows, "owner").map((r) => r.dog.name)).toEqual(["Fido", "Rover"]);
+  });
+
+  it("sorts by clinic name when sortBy is 'clinic'", () => {
+    const rows = [
+      { ...boardRow("Rover", "calm"), clinicName: "West Clinic" },
+      { ...boardRow("Fido", "calm"), clinicName: "East Clinic" },
+    ];
+    expect(sortBoardRows(rows, "clinic").map((r) => r.dog.name)).toEqual(["Fido", "Rover"]);
+  });
+
   // The actual reason sortBoardRows became generic: Overview's leaner
   // ClinicBoardRow (dog/device/latestClassification only, no latestReading/
   // openAlertCount/recentLevels) must be sortable by the same function
