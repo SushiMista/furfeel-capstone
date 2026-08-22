@@ -1,11 +1,12 @@
 import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Activity,
   Bell,
   Building2,
   Dog as DogIcon,
+  Eye,
   Pencil,
   Plus,
   Trash2,
@@ -42,6 +43,7 @@ import { Input, Label, Select } from "../../components/ui/input.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
+import { cn } from "../../lib/cn.ts";
 import { useToast } from "../../components/ui/toast.tsx";
 import {
   acknowledgeAlert,
@@ -330,6 +332,13 @@ function HealthTab({
   );
 }
 
+const ROLE_BADGE_STYLE: Record<UserRole, string> = {
+  admin: "bg-purple-100 text-purple-800 border border-purple-200 font-semibold",
+  veterinarian: "bg-blue-100 text-blue-800 border border-blue-200 font-semibold",
+  vet_staff: "bg-teal-100 text-teal-800 border border-teal-200 font-semibold",
+  owner: "bg-amber-100 text-amber-800 border border-amber-200 font-semibold",
+};
+
 function UsersTab({
   users,
   clinics,
@@ -347,6 +356,10 @@ function UsersTab({
   onDeleted: (id: string, name: string) => void;
   onError: (message: string) => void;
 }) {
+  const [searchParams] = useSearchParams();
+  const roleParam = searchParams.get("role");
+  const actionParam = searchParams.get("action");
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -354,16 +367,32 @@ function UsersTab({
   const [newClinicId, setNewClinicId] = useState("");
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+
+  const [viewingUser, setViewingUser] = useState<User | null>(null);
+
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editRole, setEditRole] = useState<UserRole>("owner");
+  const [editClinicId, setEditClinicId] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
   const [pendingDelete, setPendingDelete] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  async function apply(user: User, role: UserRole, clinicId: string | null) {
-    try {
-      onChanged(await updateUserRoleClinic(supabase, user.id, role, clinicId));
-    } catch (err) {
-      onError(friendlyError(err, "update the user"));
+  const clinicNames = useMemo(() => new Map(clinics.map((c) => [c.id, c.name])), [clinics]);
+
+  useEffect(() => {
+    if (actionParam === "new") {
+      setAddOpen(true);
     }
-  }
+  }, [actionParam]);
+
+  const filteredUsers = useMemo(() => {
+    if (!roleParam) return users;
+    if (roleParam === "vet") {
+      return users.filter((u) => u.role === "vet_staff" || u.role === "veterinarian");
+    }
+    return users.filter((u) => u.role === roleParam);
+  }, [users, roleParam]);
 
   async function confirmDelete() {
     if (!pendingDelete) return;
@@ -404,15 +433,41 @@ function UsersTab({
     }
   }
 
+  async function saveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editingUser) return;
+    setEditSaving(true);
+    try {
+      const updated = await updateUserRoleClinic(
+        supabase,
+        editingUser.id,
+        editRole,
+        editClinicId === "" ? null : editClinicId,
+      );
+      onChanged(updated);
+      setEditingUser(null);
+    } catch (err) {
+      onError(friendlyError(err, "update the user"));
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
-          <CardTitle>Users</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <span>Users</span>
+            {roleParam && (
+              <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-strong">
+                Filtered: {roleParam === "vet" ? "Staff & Vets" : roleParam}
+              </span>
+            )}
+          </CardTitle>
           <CardDescription>
-            Add accounts and assign roles and clinics. Accounts created here can sign in
-            right away — no email confirmation needed. Users can also sign up in the apps
-            themselves and start as owners.
+            Manage accounts, view details, assign roles and clinics. Accounts created here can sign in
+            right away — no email confirmation needed.
           </CardDescription>
         </div>
         <Button type="button" onClick={() => setAddOpen(true)}>
@@ -427,54 +482,65 @@ function UsersTab({
               <Th>Email</Th>
               <Th>Role</Th>
               <Th>Clinic</Th>
-              <Th></Th>
+              <Th>Actions</Th>
             </Tr>
           </THead>
           <TBody>
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <Tr key={u.id}>
                 <Td className="font-semibold">{u.name}</Td>
                 <Td className="text-ink-muted">{u.email}</Td>
                 <Td>
-                  <Select
-                    aria-label={`Role for ${u.name}`}
-                    className="h-9 w-36"
-                    value={u.role}
-                    onChange={(e) => apply(u, e.target.value as UserRole, u.clinic_id)}
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </Select>
+                  <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", ROLE_BADGE_STYLE[u.role])}>
+                    {u.role.replace("_", " ")}
+                  </span>
+                </Td>
+                <Td className="text-ink-muted">
+                  {u.clinic_id ? (clinicNames.get(u.clinic_id) ?? "— none —") : "— none —"}
                 </Td>
                 <Td>
-                  <Select
-                    aria-label={`Clinic for ${u.name}`}
-                    className="h-9 w-48"
-                    value={u.clinic_id ?? ""}
-                    onChange={(e) => apply(u, u.role, e.target.value === "" ? null : e.target.value)}
-                  >
-                    <option value="">— none —</option>
-                    {clinics.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Td>
-                <Td>
-                  {u.id !== currentUserId && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Delete ${u.name}`}
-                      onClick={() => setPendingDelete(u)}
+                  <div className="flex items-center gap-2">
+                    {/* View Button - Neutral Box */}
+                    <button
+                      type="button"
+                      aria-label={`View details for ${u.name}`}
+                      title="View User Details"
+                      onClick={() => setViewingUser(u)}
+                      className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-alt text-ink-muted transition-colors duration-fast hover:bg-brand-soft hover:text-brand-strong"
                     >
-                      <Trash2 size={14} />
-                    </Button>
-                  )}
+                      <Eye size={15} />
+                    </button>
+
+                    {/* Edit Button - Soft Blue Box */}
+                    <button
+                      type="button"
+                      aria-label={`Edit ${u.name}`}
+                      title="Edit User Role & Clinic"
+                      onClick={() => {
+                        setEditingUser(u);
+                        setEditRole(u.role);
+                        setEditClinicId(u.clinic_id ?? "");
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-soft text-brand-strong transition-colors duration-fast hover:bg-brand hover:text-white"
+                    >
+                      <Pencil size={15} />
+                    </button>
+
+                    {/* Delete Button - Soft Red Box */}
+                    {u.id !== currentUserId ? (
+                      <button
+                        type="button"
+                        aria-label={`Delete ${u.name}`}
+                        title="Delete User Account"
+                        onClick={() => setPendingDelete(u)}
+                        className="flex h-8 w-8 items-center justify-center rounded-md bg-high-soft text-high-fg transition-colors duration-fast hover:bg-high hover:text-white"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    ) : (
+                      <div className="h-8 w-8" />
+                    )}
+                  </div>
                 </Td>
               </Tr>
             ))}
@@ -482,6 +548,7 @@ function UsersTab({
         </Table>
       </CardContent>
 
+      {/* Add User Dialog */}
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Add user">
         <form className="flex flex-col gap-3" onSubmit={submit}>
           <div className="flex flex-col gap-1">
@@ -552,6 +619,124 @@ function UsersTab({
             </Button>
           </div>
         </form>
+      </Dialog>
+
+      {/* View User Details Dialog */}
+      <Dialog open={viewingUser !== null} onClose={() => setViewingUser(null)} title="User details">
+        {viewingUser && (
+          <div className="flex flex-col gap-4 py-1">
+            <div className="flex flex-col gap-1 border-b border-hairline pb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Account Name</span>
+              <span className="text-base font-bold text-ink">{viewingUser.name}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Email</span>
+                <span className="text-sm font-medium text-ink">{viewingUser.email}</span>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Role</span>
+                <div>
+                  <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", ROLE_BADGE_STYLE[viewingUser.role])}>
+                    {viewingUser.role.replace("_", " ")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Assigned Clinic</span>
+                <span className="text-sm font-medium text-ink">
+                  {viewingUser.clinic_id ? (clinicNames.get(viewingUser.clinic_id) ?? "— none —") : "— none —"}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Created Date</span>
+                <span className="text-sm font-medium text-ink">
+                  {viewingUser.created_at ? formatPhilippineTime(viewingUser.created_at) : "—"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1 rounded-md bg-surface-alt p-3">
+              <span className="text-[11px] font-semibold text-ink-muted">Account ID</span>
+              <span className="font-mono text-xs text-ink">{viewingUser.id}</span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="secondary" onClick={() => setViewingUser(null)}>
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  const u = viewingUser;
+                  setViewingUser(null);
+                  setEditingUser(u);
+                  setEditRole(u.role);
+                  setEditClinicId(u.clinic_id ?? "");
+                }}
+              >
+                <Pencil size={14} /> Edit user
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editingUser !== null} onClose={() => setEditingUser(null)} title="Edit user">
+        {editingUser && (
+          <form className="flex flex-col gap-4" onSubmit={saveEdit}>
+            <div className="flex flex-col gap-1">
+              <Label>Account</Label>
+              <div className="text-sm font-semibold text-ink">{editingUser.name} ({editingUser.email})</div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="edit-user-role">Role</Label>
+              <Select
+                id="edit-user-role"
+                className="h-10 w-full"
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value as UserRole)}
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="edit-user-clinic">Clinic</Label>
+              <Select
+                id="edit-user-clinic"
+                className="h-10 w-full"
+                value={editClinicId}
+                onChange={(e) => setEditClinicId(e.target.value)}
+              >
+                <option value="">— none —</option>
+                {clinics.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setEditingUser(null)} disabled={editSaving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={editSaving}>
+                {editSaving ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+          </form>
+        )}
       </Dialog>
 
       <ConfirmDeleteDialog
