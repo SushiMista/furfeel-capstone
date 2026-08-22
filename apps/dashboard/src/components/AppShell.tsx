@@ -1,10 +1,13 @@
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Activity,
   ArrowLeftRight,
   Bell,
   Building2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Cpu,
   FileText,
   LayoutDashboard,
@@ -20,26 +23,56 @@ import { AccountMenu } from "./AccountMenu.tsx";
 import { supabase } from "../lib/supabaseClient.ts";
 import { useToast } from "./ui/toast.tsx";
 import { ImageAttachmentNotification } from "./ImageAttachmentNotification.tsx";
-import { fetchDog, getMediaSignedUrl } from "../lib/queries.ts";
+import { fetchAlertsQueue, fetchDog, getMediaSignedUrl } from "../lib/queries.ts";
 
-const NAV = [
-  { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/board", label: "Monitoring board", icon: Table2 },
-  { to: "/alerts", label: "Alerts", icon: Bell },
-  { to: "/handover", label: "Handover", icon: ArrowLeftRight },
-  { to: "/reports", label: "Reports", icon: FileText },
-  { to: "/devices", label: "Devices", icon: Radio },
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  end?: boolean;
+}
+
+interface NavGroup {
+  id: string;
+  label: string;
+  adminOnly?: boolean;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "clinical",
+    label: "Clinical Operations",
+    items: [
+      { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
+      { to: "/board", label: "Monitoring board", icon: Table2 },
+      { to: "/alerts", label: "Alerts queue", icon: Bell },
+      { to: "/handover", label: "Handover notes", icon: ArrowLeftRight },
+    ],
+  },
+  {
+    id: "fleet",
+    label: "Fleet & Telemetry",
+    items: [
+      { to: "/devices", label: "Device fleet", icon: Radio },
+      { to: "/reports", label: "Analytics & reports", icon: FileText },
+    ],
+  },
+  {
+    id: "admin",
+    label: "Admin Console",
+    adminOnly: true,
+    items: [
+      { to: "/admin/users", label: "User accounts", icon: Users },
+      { to: "/admin/clinics", label: "Partner clinics", icon: Building2 },
+      { to: "/admin/devices", label: "Device management", icon: Cpu },
+      { to: "/admin/health", label: "System health", icon: Activity },
+    ],
+  },
 ];
 
-const ADMIN_NAV = [
-  { to: "/admin/users", label: "Users", icon: Users },
-  { to: "/admin/clinics", label: "Clinics", icon: Building2 },
-  { to: "/admin/devices", label: "Devices", icon: Cpu },
-  { to: "/admin/health", label: "Health", icon: Activity },
-];
-
-/** Dashboard chrome (docs/19 §7): left sidebar — Overview, Board, Alerts, Handover,
- * Reports, Devices (read-only), Admin (admin role only). Clinical, crisp, blue + white. */
+/** Dashboard chrome: collapsible nested sidebar navigation with accordion groups,
+ * logo header, PST alert badge counters, and state persistence. */
 export function AppShell({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const { role } = useCurrentRole();
@@ -47,6 +80,42 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isDogPage = location.pathname.startsWith("/dogs/");
   const toast = useToast();
 
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem("furfeel:sidebar-collapsed") === "true";
+  });
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    clinical: true,
+    fleet: true,
+    admin: true,
+  });
+
+  const [openAlertCount, setOpenAlertCount] = useState<number>(0);
+
+  const toggleCollapse = useCallback(() => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("furfeel:sidebar-collapsed", String(next));
+      return next;
+    });
+  }, []);
+
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }));
+  };
+
+  // Fetch open alerts count for badge display
+  useEffect(() => {
+    if (!session) return;
+    fetchAlertsQueue(supabase, "open")
+      .then((openAlerts) => setOpenAlertCount(openAlerts.length))
+      .catch(() => {});
+  }, [session, location.pathname]);
+
+  // Global realtime media submission toast
   useEffect(() => {
     if (!session) return;
 
@@ -90,63 +159,126 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [session, toast]);
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="print-hidden sticky top-0 flex h-screen w-56 flex-shrink-0 flex-col border-r border-hairline bg-surface px-3 py-5">
-        <div className="mb-6 flex items-center gap-2 px-2 text-lg font-extrabold text-brand-ink">
-          <PawPrint size={20} className="text-brand" />
-          FurFeel
-        </div>
-        <nav className="flex flex-col gap-1" aria-label="Main">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium",
-                  "transition-colors duration-fast",
-                  isActive
-                    ? "bg-brand-soft text-brand-strong"
-                    : "text-ink-muted hover:bg-surface-alt hover:text-ink",
-                )
-              }
-            >
-              <Icon size={16} />
-              {label}
-            </NavLink>
-          ))}
-          {role === "admin" && (
-            <>
-              <div className="mt-3 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                Admin
-              </div>
-              {ADMIN_NAV.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium",
-                      "transition-colors duration-fast",
-                      isActive
-                        ? "bg-brand-soft text-brand-strong"
-                        : "text-ink-muted hover:bg-surface-alt hover:text-ink",
-                    )
-                  }
-                >
-                  <Icon size={16} />
-                  {label}
-                </NavLink>
-              ))}
-            </>
+    <div className="flex min-h-screen bg-surface">
+      {/* Collapsible Sidebar */}
+      <aside
+        className={cn(
+          "print-hidden sticky top-0 z-30 flex h-screen flex-shrink-0 flex-col border-r border-hairline bg-surface px-3 py-4",
+          "transition-all duration-300 ease-in-out relative",
+          isCollapsed ? "w-16" : "w-64",
+        )}
+      >
+        {/* Floating Outer Edge Hanging Toggle Button */}
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={cn(
+            "absolute -right-3 top-5 z-40 flex h-6 w-6 items-center justify-center rounded-full border border-hairline bg-surface text-ink-muted shadow-md transition-all duration-fast",
+            "hover:bg-brand-soft hover:text-brand-strong hover:scale-110 hover:border-brand/40",
           )}
+        >
+          {isCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+        </button>
+
+        {/* Header: Logo */}
+        <div className="mb-5 flex items-center border-b border-hairline pb-3 px-1">
+          {isCollapsed ? (
+            <div className="flex w-full justify-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-soft text-brand font-bold shadow-xs">
+                <PawPrint size={20} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand font-bold shadow-xs">
+                <PawPrint size={20} />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-base font-extrabold text-brand-ink truncate">FurFeel</span>
+                <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider truncate">
+                  Clinical &amp; Fleet Ops
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Nested Navigation Accordions */}
+        <nav className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1" aria-label="Main navigation">
+          {NAV_GROUPS.map((group) => {
+            if (group.adminOnly && role !== "admin") return null;
+            const isOpen = openGroups[group.id] ?? true;
+
+            return (
+              <div key={group.id} className="flex flex-col gap-1">
+                {/* Accordion Header (Expanded mode) */}
+                {!isCollapsed ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.id)}
+                    className="flex w-full items-center justify-between px-2 py-1 text-xs font-bold uppercase tracking-wider text-ink-muted hover:text-ink transition-colors duration-fast"
+                  >
+                    <span>{group.label}</span>
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </button>
+                ) : (
+                  <div className="h-px bg-hairline my-1" />
+                )}
+
+                {/* Sub-items List */}
+                {(isCollapsed || isOpen) && (
+                  <div className={cn("flex flex-col gap-1", !isCollapsed && "pl-1")}>
+                    {group.items.map(({ to, label, icon: Icon, end }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        end={end}
+                        title={isCollapsed ? label : undefined}
+                        className={({ isActive }) =>
+                          cn(
+                            "flex items-center gap-2.5 rounded-md text-sm font-medium transition-colors duration-fast",
+                            isCollapsed ? "justify-center p-2" : "px-3 py-2",
+                            isActive
+                              ? "bg-brand-soft text-brand-strong font-semibold"
+                              : "text-ink-muted hover:bg-surface-alt hover:text-ink",
+                          )
+                        }
+                      >
+                        <div className="relative flex items-center justify-center">
+                          <Icon size={18} className="flex-shrink-0" />
+                          {to === "/alerts" && openAlertCount > 0 && isCollapsed && (
+                            <span className="absolute -top-1.5 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-high-soft px-1 text-[10px] font-extrabold tabular-nums text-high-fg ring-2 ring-surface shadow-2xs">
+                              {openAlertCount}
+                            </span>
+                          )}
+                        </div>
+
+                        {!isCollapsed && <span className="truncate flex-1">{label}</span>}
+
+                        {/* Live Alert Count Badge (Expanded Mode) */}
+                        {to === "/alerts" && openAlertCount > 0 && !isCollapsed && (
+                          <span className="rounded-pill bg-high-soft px-2 py-0.5 text-xs font-bold tabular-nums text-high-fg">
+                            {openAlertCount}
+                          </span>
+                        )}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
-        {/* ADDED: account menu (docs/05) — theme, profile photo, sign out. */}
+
+        {/* Account Menu Footer */}
         <div className="mt-auto border-t border-hairline pt-3">
-          <AccountMenu email={session?.user.email ?? ""} />
+          <AccountMenu email={session?.user.email ?? ""} isCollapsed={isCollapsed} />
         </div>
       </aside>
+
+      {/* Main Content Area */}
       <main className={cn("min-w-0 flex-1", !isDogPage && "px-8 py-6")}>
         <div className={cn(!isDogPage && "mx-auto max-w-6xl")}>{children}</div>
       </main>
