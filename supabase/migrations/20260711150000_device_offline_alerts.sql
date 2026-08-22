@@ -36,7 +36,7 @@ begin
       'warning',
       'device_offline',
       'Device ' || s.device_code || ' stopped sending data (last seen '
-        || to_char(s.last_seen_at at time zone 'utc', 'YYYY-MM-DD HH24:MI') || ' UTC).',
+        || to_char(s.last_seen_at at time zone 'Asia/Manila', 'YYYY-MM-DD HH24:MI') || ' PST).',
       'open'
     from stale s
     where s.dog_id is not null
