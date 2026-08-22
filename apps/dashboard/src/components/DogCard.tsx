@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { Bell, Camera } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.ts";
 import { getMediaSignedUrl, uploadDogPhoto, type MonitoringBoardRow } from "../lib/queries.ts";
-import { StressLevelBadge, stressLevelColor } from "./StressLevelBadge.tsx";
+import { StressLevelBadge } from "./StressLevelBadge.tsx";
 import { cn } from "../lib/cn.ts";
 import { dogTint } from "../lib/dogTint.ts";
 import type { StressLevel } from "../../../../packages/shared/types/index.ts";
@@ -28,30 +28,6 @@ function timeAgo(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-/** Mini stress trend: one colored segment per recent classification (oldest →
- * newest). Supplementary to the badge, which carries the word — so meaning
- * never rides on color alone (docs/19 §9). */
-function StressRibbon({ levels }: { levels: StressLevel[] }) {
-  if (levels.length < 2) return null;
-  const latest = levels[levels.length - 1];
-  return (
-    <div
-      className="flex h-1.5 gap-px overflow-hidden rounded-pill"
-      role="img"
-      aria-label={`Recent stress trend, latest ${latest}`}
-      title={`Recent stress trend (oldest to newest), latest: ${latest}`}
-    >
-      {levels.map((level, i) => (
-        <span
-          key={i}
-          className="min-w-0 flex-1"
-          style={{ backgroundColor: stressLevelColor(level) }}
-        />
-      ))}
-    </div>
-  );
-}
-
 function Vital({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
     <div className="min-w-0">
@@ -71,7 +47,7 @@ export function DogCard({
   row: MonitoringBoardRow;
   onPhotoChanged: (dogId: string) => void;
 }) {
-  const { dog, device, latestReading, latestClassification, openAlertCount, recentLevels } = row;
+  const { dog, device, latestReading, latestClassification, openAlertCount } = row;
   const level = latestClassification?.stress_level;
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -222,8 +198,6 @@ export function DogCard({
         <Vital label="Motion" value={latestReading?.motion_activity?.toString() ?? "—"} />
         <Vital label="Ambient" value={latestReading?.ambient_temperature_c?.toString() ?? "—"} unit="°C" />
       </div>
-
-      <StressRibbon levels={recentLevels} />
 
       <div className="text-[11px] text-ink-muted" aria-live="polite">
         {uploadError
