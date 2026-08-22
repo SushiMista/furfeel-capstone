@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
-import { useAuth } from "./lib/useAuth.ts";
+import { useAuth, signOut } from "./lib/useAuth.ts";
+import { useCurrentRole } from "./lib/useCurrentRole.ts";
 import { AppShell } from "./components/AppShell.tsx";
 import { ToastProvider } from "./components/ui/toast.tsx";
 import { CardSkeleton } from "./components/ui/skeleton.tsx";
@@ -12,17 +13,26 @@ import { AlertsQueue } from "./pages/alerts/AlertsQueue.tsx";
 import { Handover } from "./pages/handover/Handover.tsx";
 import { Devices } from "./pages/devices/Devices.tsx";
 import { Reports } from "./pages/reports/Reports.tsx";
+import { HeatmapAnalytics } from "./pages/heatmap/HeatmapAnalytics.tsx";
 import { Admin } from "./pages/admin/Admin.tsx";
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { session, loading } = useAuth();
-  if (loading)
+  const { session, loading: authLoading } = useAuth();
+  const { role, loading: roleLoading } = useCurrentRole();
+
+  if (authLoading || (session && roleLoading))
     return (
       <div className="p-8">
         <CardSkeleton />
       </div>
     );
   if (!session) return <Navigate to="/login" replace />;
+
+  if (role === "owner") {
+    signOut();
+    return <Navigate to="/login?error=owner_restricted" replace />;
+  }
+
   return <AppShell>{children}</AppShell>;
 }
 
@@ -122,6 +132,14 @@ export function App() {
             element={
               <RequireAuth>
                 <Devices />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/heatmap"
+            element={
+              <RequireAuth>
+                <HeatmapAnalytics />
               </RequireAuth>
             }
           />

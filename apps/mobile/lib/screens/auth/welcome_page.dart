@@ -23,7 +23,16 @@ class WelcomePage extends StatelessWidget {
 
   Future<String?> _signIn(String email, String password) async {
     try {
-      await client.auth.signInWithPassword(email: email, password: password);
+      final res = await client.auth.signInWithPassword(email: email, password: password);
+      final user = res.user;
+      if (user != null) {
+        final userRow = await client.from('users').select('role').eq('id', user.id).maybeSingle();
+        final role = userRow?['role'] as String?;
+        if (role != null && role != 'owner') {
+          await client.auth.signOut();
+          return 'Access Denied: Clinic staff & admin accounts must log in via the FurFeel Web Dashboard.';
+        }
+      }
       return null;
     } on AuthException catch (e) {
       if (e.message.contains('SocketException') ||

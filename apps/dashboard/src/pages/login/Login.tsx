@@ -1,14 +1,22 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PawPrint } from "lucide-react";
 import { signIn } from "../../lib/useAuth.ts";
 import { Button } from "../../components/ui/button.tsx";
 import { Input, Label } from "../../components/ui/input.tsx";
 
 export function Login() {
+  const [searchParams] = useSearchParams();
+  const isOwnerRestricted = searchParams.get("error") === "owner_restricted";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    isOwnerRestricted
+      ? "Access Denied: Dog owner accounts are restricted to the FurFeel Mobile App. Please log in using the mobile application."
+      : null,
+  );
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
@@ -54,7 +62,7 @@ export function Login() {
             />
           </div>
           {error && (
-            <p role="alert" className="m-0 rounded-sm bg-high-soft px-3 py-2 text-sm text-high-fg">
+            <p role="alert" className="m-0 rounded-sm bg-high-soft px-3 py-2 text-sm text-high-fg leading-relaxed">
               {error}
             </p>
           )}
