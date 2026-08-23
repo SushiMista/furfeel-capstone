@@ -26,6 +26,7 @@ import { AlertCard } from "../../components/AlertCard.tsx";
 import { VetNotes } from "../../components/VetNotes.tsx";
 import { ThresholdEditor } from "../../components/ThresholdEditor.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
+import { Select } from "../../components/ui/input.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { cn } from "../../lib/cn.ts";
@@ -105,6 +106,7 @@ export function DogDetail() {
   const [classifications, setClassifications] = useState<StressClassification[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [mixSummary, setMixSummary] = useState<DailyStressSummaryRow[]>([]);
+  const [stressMixDays, setStressMixDays] = useState<number>(14);
   const [labels, setLabels] = useState<StressLabelWithVet[]>([]);
   const [media, setMedia] = useState<MediaSubmission[]>([]);
   const [tab, setTabState] = useState<TabId>(() => {
@@ -130,7 +132,7 @@ export function DogDetail() {
         fetchTelemetryHistory(supabase, dogId, HISTORY_LIMIT),
         fetchClassificationHistory(supabase, dogId, HISTORY_LIMIT),
         fetchRecentAlerts(supabase, dogId),
-        fetchDailyStressSummary(supabase, dogId),
+        fetchDailyStressSummary(supabase, dogId, stressMixDays),
         fetchStressLabels(supabase, dogId),
         fetchMediaSubmissions(supabase, dogId),
       ]);
@@ -147,7 +149,7 @@ export function DogDetail() {
     } finally {
       setLoading(false);
     }
-  }, [dogId]);
+  }, [dogId, stressMixDays]);
 
   useEffect(() => {
     load();
@@ -354,8 +356,23 @@ export function DogDetail() {
           {tab === "stress" && (
             <>
               <Card>
-                <CardHeader>
-                  <CardTitle>Stress mix — last 14 days</CardTitle>
+                <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-4">
+                  <div>
+                    <CardTitle>
+                      Stress mix — {stressMixDays === 7 ? "last 7 days" : stressMixDays === 14 ? "last 14 days" : stressMixDays === 30 ? "last 30 days" : "last 3 months"}
+                    </CardTitle>
+                  </div>
+                  <Select
+                    value={String(stressMixDays)}
+                    onChange={(e) => setStressMixDays(Number(e.target.value))}
+                    className="h-9 w-44 text-xs font-medium"
+                    aria-label="Select time range"
+                  >
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 3 months</option>
+                  </Select>
                 </CardHeader>
                 <CardContent>
                   <StressMixChart summary={mixSummary} />
