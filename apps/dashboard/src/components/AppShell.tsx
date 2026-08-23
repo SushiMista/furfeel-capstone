@@ -49,6 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/board", label: "Monitoring board", icon: Table2 },
       { to: "/alerts", label: "Alerts queue", icon: Bell },
       { to: "/handover", label: "Handover notes", icon: ArrowLeftRight },
+      { to: "/teams", label: "Clinic teams", icon: Users },
     ],
   },
   {
