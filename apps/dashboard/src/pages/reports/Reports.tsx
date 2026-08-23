@@ -1,6 +1,6 @@
 import { friendlyError } from "../../lib/errors.ts";
-import { useCallback, useEffect, useState } from "react";
-import { PawPrint, Printer } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, PawPrint, Printer, Search } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   fetchAlertsSince,
@@ -20,7 +20,7 @@ import { StressLevelBadge, stressLevelColor } from "../../components/StressLevel
 import { TelemetryChart } from "../../components/TelemetryChart.tsx";
 import { Card, CardContent } from "../../components/ui/card.tsx";
 import { Button } from "../../components/ui/button.tsx";
-import { Label, Select } from "../../components/ui/input.tsx";
+import { Input, Label, Select } from "../../components/ui/input.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
@@ -41,11 +41,7 @@ const PERIODS = [
 
 const LEVELS: StressLevel[] = ["calm", "mild", "moderate", "high"];
 
-/** Vital | Unit | Min | Average | Max — matches the mobile PDF health
- * record's vitals table (apps/mobile/lib/util/exports.dart) column-for-column,
- * so a clinic sees the same shape whether the record came from the app or
- * printed from the dashboard. */
-function VitalRow({
+function MetricRow({
   label,
   unit,
   summary,
@@ -59,17 +55,15 @@ function VitalRow({
   const fmt = (n: number) => n.toFixed(decimals);
   return (
     <Tr>
-      <Td>{label}</Td>
+      <Td className="font-medium text-ink">{label}</Td>
       <Td className="text-ink-muted">{unit}</Td>
       <Td className="tabular-nums text-ink-muted">{summary ? fmt(summary.min) : "—"}</Td>
-      <Td className="tabular-nums font-semibold">{summary ? fmt(summary.avg) : "—"}</Td>
+      <Td className="tabular-nums font-semibold text-ink">{summary ? fmt(summary.avg) : "—"}</Td>
       <Td className="tabular-nums text-ink-muted">{summary ? fmt(summary.max) : "—"}</Td>
     </Tr>
   );
 }
 
-/** Uppercase section rule (docs/19 typography) so the record reads as a
- * structured document, on screen and on paper. */
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h3 className="mb-3 mt-6 border-b-2 border-brand pb-1 text-xs font-bold uppercase tracking-widest text-brand-ink">
@@ -78,9 +72,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** One `Label: value` line inside an info panel — nulls render as an em dash
- * so a receiving clinic sees the field was empty, not omitted (matches the
- * mobile PDF's `_field` helper). */
 function InfoField({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <p className="m-0 mb-1 text-xs leading-relaxed text-ink">
@@ -90,9 +81,6 @@ function InfoField({ label, value }: { label: string; value: string | null | und
   );
 }
 
-/** Patient/clinic info panel — a soft-tinted block with an uppercase title,
- * the letterhead-adjacent block a real clinic record expects (mirrors the
- * mobile PDF's Patient/Owner/Clinic panels; docs/04 "PDF health record"). */
 function InfoPanel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="min-w-[12rem] flex-1 rounded-md bg-brand-soft p-4">
@@ -104,8 +92,6 @@ function InfoPanel({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
-/** Whole years between a birthdate and today; null when unparsable. Mirrors
- * apps/mobile/lib/models/models.dart's `Dog.ageYears`. */
 function ageYears(birthdate: string | null): number | null {
   if (!birthdate) return null;
   const born = new Date(birthdate);
@@ -123,15 +109,11 @@ function capitalize(s: string): string {
   return s.length === 0 ? s : s[0].toUpperCase() + s.slice(1);
 }
 
-/** Reports (docs/05 §3): the FurFeel Health Record — a per-dog period summary
- * formatted as a document a clinic can print and file. Decision support, not
- * diagnosis. */
 export function Reports() {
   const [dogs, setDogs] = useState<Dog[]>([]);
-  // Full Clinic rows, not just names — the clinic info panel needs address
-  // and contact number too.
   const [clinics, setClinics] = useState<Map<string, Clinic>>(new Map());
   const [dogId, setDogId] = useState<string>("");
+  const [dogSearch, setDogSearch] = useState("");
   const [hours, setHours] = useState(24);
   const [report, setReport] = useState<DogReport | null>(null);
   const [readings, setReadings] = useState<TelemetryReading[]>([]);
@@ -148,13 +130,37 @@ export function Reports() {
         if (rows.length > 0) setDogId((prev) => prev || rows[0].id);
       })
       .catch((err) => setError(friendlyError(err, "load dogs")));
-    // clinics_select_authenticated: any signed-in staff member can resolve names.
+
     fetchClinics(supabase)
       .then((rows) => setClinics(new Map(rows.map((c) => [c.id, c]))))
       .catch(() => {});
   }, []);
 
   const dog = dogs.find((d) => d.id === dogId) ?? null;
+
+  // Filtered dog list for searchable combobox
+  const filteredDogs = useMemo(() => {
+    if (!dogSearch.trim()) return dogs;
+    const query = dogSearch.toLowerCase();
+    return dogs.filter(
+      (d) => d.name.toLowerCase().includes(query) || (d.breed && d.breed.toLowerCase().includes(query)),
+    );
+  }, [dogs, dogSearch]);
+
+  // Prev / Next Patient Navigation
+  const currentIndex = useMemo(() => dogs.findIndex((d) => d.id === dogId), [dogs, dogId]);
+
+  const goToPrevDog = () => {
+    if (currentIndex > 0) {
+      setDogId(dogs[currentIndex - 1].id);
+    }
+  };
+
+  const goToNextDog = () => {
+    if (currentIndex >= 0 && currentIndex < dogs.length - 1) {
+      setDogId(dogs[currentIndex + 1].id);
+    }
+  };
 
   useEffect(() => {
     setPhotoUrl(null);
@@ -212,37 +218,89 @@ export function Reports() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-4 print-hidden">
-        <h1 className="m-0 text-2xl font-bold text-ink">Reports</h1>
+        <h1 className="m-0 text-2xl font-bold text-ink">Analytics &amp; Reports</h1>
         <Button variant="secondary" onClick={() => window.print()}>
-          <Printer size={14} /> Print / save PDF
+          <Printer size={14} className="mr-1.5" /> Print / Save PDF Report
         </Button>
       </div>
 
+      {/* Searchable Dog Finder & Period Controls */}
       <Card className="print-hidden">
-        <CardContent className="flex flex-wrap items-end gap-5 p-5">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="report-dog">Dog</Label>
-            <Select id="report-dog" value={dogId} onChange={(e) => setDogId(e.target.value)}>
-              {dogs.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="report-period">Period</Label>
-            <Select
-              id="report-period"
-              value={hours}
-              onChange={(e) => setHours(Number(e.target.value))}
-            >
-              {PERIODS.map((p) => (
-                <option key={p.hours} value={p.hours}>
-                  {p.label}
-                </option>
-              ))}
-            </Select>
+        <CardContent className="p-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Searchable Dog Finder */}
+            <div className="flex flex-col gap-1.5 lg:col-span-2">
+              <Label htmlFor="report-dog-search">Search Patient / Select Dog</Label>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-muted" />
+                  <Input
+                    id="report-dog-search"
+                    type="text"
+                    placeholder="Search dog by name or breed..."
+                    value={dogSearch}
+                    onChange={(e) => setDogSearch(e.target.value)}
+                    className="pl-8 text-xs"
+                  />
+                </div>
+                <Select
+                  id="report-dog"
+                  value={dogId}
+                  onChange={(e) => setDogId(e.target.value)}
+                  className="flex-1 text-xs"
+                >
+                  {filteredDogs.length === 0 ? (
+                    <option value="">No matching dogs</option>
+                  ) : (
+                    filteredDogs.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} {d.breed ? `(${d.breed})` : ""}
+                      </option>
+                    ))
+                  )}
+                </Select>
+                {/* Prev / Next Buttons */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={goToPrevDog}
+                    disabled={currentIndex <= 0}
+                    title="Previous Patient"
+                    className="h-9 w-9 p-0"
+                  >
+                    <ChevronLeft size={16} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={goToNextDog}
+                    disabled={currentIndex >= dogs.length - 1}
+                    title="Next Patient"
+                    className="h-9 w-9 p-0"
+                  >
+                    <ChevronRight size={16} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Time Period Selector */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="report-period">Report Period</Label>
+              <Select
+                id="report-period"
+                value={hours}
+                onChange={(e) => setHours(Number(e.target.value))}
+                className="text-xs"
+              >
+                {PERIODS.map((p) => (
+                  <option key={p.hours} value={p.hours}>
+                    {p.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -257,12 +315,7 @@ export function Reports() {
       {!loading && report && dog && period && (
         <Card className="print-plain">
           <CardContent className="p-6">
-            {/* ── Record masthead: solid letterhead bar, mirrors the mobile
-                 PDF's branded header (apps/mobile/lib/util/exports.dart) so
-                 a printed dashboard report and a mobile-exported one read as
-                 the same document family. print-color-exact forces the
-                 solid fill to survive Chrome's print pipeline, which strips
-                 background colors by default unless told otherwise. ── */}
+            {/* Record Masthead */}
             <div className="print-color-exact print-avoid-break flex flex-wrap items-end justify-between gap-4 rounded-md bg-brand p-4 text-white">
               <div>
                 <p className="m-0 flex items-center gap-2 text-lg font-bold">
@@ -280,7 +333,7 @@ export function Reports() {
               {report.readingCount} readings · {report.classificationCount} stress assessments
             </p>
 
-            {/* ── Patient identity strip ───────────────────────────────── */}
+            {/* Patient identity strip */}
             <div className="mt-4 flex items-center gap-4 print-avoid-break">
               <span className="block h-14 w-14 flex-shrink-0 overflow-hidden rounded-pill bg-surface ring-2 ring-brand">
                 {photoUrl ? (
@@ -300,7 +353,7 @@ export function Reports() {
               </div>
             </div>
 
-            {/* ── Patient / clinic info panels ─────────────────────────── */}
+            {/* Patient / clinic info panels */}
             <div className="mt-4 flex flex-wrap gap-3 print-avoid-break">
               <InfoPanel title="Patient">
                 <InfoField label="Name" value={dog.name} />
@@ -344,14 +397,13 @@ export function Reports() {
                   {report.openAlertCount} still open).
                 </p>
 
-                {/* Vital | Unit | Min | Average | Max — 6 rows, parity with
-                    the mobile PDF's vitals table. */}
-                <SectionTitle>Vitals</SectionTitle>
+                {/* 🫀 Physiological Vital Signs Section */}
+                <SectionTitle>Physiological Vital Signs</SectionTitle>
                 <div className="max-w-2xl print-avoid-break">
                   <Table>
                     <THead>
                       <Tr className="border-t-0">
-                        <Th>Vital</Th>
+                        <Th>Vital Sign</Th>
                         <Th>Unit</Th>
                         <Th>Min</Th>
                         <Th>Average</Th>
@@ -359,37 +411,71 @@ export function Reports() {
                       </Tr>
                     </THead>
                     <TBody>
-                      <VitalRow label="Heart rate" unit="bpm" summary={report.heartRate} />
-                      <VitalRow
+                      <MetricRow label="Heart rate" unit="bpm" summary={report.heartRate} />
+                      <MetricRow
                         label="Respiratory rate"
                         unit="breaths/min"
                         summary={report.respiratoryRate}
                       />
-                      <VitalRow
+                    </TBody>
+                  </Table>
+                </div>
+
+                {/* 🐾 Physical Movement & Activity Assessment Section */}
+                <SectionTitle>Physical Movement &amp; Activity</SectionTitle>
+                <div className="max-w-2xl print-avoid-break">
+                  <Table>
+                    <THead>
+                      <Tr className="border-t-0">
+                        <Th>Metric</Th>
+                        <Th>Unit</Th>
+                        <Th>Min</Th>
+                        <Th>Average</Th>
+                        <Th>Max</Th>
+                      </Tr>
+                    </THead>
+                    <TBody>
+                      <MetricRow
                         label="Motion activity"
                         unit="index 0–1"
                         summary={report.motion}
                         decimals={2}
                       />
-                      <VitalRow
+                    </TBody>
+                  </Table>
+                </div>
+
+                {/* 🌡️ Ambient Environment Context Section */}
+                <SectionTitle>Ambient Environment Context</SectionTitle>
+                <div className="max-w-2xl print-avoid-break">
+                  <Table>
+                    <THead>
+                      <Tr className="border-t-0">
+                        <Th>Parameter</Th>
+                        <Th>Unit</Th>
+                        <Th>Min</Th>
+                        <Th>Average</Th>
+                        <Th>Max</Th>
+                      </Tr>
+                    </THead>
+                    <TBody>
+                      <MetricRow
                         label="Ambient temperature"
                         unit="°C"
                         summary={report.ambientTemperature}
                         decimals={1}
                       />
-                      <VitalRow label="Humidity" unit="%" summary={report.humidity} />
+                      <MetricRow label="Humidity" unit="%" summary={report.humidity} />
                     </TBody>
                   </Table>
                 </div>
 
-                <SectionTitle>Vitals trend</SectionTitle>
+                <SectionTitle>Telemetry trends</SectionTitle>
                 <div className="print-avoid-break">
                   <TelemetryChart readings={readings} />
                 </div>
 
-                {/* A real ruled table, not a bare progress-bar list — reads as
-                    a document section instead of a dashboard widget, while
-                    keeping the proportional bar for an at-a-glance read. */}
+                {/* Stress distribution */}
                 <SectionTitle>Stress distribution</SectionTitle>
                 <div className="max-w-2xl print-avoid-break">
                   <Table>
@@ -430,8 +516,7 @@ export function Reports() {
                   </Table>
                 </div>
 
-                {/* Itemized alert history — the mobile PDF has this, the
-                    dashboard record previously only stated a count. */}
+                {/* Alerts in this period */}
                 <SectionTitle>Alerts in this period</SectionTitle>
                 {periodAlerts.length === 0 ? (
                   <p className="m-0 text-sm text-ink">
