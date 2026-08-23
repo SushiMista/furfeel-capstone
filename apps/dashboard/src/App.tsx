@@ -13,7 +13,6 @@ import { AlertsQueue } from "./pages/alerts/AlertsQueue.tsx";
 import { Handover } from "./pages/handover/Handover.tsx";
 import { Devices } from "./pages/devices/Devices.tsx";
 import { Reports } from "./pages/reports/Reports.tsx";
-import { HeatmapAnalytics } from "./pages/heatmap/HeatmapAnalytics.tsx";
 import { Admin } from "./pages/admin/Admin.tsx";
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -132,14 +131,6 @@ export function App() {
             element={
               <RequireAuth>
                 <Devices />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/heatmap"
-            element={
-              <RequireAuth>
-                <HeatmapAnalytics />
               </RequireAuth>
             }
           />

@@ -10,7 +10,6 @@ import {
   ChevronRight,
   Cpu,
   FileText,
-  Flame,
   LayoutDashboard,
   PawPrint,
   Radio,
@@ -58,7 +57,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/devices", label: "Device fleet", icon: Radio },
       { to: "/reports", label: "Analytics & reports", icon: FileText },
-      { to: "/heatmap", label: "Heatmap analytics", icon: Flame },
     ],
   },
   {
@@ -167,8 +165,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Collapsible Sidebar */}
       <aside
         className={cn(
-          "print-hidden sticky top-0 z-30 flex h-screen flex-shrink-0 flex-col border-r border-hairline bg-surface px-3 py-4",
-          "transition-all duration-300 ease-in-out relative",
+          "print-hidden fixed top-0 left-0 bottom-0 z-30 flex h-screen flex-col border-r border-hairline bg-surface px-3 py-4",
+          "transition-all duration-300 ease-in-out",
           isCollapsed ? "w-16" : "w-64",
         )}
       >
@@ -283,7 +281,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main Content Area */}
-      <main className={cn("min-w-0 flex-1", !isDogPage && "px-8 py-6")}>
+      <main
+        className={cn(
+          "min-w-0 flex-1 transition-all duration-300 ease-in-out",
+          isCollapsed ? "ml-16" : "ml-64",
+          !isDogPage && "px-8 py-6",
+        )}
+      >
         <div className={cn(!isDogPage && "mx-auto max-w-6xl")}>{children}</div>
       </main>
     </div>
