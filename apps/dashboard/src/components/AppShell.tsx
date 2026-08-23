@@ -46,18 +46,18 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Clinical Operations",
     items: [
       { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
-      { to: "/board", label: "Monitoring board", icon: Table2 },
-      { to: "/alerts", label: "Alerts queue", icon: Bell },
-      { to: "/handover", label: "Handover notes", icon: ArrowLeftRight },
-      { to: "/teams", label: "Clinic teams", icon: Users },
+      { to: "/board", label: "Monitoring Board", icon: Table2 },
+      { to: "/alerts", label: "Alerts Queue", icon: Bell },
+      { to: "/handover", label: "Handover Notes", icon: ArrowLeftRight },
+      { to: "/teams", label: "Clinic Teams", icon: Users },
     ],
   },
   {
     id: "fleet",
     label: "Fleet & Telemetry",
     items: [
-      { to: "/devices", label: "Device fleet", icon: Radio },
-      { to: "/reports", label: "Analytics & reports", icon: FileText },
+      { to: "/devices", label: "Device Fleet", icon: Radio },
+      { to: "/reports", label: "Analytics & Reports", icon: FileText },
     ],
   },
   {
@@ -65,11 +65,11 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Admin Console",
     adminOnly: true,
     items: [
-      { to: "/admin/users", label: "User accounts", icon: Users },
-      { to: "/admin/clinics", label: "Partner clinics", icon: Building2 },
-      { to: "/admin/devices", label: "Device management", icon: Cpu },
-      { to: "/admin/audit", label: "Audit logs", icon: ShieldCheck },
-      { to: "/admin/health", label: "System health", icon: Activity },
+      { to: "/admin/users", label: "User Accounts", icon: Users },
+      { to: "/admin/clinics", label: "Partner Clinics", icon: Building2 },
+      { to: "/admin/devices", label: "Device Management", icon: Cpu },
+      { to: "/admin/audit", label: "Audit Logs", icon: ShieldCheck },
+      { to: "/admin/health", label: "System Health", icon: Activity },
     ],
   },
 ];
@@ -115,7 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!session) return;
     fetchAlertsQueue(supabase, "open")
       .then((openAlerts) => setOpenAlertCount(openAlerts.length))
-      .catch(() => {});
+      .catch(() => { });
   }, [session, location.pathname]);
 
   // Global realtime media submission toast
