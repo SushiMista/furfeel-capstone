@@ -22,6 +22,7 @@ import { StressLevelBadge } from "../../components/StressLevelBadge.tsx";
 import { StressMixChart } from "../../components/StressMixChart.tsx";
 import { AlertCard } from "../../components/AlertCard.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card.tsx";
+import { Select } from "../../components/ui/input.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import type { Alert } from "../../../../../packages/shared/types/index.ts";
@@ -79,35 +80,27 @@ export function Overview() {
   const [rows, setRows] = useState<ClinicBoardRow[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [mix, setMix] = useState<DailyStressSummaryRow[]>([]);
+  const [timeRange, setTimeRange] = useState<number>(14);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 3 queries total, regardless of clinic size — was ~25 for a 4-dog clinic
-  // (fetchMonitoringBoard's 5-per-dog fan-out + one stress_daily_summary RPC
-  // per dog), which is what produced the 57014 statement-timeout under
-  // concurrent load from the firmware simulator + mobile app + dashboard all
-  // hitting the same free-tier project at once (ADR-021). The mix chart is
-  // aggregated server-side by clinic_stress_daily_summary — an earlier,
-  // client-side-bucketing version of this fix silently truncated the chart
-  // to ~8% of the period, since this project's PostgREST config caps a plain
-  // row fetch at 1000 and a real 14-day window is 11,000+ rows.
   const load = useCallback(async () => {
     try {
-      const [board, openAlerts, mix] = await Promise.all([
+      const [board, openAlerts, mixData] = await Promise.all([
         fetchClinicBoardSummary(supabase),
         fetchAlertsQueue(supabase, "open", 20),
-        fetchClinicStressDailySummary(supabase, MIX_DAYS),
+        fetchClinicStressDailySummary(supabase, timeRange),
       ]);
       setRows(board);
       setAlerts(openAlerts);
-      setMix(mix);
+      setMix(mixData);
       setError(null);
     } catch (err) {
       setError(friendlyError(err, "load the overview"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [timeRange]);
 
   useEffect(() => {
     load();
@@ -202,9 +195,25 @@ export function Overview() {
 
       {/* ADDED: clinic-wide stress mix — composition per day on the canonical
           status ramp; the word legend keeps identity off color alone. */}
+      {/* ADDED: clinic-wide stress mix — interactive area chart with configurable time ranges */}
       <Card className="ff-enter">
-        <CardHeader>
-          <CardTitle className="text-lg">Clinic stress mix — last 14 days</CardTitle>
+        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-4">
+          <div>
+            <CardTitle className="text-lg">
+              Clinic stress mix — {timeRange === 7 ? "last 7 days" : timeRange === 14 ? "last 14 days" : timeRange === 30 ? "last 30 days" : "last 3 months"}
+            </CardTitle>
+          </div>
+          <Select
+            value={String(timeRange)}
+            onChange={(e) => setTimeRange(Number(e.target.value))}
+            className="h-9 w-44 text-xs font-medium"
+            aria-label="Select time range"
+          >
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 3 months</option>
+          </Select>
         </CardHeader>
         <CardContent>
           <StressMixChart summary={mix} />
