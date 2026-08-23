@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordAuditLog } from "./auditLogger.ts";
 import type {
   Alert,
+  Clinic,
   Device,
   Dog,
   DogBaselines,
@@ -10,6 +11,7 @@ import type {
   StressLabel,
   StressLevel,
   TelemetryReading,
+  UserRole,
   VetNote,
 } from "../../../../packages/shared/types/index.ts";
 
@@ -782,4 +784,72 @@ export async function fetchDailyStressSummary(
   });
   if (error) throw error;
   return (data ?? []) as DailyStressSummaryRow[];
+}
+
+export interface ClinicTeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  clinic_id: string | null;
+  avatar_path: string | null;
+  phone: string | null;
+  created_at: string;
+}
+
+export interface ClinicTeam {
+  clinic: Clinic;
+  members: ClinicTeamMember[];
+  dogCount: number;
+  veterinarianCount: number;
+  vetStaffCount: number;
+}
+
+export async function fetchClinicTeams(client: SupabaseClient): Promise<ClinicTeam[]> {
+  const [clinicsRes, usersRes, dogsRes] = await Promise.all([
+    client.from("clinics").select("*").order("name"),
+    client
+      .from("users")
+      .select("id, name, email, role, clinic_id, avatar_path, phone, created_at")
+      .in("role", ["veterinarian", "vet_staff", "admin"])
+      .order("name"),
+    client.from("dogs").select("id, clinic_id"),
+  ]);
+
+  if (clinicsRes.error) throw clinicsRes.error;
+
+  const clinics = (clinicsRes.data ?? []) as unknown as Clinic[];
+  const users = (usersRes.data ?? []) as unknown as ClinicTeamMember[];
+  const dogs = (dogsRes.data ?? []) as unknown as { id: string; clinic_id: string | null }[];
+
+  const dogsByClinic = new Map<string, number>();
+  for (const dog of dogs) {
+    if (dog.clinic_id) {
+      dogsByClinic.set(dog.clinic_id, (dogsByClinic.get(dog.clinic_id) ?? 0) + 1);
+    }
+  }
+
+  const membersByClinic = new Map<string, ClinicTeamMember[]>();
+  for (const user of users) {
+    if (user.clinic_id && user.role !== "owner") {
+      const list = membersByClinic.get(user.clinic_id) ?? [];
+      list.push(user);
+      membersByClinic.set(user.clinic_id, list);
+    }
+  }
+
+  return clinics.map((clinic) => {
+    const members = membersByClinic.get(clinic.id) ?? [];
+    const veterinarianCount = members.filter((m) => m.role === "veterinarian").length;
+    const vetStaffCount = members.filter((m) => m.role === "vet_staff").length;
+    const dogCount = dogsByClinic.get(clinic.id) ?? 0;
+
+    return {
+      clinic,
+      members,
+      dogCount,
+      veterinarianCount,
+      vetStaffCount,
+    };
+  });
 }
