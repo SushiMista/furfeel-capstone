@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/models.dart';
+import 'audit_service.dart';
 
 /// Cancels the Realtime subscription created by [FurFeelRepository.subscribeToDog].
 typedef Unsubscribe = Future<void> Function();
@@ -220,20 +221,42 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw const FurFeelDataException('You need to be signed in.');
     final row = await _client.from('dogs').insert(draft.toInsertMap(userId)).select().single();
-    return Dog.fromMap(row);
+    final dog = Dog.fromMap(row);
+    AuditService.logEvent(
+      action: 'pet.create',
+      targetResource: 'dogs',
+      targetId: dog.id,
+      clinicId: dog.clinicId,
+      details: {'name': dog.name, 'breed': dog.breed},
+    );
+    return dog;
   }
 
   @override
   Future<Dog> updateDog(String dogId, DogDraft draft) async {
     final row =
         await _client.from('dogs').update(draft.toUpdateMap()).eq('id', dogId).select().single();
-    return Dog.fromMap(row);
+    final dog = Dog.fromMap(row);
+    AuditService.logEvent(
+      action: 'pet.update',
+      targetResource: 'dogs',
+      targetId: dog.id,
+      clinicId: dog.clinicId,
+      details: {'name': dog.name, 'breed': dog.breed},
+    );
+    return dog;
   }
 
   @override
   Future<void> deleteDog(String dogId) async {
     try {
       await _client.from('dogs').delete().eq('id', dogId);
+      AuditService.logEvent(
+        action: 'pet.delete',
+        targetResource: 'dogs',
+        targetId: dogId,
+        severity: 'warning',
+      );
     } on PostgrestException catch (e) {
       // 23503 = foreign key violation: the dog already has monitoring history,
       // which is intentionally preserved (ADR-003: never delete raw telemetry).
@@ -448,7 +471,14 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
       // PostgREST returns a single object for `returns devices`; tolerate a
       // one-element array in case of representation changes.
       final row = data is List ? data.first : data;
-      return Device.fromMap(Map<String, dynamic>.from(row as Map));
+      final device = Device.fromMap(Map<String, dynamic>.from(row as Map));
+      AuditService.logEvent(
+        action: 'device.pair',
+        targetResource: 'devices',
+        targetId: device.id,
+        details: {'device_code': deviceCode, 'dog_id': dogId},
+      );
+      return device;
     } on PostgrestException catch (e) {
       throw FurFeelDataException(switch (e.message) {
         'DEVICE_NOT_FOUND' =>
@@ -464,6 +494,12 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   Future<void> unpairDevice(String deviceId) async {
     try {
       await _client.rpc('unpair_device', params: {'p_device_id': deviceId});
+      AuditService.logEvent(
+        action: 'device.unpair',
+        targetResource: 'devices',
+        targetId: deviceId,
+        severity: 'warning',
+      );
     } on PostgrestException catch (e) {
       throw FurFeelDataException(
         e.message == 'DEVICE_NOT_OWNED'
@@ -661,7 +697,14 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
         })
         .select(_mediaColumns)
         .single();
-    return MediaSubmission.fromMap(row);
+    final submission = MediaSubmission.fromMap(row);
+    AuditService.logEvent(
+      action: 'media.submit',
+      targetResource: 'media_submissions',
+      targetId: submission.id,
+      details: {'dog_id': dogId, 'media_type': mediaType, 'note': note},
+    );
+    return submission;
   }
 
   @override

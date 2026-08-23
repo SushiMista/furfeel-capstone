@@ -6,15 +6,24 @@ import {
   Bell,
   Building2,
   Dog as DogIcon,
+  Download,
   Eye,
   Pencil,
   Plus,
+  RefreshCw,
+  Search,
+  ShieldCheck,
   Trash2,
   Users as UsersIcon,
   Wifi,
   WifiOff,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
+import {
+  fetchAuditLogs,
+  recordAuditLog,
+  type AuditLogRecord,
+} from "../../lib/auditLogger.ts";
 import {
   createClinic,
   createUserAccount,
@@ -63,8 +72,8 @@ import type {
 
 const ROLES: UserRole[] = ["owner", "vet_staff", "veterinarian", "admin"];
 const DEVICE_STATUSES: DeviceStatus[] = ["active", "inactive", "offline", "maintenance"];
-type Tab = "users" | "clinics" | "devices" | "health";
-const TABS: Tab[] = ["users", "clinics", "devices", "health"];
+type Tab = "users" | "clinics" | "devices" | "audit" | "health";
+const TABS: Tab[] = ["users", "clinics", "devices", "audit", "health"];
 
 /** Shared destructive-action confirmation (docs/19 dialog primitive). Delete
  * is the one Admin action that can't be undone, so every delete flow in this
@@ -218,6 +227,7 @@ export function Admin() {
           onToast={toast}
         />
       )}
+      {tab === "audit" && <AuditLogsTab />}
       {tab === "health" && (
         <HealthTab users={users} clinics={clinics} devices={devices} dogs={dogs} />
       )}
@@ -1488,5 +1498,256 @@ function DevicesTab({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function AuditLogsTab() {
+  const [logs, setLogs] = useState<AuditLogRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [surfaceFilter, setSurfaceFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [selectedLog, setSelectedLog] = useState<AuditLogRecord | null>(null);
+
+  const loadLogs = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchAuditLogs({
+      surface: surfaceFilter,
+      role: roleFilter,
+      severity: severityFilter,
+      search,
+    });
+    setLogs(data);
+    setLoading(false);
+  }, [surfaceFilter, roleFilter, severityFilter, search]);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
+
+  const handleExportCSV = () => {
+    if (logs.length === 0) return;
+    const headers = [
+      "Timestamp",
+      "Surface",
+      "Actor Email",
+      "Actor Role",
+      "Action",
+      "Target Resource",
+      "Target ID",
+      "Severity",
+    ];
+    const rows = logs.map((l) => [
+      new Date(l.created_at).toISOString(),
+      l.surface,
+      l.actor_email,
+      l.actor_role,
+      l.action,
+      l.target_resource,
+      l.target_id ?? "",
+      l.severity,
+    ]);
+    const csvContent =
+      [headers.join(","), ...rows.map((r) => r.map((cell) => `"${cell}"`).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `furfeel_audit_logs_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportJSON = () => {
+    if (logs.length === 0) return;
+    const jsonString = JSON.stringify(logs, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `furfeel_audit_logs_${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+          <CardTitle>Audit Logs</CardTitle>
+          <CardDescription>
+            Immutable audit trail of security, operational, and clinical events across Web Dashboard, Mobile App, Edge Functions, and System triggers.
+          </CardDescription>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={handleExportCSV} disabled={logs.length === 0}>
+            <Download className="mr-1.5 h-4 w-4" /> Export CSV
+          </Button>
+          <Button variant="secondary" size="sm" onClick={handleExportJSON} disabled={logs.length === 0}>
+            <Download className="mr-1.5 h-4 w-4" /> Export JSON
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Filters */}
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-muted" />
+            <Input
+              type="text"
+              placeholder="Search email, action..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <Select value={surfaceFilter} onChange={(e) => setSurfaceFilter(e.target.value)}>
+            <option value="all">All Surfaces</option>
+            <option value="dashboard">Dashboard (Web)</option>
+            <option value="mobile">Mobile App</option>
+            <option value="edge_function">Edge Function</option>
+            <option value="system">System Trigger</option>
+          </Select>
+          <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+            <option value="all">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="veterinarian">Veterinarian</option>
+            <option value="vet_staff">Vet Staff</option>
+            <option value="owner">Dog Owner</option>
+            <option value="system">System</option>
+          </Select>
+          <Select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
+            <option value="all">All Severities</option>
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+            <option value="critical">Critical</option>
+          </Select>
+          <Button variant="secondary" onClick={loadLogs} disabled={loading}>
+            <RefreshCw className={cn("mr-1.5 h-4 w-4", loading && "animate-spin")} /> Refresh
+          </Button>
+        </div>
+
+        {/* Table */}
+        {loading ? (
+          <CardSkeleton lines={5} />
+        ) : logs.length === 0 ? (
+          <EmptyState>No audit log events found matching the selected criteria.</EmptyState>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <THead>
+                <Tr>
+                  <Th>Timestamp</Th>
+                  <Th>Surface</Th>
+                  <Th>Actor</Th>
+                  <Th>Action</Th>
+                  <Th>Target Resource</Th>
+                  <Th>Severity</Th>
+                  <Th className="text-right">Details</Th>
+                </Tr>
+              </THead>
+              <TBody>
+                {logs.map((log) => (
+                  <Tr key={log.id}>
+                    <Td className="whitespace-nowrap font-mono text-xs text-ink-muted">
+                      {new Date(log.created_at).toLocaleString()}
+                    </Td>
+                    <Td className="whitespace-nowrap">
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
+                          log.surface === "dashboard" && "bg-blue-100 text-blue-800",
+                          log.surface === "mobile" && "bg-purple-100 text-purple-800",
+                          log.surface === "edge_function" && "bg-amber-100 text-amber-800",
+                          log.surface === "system" && "bg-gray-100 text-gray-800",
+                        )}
+                      >
+                        {log.surface}
+                      </span>
+                    </Td>
+                    <Td>
+                      <div className="text-sm font-medium text-ink">{log.actor_email}</div>
+                      <div className="text-xs capitalize text-ink-muted">{log.actor_role}</div>
+                    </Td>
+                    <Td className="font-mono text-xs font-semibold text-brand">{log.action}</Td>
+                    <Td className="text-xs">
+                      <span className="font-medium text-ink">{log.target_resource}</span>
+                      {log.target_id && (
+                        <span className="ml-1 font-mono text-ink-muted">
+                          ({log.target_id.slice(0, 8)}…)
+                        </span>
+                      )}
+                    </Td>
+                    <Td>
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold uppercase",
+                          log.severity === "info" && "bg-sky-50 text-sky-700",
+                          log.severity === "warning" && "bg-amber-50 text-amber-700",
+                          log.severity === "critical" && "bg-rose-50 text-rose-700 font-bold",
+                        )}
+                      >
+                        {log.severity}
+                      </span>
+                    </Td>
+                    <Td className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </Td>
+                  </Tr>
+                ))}
+              </TBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+
+      {/* JSON Details Inspector Dialog */}
+      {selectedLog && (
+        <Dialog
+          open={Boolean(selectedLog)}
+          onClose={() => setSelectedLog(null)}
+          title={`Audit Details — ${selectedLog.action}`}
+        >
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="font-semibold">Event ID:</span>{" "}
+                <span className="font-mono">{selectedLog.id}</span>
+              </div>
+              <div>
+                <span className="font-semibold">Created At:</span>{" "}
+                {new Date(selectedLog.created_at).toISOString()}
+              </div>
+              <div>
+                <span className="font-semibold">Actor Email:</span> {selectedLog.actor_email}
+              </div>
+              <div>
+                <span className="font-semibold">Actor Role:</span> {selectedLog.actor_role}
+              </div>
+              <div>
+                <span className="font-semibold">Surface:</span> {selectedLog.surface}
+              </div>
+              <div>
+                <span className="font-semibold">Severity:</span> {selectedLog.severity}
+              </div>
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs font-semibold">Metadata & Payload Diff</Label>
+              <pre className="max-h-60 overflow-y-auto rounded bg-ink-subtle p-3 font-mono text-xs text-ink">
+                {JSON.stringify(selectedLog.details, null, 2)}
+              </pre>
+            </div>
+            <div className="flex justify-end">
+              <Button variant="secondary" onClick={() => setSelectedLog(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+    </Card>
   );
 }

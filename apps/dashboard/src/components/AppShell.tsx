@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   PawPrint,
   Radio,
+  ShieldCheck,
   Table2,
   Users,
 } from "lucide-react";
@@ -68,6 +69,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/admin/users", label: "User accounts", icon: Users },
       { to: "/admin/clinics", label: "Partner clinics", icon: Building2 },
       { to: "/admin/devices", label: "Device management", icon: Cpu },
+      { to: "/admin/audit", label: "Audit logs", icon: ShieldCheck },
       { to: "/admin/health", label: "System health", icon: Activity },
     ],
   },

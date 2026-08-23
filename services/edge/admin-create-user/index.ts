@@ -10,6 +10,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createServiceRoleClient } from "../_shared/supabase-client.ts";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { logAuditEvent } from "../_shared/audit.ts";
 
 const ROLES = new Set(["owner", "vet_staff", "veterinarian", "admin"]);
 
@@ -93,6 +94,19 @@ Deno.serve(async (req) => {
   if (updateError) {
     return json(500, { error: "Account created but role assignment failed — try Admin > Users." });
   }
+
+  await logAuditEvent(admin, {
+    actorId: callerData.user.id,
+    actorEmail: callerData.user.email ?? "admin@furfeel.local",
+    actorRole: "admin",
+    surface: "edge_function",
+    action: "user.create",
+    targetResource: "users",
+    targetId: updated.id,
+    clinicId: (updated.clinic_id as string | null) ?? null,
+    details: { name: updated.name, email: updated.email, role: updated.role },
+    severity: "info",
+  });
 
   return json(200, updated);
 });

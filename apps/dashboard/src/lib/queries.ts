@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { recordAuditLog } from "./auditLogger.ts";
 import type {
   Alert,
   Device,
@@ -460,6 +461,18 @@ export async function acknowledgeAlert(
     .select(ALERT_COLUMNS)
     .maybeSingle();
   if (error) throw error;
+  if (data) {
+    recordAuditLog({
+      actor_id: userId,
+      actor_role: "veterinarian",
+      surface: "dashboard",
+      action: "alert.acknowledge",
+      target_resource: "alerts",
+      target_id: alertId,
+      details: { alert_id: alertId },
+      severity: "info",
+    });
+  }
   return data as unknown as Alert | null;
 }
 
@@ -483,7 +496,19 @@ export async function acknowledgeAlerts(
     .eq("status", "open")
     .select(ALERT_COLUMNS);
   if (error) throw error;
-  return (data ?? []) as unknown as Alert[];
+  const result = (data ?? []) as unknown as Alert[];
+  if (result.length > 0) {
+    recordAuditLog({
+      actor_id: userId,
+      actor_role: "veterinarian",
+      surface: "dashboard",
+      action: "alert.bulk_acknowledge",
+      target_resource: "alerts",
+      details: { count: result.length, alert_ids: result.map((a) => a.id) },
+      severity: "info",
+    });
+  }
+  return result;
 }
 
 /** The signed-in user's role from public.users (users_select_own RLS). Used only to
@@ -709,7 +734,25 @@ export async function addStressLabel(
     .select(STRESS_LABEL_COLUMNS)
     .single();
   if (error) throw error;
-  return data as unknown as StressLabel;
+  const result = data as unknown as StressLabel;
+  if (result) {
+    recordAuditLog({
+      actor_id: insert.vet_user_id,
+      actor_role: "veterinarian",
+      surface: "dashboard",
+      action: insert.agreed_with_model === false ? "stress_label.override" : "stress_label.confirm",
+      target_resource: "stress_labels",
+      target_id: result.id,
+      details: {
+        dog_id: insert.dog_id,
+        confirmed_level: insert.confirmed_level,
+        agreed_with_model: insert.agreed_with_model,
+        note: insert.note,
+      },
+      severity: insert.agreed_with_model === false ? "warning" : "info",
+    });
+  }
+  return result;
 }
 
 // =========================================================================
