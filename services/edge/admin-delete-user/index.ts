@@ -16,6 +16,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createServiceRoleClient } from "../_shared/supabase-client.ts";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { logAuditEvent } from "../_shared/audit.ts";
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -95,6 +96,18 @@ Deno.serve(async (req) => {
         "reviews) and can't be deleted while those exist.",
     });
   }
+
+  await logAuditEvent(admin, {
+    actorId: callerData.user.id,
+    actorEmail: callerData.user.email ?? "admin@furfeel.local",
+    actorRole: "admin",
+    surface: "edge_function",
+    action: "user.delete",
+    targetResource: "users",
+    targetId: userId,
+    details: { deleted_user_id: userId, target_name: target.name },
+    severity: "warning",
+  });
 
   return json(200, { ok: true });
 });
