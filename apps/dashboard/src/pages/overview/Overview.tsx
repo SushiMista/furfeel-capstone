@@ -27,8 +27,7 @@ import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import type { Alert } from "../../../../../packages/shared/types/index.ts";
 
-/** Clinic mix window (matches the "last 14 days" header below). */
-const MIX_DAYS = 14;
+
 
 export function Kpi({
   label,

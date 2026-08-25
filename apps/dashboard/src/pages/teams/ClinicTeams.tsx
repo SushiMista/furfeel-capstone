@@ -8,7 +8,6 @@ import {
   Search,
   UserCheck,
   Users as UsersIcon,
-  UserPlus,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {

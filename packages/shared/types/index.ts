@@ -1,4 +1,5 @@
 export type { Alert, AlertSeverity, AlertStatus } from "./alert.ts";
+export type { BugReport, BugReportCategory, BugReportSeverity, BugReportStatus } from "./bug_report.ts";
 export type { CareGuidance } from "./care_guidance.ts";
 export type { Dog, DogBaselines, DogSex } from "./dog.ts";
 export type { Device, DeviceStatus } from "./device.ts";
@@ -8,3 +9,4 @@ export type { StressLabel } from "./stress_label.ts";
 export type { Posture, TelemetryPayload, TelemetryReading } from "./telemetry.ts";
 export type { Clinic, PushToken, User, UserRole, UserSettings } from "./user.ts";
 export type { VetNote } from "./vet_note.ts";
+

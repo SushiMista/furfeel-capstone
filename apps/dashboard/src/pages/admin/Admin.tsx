@@ -12,7 +12,6 @@ import {
   Plus,
   RefreshCw,
   Search,
-  ShieldCheck,
   Trash2,
   Users as UsersIcon,
   Wifi,
@@ -21,7 +20,6 @@ import {
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   fetchAuditLogs,
-  recordAuditLog,
   type AuditLogRecord,
 } from "../../lib/auditLogger.ts";
 import {
@@ -60,8 +58,11 @@ import {
 } from "../../lib/queries.ts";
 import { AlertCard } from "../../components/AlertCard.tsx";
 import { formatPhilippineTime } from "../../lib/time.ts";
+import { BugReportsTab } from "./BugReportsTab.tsx";
+import { fetchBugReports } from "../../lib/bugReportQueries.ts";
 import type {
   Alert,
+  BugReport,
   Clinic,
   Device,
   DeviceStatus,
@@ -72,8 +73,8 @@ import type {
 
 const ROLES: UserRole[] = ["owner", "vet_staff", "veterinarian", "admin"];
 const DEVICE_STATUSES: DeviceStatus[] = ["active", "inactive", "offline", "maintenance"];
-type Tab = "users" | "clinics" | "devices" | "audit" | "health";
-const TABS: Tab[] = ["users", "clinics", "devices", "audit", "health"];
+type Tab = "users" | "clinics" | "devices" | "bugs" | "audit" | "health";
+const TABS: Tab[] = ["users", "clinics", "devices", "bugs", "audit", "health"];
 
 /** Shared destructive-action confirmation (docs/19 dialog primitive). Delete
  * is the one Admin action that can't be undone, so every delete flow in this
@@ -120,21 +121,24 @@ export function Admin() {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [dogs, setDogs] = useState<Dog[]>([]);
+  const [bugReports, setBugReports] = useState<BugReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [userRows, clinicRows, deviceRows, dogRows] = await Promise.all([
+      const [userRows, clinicRows, deviceRows, dogRows, bugRows] = await Promise.all([
         fetchAllUsers(supabase),
         fetchClinics(supabase),
         fetchAllDevices(supabase),
         fetchAllDogs(supabase),
+        fetchBugReports(supabase),
       ]);
       setUsers(userRows);
       setClinics(clinicRows);
       setDevices(deviceRows);
       setDogs(dogRows);
+      setBugReports(bugRows);
       setError(null);
     } catch (err) {
       setError(friendlyError(err, "load admin data"));
@@ -169,7 +173,9 @@ export function Admin() {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="m-0 text-2xl font-bold capitalize text-ink">Admin — {tab}</h1>
+      <h1 className="m-0 text-2xl font-bold capitalize text-ink">
+        Admin — {tab === "bugs" ? "Bug Reports" : tab}
+      </h1>
 
       {tab === "users" && (
         <UsersTab
@@ -225,6 +231,19 @@ export function Admin() {
             setDogs((prev) => prev.map((x) => (x.id === dog.id ? dog : x)))
           }
           onToast={toast}
+        />
+      )}
+      {tab === "bugs" && (
+        <BugReportsTab
+          reports={bugReports}
+          onChanged={(updated) =>
+            setBugReports((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+          }
+          onDeleted={(id) => setBugReports((prev) => prev.filter((x) => x.id !== id))}
+          onToast={toast}
+          onReload={() => {
+            fetchBugReports(supabase).then(setBugReports).catch(() => {});
+          }}
         />
       )}
       {tab === "audit" && <AuditLogsTab />}
