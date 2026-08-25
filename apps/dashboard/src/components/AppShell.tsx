@@ -69,6 +69,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/admin/users", label: "User Accounts", icon: Users },
       { to: "/admin/clinics", label: "Partner Clinics", icon: Building2 },
       { to: "/admin/devices", label: "Device Management", icon: Cpu },
+      { to: "/admin/dog-clinic", label: "Dog Clinic Assignments", icon: PawPrint },
       { to: "/admin/bugs", label: "Bug Reports", icon: Bug },
       { to: "/admin/audit", label: "Audit Logs", icon: ShieldCheck },
       { to: "/admin/health", label: "System Health", icon: Activity },
