@@ -73,8 +73,8 @@ import type {
 
 const ROLES: UserRole[] = ["owner", "vet_staff", "veterinarian", "admin"];
 const DEVICE_STATUSES: DeviceStatus[] = ["active", "inactive", "offline", "maintenance"];
-type Tab = "users" | "clinics" | "devices" | "bugs" | "audit" | "health";
-const TABS: Tab[] = ["users", "clinics", "devices", "bugs", "audit", "health"];
+type Tab = "users" | "clinics" | "devices" | "dog-clinic" | "bugs" | "audit" | "health";
+const TABS: Tab[] = ["users", "clinics", "devices", "dog-clinic", "bugs", "audit", "health"];
 
 /** Shared destructive-action confirmation (docs/19 dialog primitive). Delete
  * is the one Admin action that can't be undone, so every delete flow in this
@@ -174,7 +174,7 @@ export function Admin() {
   return (
     <div className="flex flex-col gap-5">
       <h1 className="m-0 text-2xl font-bold capitalize text-ink">
-        Admin — {tab === "bugs" ? "Bug Reports" : tab}
+        Admin — {tab === "bugs" ? "Bug Reports" : tab === "dog-clinic" ? "Dog Clinic Assignments" : tab}
       </h1>
 
       {tab === "users" && (
@@ -221,12 +221,19 @@ export function Admin() {
         <DevicesTab
           devices={devices}
           dogs={dogs}
-          clinics={clinics}
           dogNames={dogNames}
-          clinicNames={clinicNames}
           onChanged={(d) => setDevices((prev) => prev.map((x) => (x.id === d.id ? d : x)))}
           onRegistered={(d) => setDevices((prev) => [...prev, d])}
           onDeleted={(id) => setDevices((prev) => prev.filter((x) => x.id !== id))}
+          onToast={toast}
+        />
+      )}
+      {tab === "dog-clinic" && (
+        <DogClinicAssignmentsTab
+          dogs={dogs}
+          clinics={clinics}
+          dogNames={dogNames}
+          clinicNames={clinicNames}
           onDogClinicChanged={(dog) =>
             setDogs((prev) => prev.map((x) => (x.id === dog.id ? dog : x)))
           }
@@ -1122,24 +1129,18 @@ const DEVICE_STATUS_BADGE_STYLE: Record<DeviceStatus, string> = {
 function DevicesTab({
   devices,
   dogs,
-  clinics,
   dogNames,
-  clinicNames,
   onChanged,
   onRegistered,
   onDeleted,
-  onDogClinicChanged,
   onToast,
 }: {
   devices: Device[];
   dogs: Dog[];
-  clinics: Clinic[];
   dogNames: Map<string, string>;
-  clinicNames: Map<string, string>;
   onChanged: (d: Device) => void;
   onRegistered: (d: Device) => void;
   onDeleted: (id: string) => void;
-  onDogClinicChanged: (d: Dog) => void;
   onToast: (kind: "success" | "error", message: string) => void;
 }) {
   const [code, setCode] = useState("");
@@ -1200,15 +1201,6 @@ function DevicesTab({
       setEditingDevice(null);
     } finally {
       setEditSaving(false);
-    }
-  }
-
-  async function assignDogClinic(dog: Dog, clinicId: string | null) {
-    try {
-      onDogClinicChanged(await updateDogClinic(supabase, dog.id, clinicId));
-      onToast("success", `${dog.name}'s clinic updated`);
-    } catch (err) {
-      onToast("error", friendlyError(err, "update the dog's clinic"));
     }
   }
 
@@ -1472,51 +1464,78 @@ function DevicesTab({
           onClose={() => setPendingDelete(null)}
         />
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Dog ↔ clinic assignment</CardTitle>
-          <CardDescription>
-            A dog appears on a clinic&apos;s live board once its clinic is set (docs/09
-            linkage). Owners can also pick a clinic in the app.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <THead>
-              <Tr className="border-t-0">
-                <Th>Dog</Th>
-                <Th>Owner-visible name</Th>
-                <Th>Clinic</Th>
-              </Tr>
-            </THead>
-            <TBody>
-              {dogs.map((dog) => (
-                <Tr key={dog.id}>
-                  <Td className="font-semibold">{dogNames.get(dog.id) ?? dog.name}</Td>
-                  <Td className="text-ink-muted">{dog.breed ?? "—"}</Td>
-                  <Td>
-                    <Select
-                      aria-label={`Clinic for ${dog.name}`}
-                      className="h-9 w-56"
-                      value={dog.clinic_id ?? ""}
-                      onChange={(e) => assignDogClinic(dog, e.target.value === "" ? null : e.target.value)}
-                    >
-                      <option value="">— home only —</option>
-                      {clinics.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {clinicNames.get(c.id) ?? c.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </Td>
-                </Tr>
-              ))}
-            </TBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
+  );
+}
+
+function DogClinicAssignmentsTab({
+  dogs,
+  clinics,
+  dogNames,
+  clinicNames,
+  onDogClinicChanged,
+  onToast,
+}: {
+  dogs: Dog[];
+  clinics: Clinic[];
+  dogNames: Map<string, string>;
+  clinicNames: Map<string, string>;
+  onDogClinicChanged: (d: Dog) => void;
+  onToast: (kind: "success" | "error", message: string) => void;
+}) {
+  async function assignDogClinic(dog: Dog, clinicId: string | null) {
+    try {
+      onDogClinicChanged(await updateDogClinic(supabase, dog.id, clinicId));
+      onToast("success", `${dog.name}'s clinic updated`);
+    } catch (err) {
+      onToast("error", friendlyError(err, "update the dog's clinic"));
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Dog ↔ clinic assignment</CardTitle>
+        <CardDescription>
+          A dog appears on a clinic&apos;s live board once its clinic is set (docs/09
+          linkage). Owners can also pick a clinic in the app.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <THead>
+            <Tr className="border-t-0">
+              <Th>Dog</Th>
+              <Th>Owner-visible name</Th>
+              <Th>Clinic</Th>
+            </Tr>
+          </THead>
+          <TBody>
+            {dogs.map((dog) => (
+              <Tr key={dog.id}>
+                <Td className="font-semibold">{dogNames.get(dog.id) ?? dog.name}</Td>
+                <Td className="text-ink-muted">{dog.breed ?? "—"}</Td>
+                <Td>
+                  <Select
+                    aria-label={`Clinic for ${dog.name}`}
+                    className="h-9 w-56"
+                    value={dog.clinic_id ?? ""}
+                    onChange={(e) => assignDogClinic(dog, e.target.value === "" ? null : e.target.value)}
+                  >
+                    <option value="">— home only —</option>
+                    {clinics.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {clinicNames.get(c.id) ?? c.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 
