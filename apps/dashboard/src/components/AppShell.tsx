@@ -292,7 +292,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           !isDogPage && "px-8 py-6",
         )}
       >
-        <div className={cn(!isDogPage && "mx-auto max-w-6xl")}>{children}</div>
+        <div className={cn(!isDogPage && "mx-auto max-w-[1440px]")}>{children}</div>
       </main>
     </div>
   );
