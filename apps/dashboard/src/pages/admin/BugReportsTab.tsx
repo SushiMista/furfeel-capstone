@@ -238,28 +238,58 @@ export function BugReportsTab({
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Search and Filters Toolbar */}
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 rounded-lg border border-hairline bg-surface-alt/50 p-3">
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[240px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted" />
-              <Input
-                type="text"
-                placeholder="Search report title, description, reporter email, device..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-surface text-sm"
-              />
-            </div>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+            {/* Left Division Box: Filter & Search Controls (Sticky on scroll) */}
+            <div className="w-full shrink-0 flex flex-col gap-3 rounded-lg border border-hairline bg-surface-alt/40 p-3.5 lg:w-64 lg:sticky lg:top-6 self-start">
+              <div className="flex items-center justify-between border-b border-hairline pb-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                  <Filter className="h-3.5 w-3.5 text-brand" />
+                  <span>Filter Reports</span>
+                </div>
+                {(searchQuery.trim() !== "" || statusFilter !== "all" || severityFilter !== "all" || categoryFilter !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setStatusFilter("all");
+                      setSeverityFilter("all");
+                      setCategoryFilter("all");
+                    }}
+                    className="text-[11px] font-semibold text-brand hover:underline"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
 
-            {/* Filter Dropdowns */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1.5 min-w-[140px]">
-                <Filter className="h-3.5 w-3.5 text-ink-muted flex-shrink-0" />
+              {/* Search Input */}
+              <div className="flex flex-col gap-1">
+                <label htmlFor="bug-search" className="text-[11px] font-semibold text-ink-muted">
+                  Search Query
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ink-muted pointer-events-none" />
+                  <Input
+                    id="bug-search"
+                    type="text"
+                    placeholder="Title, reporter, device..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8 bg-surface text-xs h-8"
+                  />
+                </div>
+              </div>
+
+              {/* Status Filter Dropdown */}
+              <div className="flex flex-col gap-1">
+                <label htmlFor="bug-status" className="text-[11px] font-semibold text-ink-muted">
+                  Status
+                </label>
                 <Select
+                  id="bug-status"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="text-xs bg-surface"
+                  className="text-xs bg-surface h-8"
                 >
                   <option value="all">All Statuses</option>
                   <option value="open">Open</option>
@@ -269,11 +299,16 @@ export function BugReportsTab({
                 </Select>
               </div>
 
-              <div className="flex items-center gap-1.5 min-w-[140px]">
+              {/* Severity Filter Dropdown */}
+              <div className="flex flex-col gap-1">
+                <label htmlFor="bug-severity" className="text-[11px] font-semibold text-ink-muted">
+                  Severity
+                </label>
                 <Select
+                  id="bug-severity"
                   value={severityFilter}
                   onChange={(e) => setSeverityFilter(e.target.value)}
-                  className="text-xs bg-surface"
+                  className="text-xs bg-surface h-8"
                 >
                   <option value="all">All Severities</option>
                   <option value="critical">Critical</option>
@@ -283,11 +318,16 @@ export function BugReportsTab({
                 </Select>
               </div>
 
-              <div className="flex items-center gap-1.5 min-w-[160px]">
+              {/* Category Filter Dropdown */}
+              <div className="flex flex-col gap-1">
+                <label htmlFor="bug-category" className="text-[11px] font-semibold text-ink-muted">
+                  Category
+                </label>
                 <Select
+                  id="bug-category"
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="text-xs bg-surface"
+                  className="text-xs bg-surface h-8"
                 >
                   <option value="all">All Categories</option>
                   <option value="bug">General Bug</option>
@@ -299,7 +339,9 @@ export function BugReportsTab({
                 </Select>
               </div>
             </div>
-          </div>
+
+            {/* Right Main Table Division */}
+            <div className="flex-1 w-full min-w-0">
 
           {/* Bug Reports Table */}
           {filteredReports.length === 0 ? (
@@ -448,7 +490,9 @@ export function BugReportsTab({
               </Table>
             </div>
           )}
-        </CardContent>
+        </div>
+      </div>
+    </CardContent>
       </Card>
 
       {/* Detail Inspector & Status Management Modal */}
