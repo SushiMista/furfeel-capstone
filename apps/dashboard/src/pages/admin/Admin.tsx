@@ -57,6 +57,7 @@ import {
   fetchAlertsQueue,
 } from "../../lib/queries.ts";
 import { AlertCard } from "../../components/AlertCard.tsx";
+import { DeviceAdoptionChart } from "../../components/DeviceAdoptionChart.tsx";
 import { formatPhilippineTime } from "../../lib/time.ts";
 import { BugReportsTab } from "./BugReportsTab.tsx";
 import { fetchBugReports } from "../../lib/bugReportQueries.ts";
@@ -334,6 +335,19 @@ function HealthTab({
         {" · "}Device fleet: {devices.length} registered (
         {devices.length - online - offline} inactive/maintenance)
       </p>
+
+      {/* Device Adoption & Fleet Utilization Analytics */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Device Adoption &amp; Fleet Allocation</CardTitle>
+          <CardDescription>
+            Fleet distribution, active collar pairings, and population adoption coverage across registered dogs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-5 pt-0">
+          <DeviceAdoptionChart devices={devices} dogs={dogs} />
+        </CardContent>
+      </Card>
 
       {/* System Alerts Triage Card for Admins */}
       <Card>

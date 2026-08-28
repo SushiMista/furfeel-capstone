@@ -853,3 +853,10 @@ export async function fetchClinicTeams(client: SupabaseClient): Promise<ClinicTe
     };
   });
 }
+
+export async function fetchClinicsReadOnly(client: SupabaseClient): Promise<Clinic[]> {
+  const { data, error } = await client.from("clinics").select("*").order("name");
+  if (error) throw error;
+  return (data ?? []) as unknown as Clinic[];
+}
+
