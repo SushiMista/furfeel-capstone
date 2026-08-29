@@ -1,7 +1,20 @@
 import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { Activity, ArrowLeft, Heart, Wind, Thermometer, type LucideIcon } from "lucide-react";
+import {
+  Activity,
+  ArrowLeft,
+  BarChart3,
+  Bell,
+  ClipboardCheck,
+  FileText,
+  Heart,
+  PawPrint,
+  SlidersHorizontal,
+  Thermometer,
+  Wind,
+  type LucideIcon,
+} from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   acknowledgeAlert,
@@ -40,23 +53,19 @@ import type {
 
 const HISTORY_LIMIT = 50;
 
-/** Section tabs (docs/05): same pill pattern as Admin — the per-dog page was
- * one long scroll; this groups it without changing what data shows. */
+/** Section tabs (docs/05): redesigned with icons & matching Board Controls style. */
 const TABS = [
-  { id: "alerts", label: "Alerts" },
-  { id: "telemetry", label: "Live telemetry" },
-  { id: "stress", label: "Stress history" },
-  { id: "notes", label: "Vet notes" },
-  { id: "thresholds", label: "Thresholds" },
-  { id: "review", label: "Vet review" },
+  { id: "alerts", label: "Alerts", icon: Bell },
+  { id: "telemetry", label: "Live telemetry", icon: Activity },
+  { id: "stress", label: "Stress history", icon: BarChart3 },
+  { id: "notes", label: "Vet notes", icon: FileText },
+  { id: "thresholds", label: "Thresholds", icon: SlidersHorizontal },
+  { id: "review", label: "Vet review", icon: ClipboardCheck },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 /** Vital card (docs/19 §7, docs/21 Phase 2): icon + label header, big tabular
- * value, small unit, and a recent-trend micro-sparkline — a number carrying a
- * short trend beats a number alone. Kept dense/flat per docs/19 §4; no
- * plain-language descriptor here because the dashboard has no client-side
- * baseline to derive one from, and inventing a threshold is a guardrail break. */
+ * value, small unit, and a recent-trend micro-sparkline. */
 function Vital({
   label,
   icon: Icon,
@@ -155,7 +164,7 @@ export function DogDetail() {
     load();
   }, [load]);
 
-  // Single-dog page: safe to filter Realtime by dog_id directly (docs/10 Realtime).
+  // Single-dog page: safe to filter Realtime by dog_id directly.
   useEffect(() => {
     if (!dogId) return;
 
@@ -194,50 +203,96 @@ export function DogDetail() {
 
   if (loading)
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 p-6">
         <CardSkeleton lines={2} />
         <CardSkeleton lines={4} />
       </div>
     );
   if (error)
     return (
-      <p role="alert" className="rounded-sm bg-high-soft px-3 py-2 text-sm text-high-fg">
+      <p role="alert" className="m-6 rounded-sm bg-high-soft px-3 py-2 text-sm text-high-fg">
         {error}
       </p>
     );
   if (!dog)
     return (
-      <EmptyState>
-        We couldn&apos;t find that dog (or they&apos;re not visible to your account).
-      </EmptyState>
+      <div className="p-6">
+        <EmptyState>
+          We couldn&apos;t find that dog (or they&apos;re not visible to your account).
+        </EmptyState>
+      </div>
     );
 
   const latest = classifications[classifications.length - 1] ?? null;
   const latestReading = readings[readings.length - 1] ?? null;
 
   return (
-    <div className="flex h-[calc(100vh-1px)] overflow-hidden w-full">
-      {/* Dog Sub-sidebar */}
-      <aside className="w-56 border-r border-hairline bg-surface px-3 py-5 flex flex-col gap-1 flex-shrink-0">
-        <div className="mb-4 px-3 text-xs font-bold text-ink-muted uppercase tracking-wider">
-          {dog.name}
-        </div>
-
-        {/* Back Link to Monitoring Board */}
+    <div className="flex flex-col gap-5 p-6 max-w-5xl mx-auto w-full">
+      {/* Top Breadcrumb Header Bar */}
+      <div className="flex items-center justify-between border-b border-hairline/80 pb-3">
         <Link
           to="/board"
-          className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-semibold text-ink-muted hover:bg-surface-alt hover:text-ink transition-colors duration-fast"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-ink-muted hover:text-brand transition-colors"
         >
-          <ArrowLeft size={16} />
-          Monitoring board
+          <ArrowLeft size={14} />
+          Back to Monitoring board
         </Link>
+      </div>
 
-        <div className="h-px bg-hairline my-2" />
+      {/* Hero Header & Telemetry Vitals Card */}
+      <Card className="shadow-sm">
+        <CardContent className="p-5">
+          <p className="m-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+            {dog.breed ?? "Unknown breed"}
+          </p>
+          <h1 className="m-0 mb-4 flex items-center gap-3 text-2xl font-bold text-ink">
+            {dog.name} {latest && <StressLevelBadge level={latest.stress_level} />}
+          </h1>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Vital
+              label="Heart rate"
+              icon={Heart}
+              value={latestReading?.heart_rate_bpm}
+              unit="bpm"
+              series={seriesOf(readings, (r) => r.heart_rate_bpm)}
+            />
+            <Vital
+              label="Respiratory"
+              icon={Wind}
+              value={latestReading?.respiratory_rate_bpm}
+              unit="bpm"
+              series={seriesOf(readings, (r) => r.respiratory_rate_bpm)}
+            />
+            <Vital
+              label="Motion"
+              icon={Activity}
+              value={latestReading?.motion_activity}
+              unit=""
+              series={seriesOf(readings, (r) => r.motion_activity)}
+            />
+            <Vital
+              label="Ambient Temp"
+              icon={Thermometer}
+              value={latestReading?.ambient_temperature_c}
+              unit="°C"
+              series={seriesOf(readings, (r) => r.ambient_temperature_c)}
+            />
+          </div>
+          {latestReading && (
+            <p className="m-0 mt-3 text-xs text-ink-muted">
+              Last updated {new Date(latestReading.captured_at).toLocaleString()}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
-        <div className="flex flex-col gap-1">
+      {/* Sticky Segmented Control Navigation Bar */}
+      <div className="sticky top-4 z-20 rounded-2xl border border-hairline bg-surface/90 backdrop-blur-md p-1.5 shadow-sm">
+        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar" role="tablist">
           {TABS.map((t) => {
             const active = tab === t.id;
             const openCount = t.id === "alerts" ? alerts.filter((a) => a.status === "open").length : 0;
+            const Icon = t.icon;
             return (
               <button
                 key={t.id}
@@ -246,15 +301,21 @@ export function DogDetail() {
                 aria-selected={active}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "flex items-center justify-between rounded-md px-3 py-2 text-sm font-semibold transition-colors duration-fast w-full text-left",
+                  "flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all duration-150 shrink-0 select-none border",
                   active
-                    ? "bg-brand-soft text-brand-strong"
-                    : "text-ink-muted hover:bg-surface-alt hover:text-ink",
+                    ? "bg-brand-soft text-brand-strong border-brand/30 shadow-2xs"
+                    : "bg-transparent text-ink-muted hover:text-ink hover:bg-surface-alt border-transparent",
                 )}
               >
+                <Icon size={15} className={cn(active ? "text-brand" : "text-ink-muted/70")} />
                 <span>{t.label}</span>
                 {openCount > 0 && (
-                  <span className="rounded-pill bg-high-soft px-1.5 py-0.5 text-xxs font-bold tabular-nums text-high-fg">
+                  <span
+                    className={cn(
+                      "ml-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold tabular-nums",
+                      active ? "bg-brand text-white" : "bg-high-soft text-high-fg",
+                    )}
+                  >
                     {openCount}
                   </span>
                 )}
@@ -262,57 +323,7 @@ export function DogDetail() {
             );
           })}
         </div>
-      </aside>
-
-      {/* Dog Detail Content Panel */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        <div className="mx-auto max-w-4xl flex flex-col gap-5">
-          <Card>
-            <CardContent className="p-5">
-              <p className="m-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                {dog.breed ?? "Unknown breed"}
-              </p>
-              <h1 className="m-0 mb-4 flex items-center gap-3 text-2xl font-bold text-ink">
-                {dog.name} {latest && <StressLevelBadge level={latest.stress_level} />}
-              </h1>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Vital
-                  label="Heart rate"
-                  icon={Heart}
-                  value={latestReading?.heart_rate_bpm}
-                  unit="bpm"
-                  series={seriesOf(readings, (r) => r.heart_rate_bpm)}
-                />
-                <Vital
-                  label="Respiratory"
-                  icon={Wind}
-                  value={latestReading?.respiratory_rate_bpm}
-                  unit="bpm"
-                  series={seriesOf(readings, (r) => r.respiratory_rate_bpm)}
-                />
-                <Vital
-                  label="Motion"
-                  icon={Activity}
-                  value={latestReading?.motion_activity}
-                  unit=""
-                  series={seriesOf(readings, (r) => r.motion_activity)}
-                />
-                {/* Added Ambient Temperature vital */}
-                <Vital
-                  label="Ambient Temp"
-                  icon={Thermometer}
-                  value={latestReading?.ambient_temperature_c}
-                  unit="°C"
-                  series={seriesOf(readings, (r) => r.ambient_temperature_c)}
-                />
-              </div>
-              {latestReading && (
-                <p className="m-0 mt-3 text-xs text-ink-muted">
-                  Last updated {new Date(latestReading.captured_at).toLocaleString()}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+      </div>
 
           {tab === "alerts" && (
             <Card>
@@ -432,8 +443,6 @@ export function DogDetail() {
               </Card>
             </>
           )}
-        </div>
-      </div>
     </div>
   );
 }
