@@ -367,6 +367,23 @@ export async function updateDog(
 }
 
 export async function deleteDog(client: SupabaseClient, dogId: string): Promise<void> {
+  // 1. Try server-side RPC first (security definer atomic cascade delete)
+  const { error: rpcError } = await client.rpc("admin_delete_dog", { p_dog_id: dogId });
+  if (!rpcError) return;
+
+  // 2. Fallback: Unlink device and delete dog
+  await client.from("devices").update({ dog_id: null }).eq("dog_id", dogId);
+
+  await Promise.allSettled([
+    client.from("alerts").delete().eq("dog_id", dogId),
+    client.from("vet_notes").delete().eq("dog_id", dogId),
+    client.from("handover_notes").delete().eq("dog_id", dogId),
+    client.from("media_submissions").delete().eq("dog_id", dogId),
+    client.from("dog_baselines").delete().eq("dog_id", dogId),
+    client.from("stress_classifications").delete().eq("dog_id", dogId),
+    client.from("telemetry_readings").delete().eq("dog_id", dogId),
+  ]);
+
   const { error } = await client.from("dogs").delete().eq("id", dogId);
   if (error) throw friendlyDeleteError(error, "telemetry history or media submissions");
 }
@@ -375,6 +392,13 @@ export async function bulkDeleteDogs(
   client: SupabaseClient,
   dogIds: string[],
 ): Promise<{ success: string[]; failed: { id: string; error: string }[] }> {
+  // Try atomic bulk RPC first
+  const { error: rpcError } = await client.rpc("admin_bulk_delete_dogs", { p_dog_ids: dogIds });
+  if (!rpcError) {
+    return { success: dogIds, failed: [] };
+  }
+
+  // Fallback sequential
   const success: string[] = [];
   const failed: { id: string; error: string }[] = [];
 
