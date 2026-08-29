@@ -244,7 +244,7 @@ export function DeviceAdoptionChart({ devices, dogs }: DeviceAdoptionChartProps)
                     );
                   }}
                 />
-                <Legend className="text-xs" />
+                <Legend wrapperStyle={{ fontSize: "12px" }} />
                 <Bar dataKey="Equipped" fill="var(--ff-status-calm-fg, #0C7C6F)" radius={[4, 4, 0, 0]} barSize={40} />
                 <Bar dataKey="Awaiting Device" fill="var(--brand-soft, #DBEAFE)" radius={[4, 4, 0, 0]} barSize={40} />
               </BarChart>

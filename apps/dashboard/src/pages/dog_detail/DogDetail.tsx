@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   FileText,
   Heart,
-  PawPrint,
   SlidersHorizontal,
   Thermometer,
   Wind,

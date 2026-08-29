@@ -18,7 +18,6 @@ import { getMediaSignedUrl, uploadDogPhoto, type MonitoringBoardRow } from "../l
 import { StressLevelBadge } from "./StressLevelBadge.tsx";
 import { cn } from "../lib/cn.ts";
 import { dogTint } from "../lib/dogTint.ts";
-import type { StressLevel } from "../../../../packages/shared/types/index.ts";
 
 function timeAgo(iso: string): string {
   const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
