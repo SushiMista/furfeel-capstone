@@ -6,6 +6,7 @@ import {
   Phone,
   RefreshCw,
   Search,
+  ShieldAlert,
   UserCheck,
   Users as UsersIcon,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import {
   type ClinicTeamMember,
 } from "../../lib/queries.ts";
 import { friendlyError } from "../../lib/errors.ts";
+import { useCurrentRole } from "../../lib/useCurrentRole.ts";
 import { Kpi } from "../overview/Overview.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Button } from "../../components/ui/button.tsx";
@@ -25,6 +27,7 @@ import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { cn } from "../../lib/cn.ts";
 
 export function ClinicTeams() {
+  const { role, clinicId, loading: roleLoading } = useCurrentRole();
   const [teams, setTeams] = useState<ClinicTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,24 +35,35 @@ export function ClinicTeams() {
   const [clinicFilter, setClinicFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
 
+  const isAdmin = role === "admin";
+
   const loadTeams = useCallback(async () => {
+    if (roleLoading) return;
     setLoading(true);
     try {
-      const data = await fetchClinicTeams(supabase);
+      // Ethical & Multi-tenant Isolation:
+      // Non-admin clinic staff can ONLY query their own assigned clinic.
+      const targetClinicId = isAdmin ? undefined : (clinicId ?? "none");
+      if (!isAdmin && !clinicId) {
+        setTeams([]);
+        setError(null);
+        return;
+      }
+      const data = await fetchClinicTeams(supabase, targetClinicId);
       setTeams(data);
       setError(null);
     } catch (err) {
-      setError(friendlyError(err, "load clinic teams"));
+      setError(friendlyError(err, "load clinic team"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin, clinicId, roleLoading]);
 
   useEffect(() => {
     loadTeams();
   }, [loadTeams]);
 
-  // Global KPIs
+  // Scoped KPIs
   const totalClinics = teams.length;
   const totalVets = useMemo(
     () => teams.reduce((acc, t) => acc + t.veterinarianCount, 0),
@@ -67,7 +81,7 @@ export function ClinicTeams() {
   // Filtered clinic team records
   const filteredTeams = useMemo(() => {
     return teams
-      .filter((t) => clinicFilter === "all" || t.clinic.id === clinicFilter)
+      .filter((t) => !isAdmin || clinicFilter === "all" || t.clinic.id === clinicFilter)
       .map((t) => {
         const filteredMembers = t.members.filter((m) => {
           if (m.role === "owner") return false;
@@ -92,9 +106,9 @@ export function ClinicTeams() {
           t.members.length > 0 ||
           t.clinic.name.toLowerCase().includes(search.toLowerCase()),
       );
-  }, [teams, clinicFilter, roleFilter, search]);
+  }, [teams, isAdmin, clinicFilter, roleFilter, search]);
 
-  if (loading)
+  if (roleLoading || loading)
     return (
       <div className="flex flex-col gap-4">
         <CardSkeleton lines={2} />
@@ -109,19 +123,55 @@ export function ClinicTeams() {
       </p>
     );
 
+  // If user is vet staff but not assigned to any clinic
+  if (!isAdmin && !clinicId) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="ff-enter">
+          <h1 className="m-0 text-2xl font-bold text-ink">My Clinic Team</h1>
+          <p className="m-0 mt-1 text-sm text-ink-muted">
+            Your clinic staff directory and assigned veterinarians.
+          </p>
+        </div>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600 mb-4 border border-amber-200">
+              <ShieldAlert size={28} />
+            </div>
+            <h2 className="text-lg font-bold text-ink mb-2">No Clinic Assigned</h2>
+            <p className="text-sm text-ink-muted max-w-md mx-auto mb-4">
+              Your veterinary account is not currently linked to an active partner clinic.
+              For data security and multi-tenant isolation, please contact your platform administrator to link your account to your clinic team.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const singleClinic = teams[0]?.clinic;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header & Page Description */}
       <div className="ff-enter">
-        <h1 className="m-0 text-2xl font-bold text-ink">Clinic Teams &amp; Staff Roster</h1>
+        <h1 className="m-0 text-2xl font-bold text-ink">
+          {isAdmin ? "Clinic Teams & Staff Roster" : singleClinic ? `${singleClinic.name} — Our Team` : "My Clinic Team"}
+        </h1>
         <p className="m-0 mt-1 text-sm text-ink-muted">
-          Partner clinics and assigned veterinarians and vet staff across the clinic network.
+          {isAdmin
+            ? "Platform governance overview of partner clinics and assigned clinical rosters."
+            : singleClinic
+              ? `Staff directory, veterinarians, and clinical team at ${singleClinic.name}.`
+              : "Your clinic's assigned veterinarians and veterinary staff."}
         </p>
       </div>
 
       {/* KPI Overview Cards */}
       <div className="ff-enter-list flex flex-wrap gap-4">
-        <Kpi label="Partner clinics" value={String(totalClinics)} icon={<Building2 size={20} />} />
+        {isAdmin && (
+          <Kpi label="Partner clinics" value={String(totalClinics)} icon={<Building2 size={20} />} />
+        )}
         <Kpi label="Veterinarians" value={String(totalVets)} icon={<UserCheck size={20} />} tone="positive" />
         <Kpi label="Vet staff" value={String(totalStaff)} icon={<UsersIcon size={20} />} />
         <Kpi label="Monitored dogs" value={String(totalDogs)} icon={<DogIcon size={20} />} />
@@ -130,33 +180,39 @@ export function ClinicTeams() {
       {/* Search & Filter Bar */}
       <Card className="ff-enter">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2", isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-muted" />
               <Input
                 type="text"
-                placeholder="Search staff name, email, or clinic..."
+                placeholder="Search staff name or email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8"
               />
             </div>
-            <Select value={clinicFilter} onChange={(e) => setClinicFilter(e.target.value)}>
-              <option value="all">All Partner Clinics</option>
-              {teams.map((t) => (
-                <option key={t.clinic.id} value={t.clinic.id}>
-                  {t.clinic.name}
-                </option>
-              ))}
-            </Select>
+
+            {/* Clinic filter is strictly for Admins ONLY */}
+            {isAdmin && (
+              <Select value={clinicFilter} onChange={(e) => setClinicFilter(e.target.value)}>
+                <option value="all">All Partner Clinics</option>
+                {teams.map((t) => (
+                  <option key={t.clinic.id} value={t.clinic.id}>
+                    {t.clinic.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+
             <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
               <option value="all">All Staff Roles</option>
               <option value="veterinarian">Veterinarians</option>
               <option value="vet_staff">Vet Staff</option>
-              <option value="admin">Clinic Admins</option>
+              {isAdmin && <option value="admin">Clinic Admins</option>}
             </Select>
+
             <Button variant="secondary" onClick={loadTeams} disabled={loading}>
-              <RefreshCw className={cn("mr-1.5 h-4 w-4", loading && "animate-spin")} /> Refresh Roster
+              <RefreshCw className={cn("mr-1.5 h-4 w-4", loading && "animate-spin")} /> Refresh Team
             </Button>
           </div>
         </CardContent>
@@ -185,10 +241,10 @@ export function ClinicTeams() {
                   </div>
                   <div className="flex items-center gap-2 text-xs font-semibold">
                     <span className="rounded-full bg-brand-soft px-3 py-1 text-brand">
-                      {members.length} {members.length === 1 ? "Staff Member" : "Staff Members"}
+                      {members.length} {members.length === 1 ? "Colleague" : "Team Members"}
                     </span>
                     <span className="rounded-full bg-surface px-3 py-1 text-ink-muted border border-hairline">
-                      {dogCount} {dogCount === 1 ? "Dog Monitored" : "Dogs Monitored"}
+                      {dogCount} {dogCount === 1 ? "Patient Monitored" : "Patients Monitored"}
                     </span>
                   </div>
                 </div>
@@ -196,7 +252,7 @@ export function ClinicTeams() {
               <CardContent className="p-5">
                 {members.length === 0 ? (
                   <p className="m-0 text-xs italic text-ink-muted">
-                    No active staff members currently assigned to {clinic.name}.
+                    No staff members found matching the selected criteria.
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -4,8 +4,10 @@ import {
   Bug,
   CheckCircle2,
   Clock,
+  ExternalLink,
   Eye,
   Filter,
+  Mail,
   RefreshCw,
   Search,
   ShieldAlert,
@@ -526,16 +528,26 @@ export function BugReportsTab({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-surface p-3 rounded-md border border-hairline">
               <div>
                 <span className="font-semibold text-ink-muted block">Reporter Name &amp; Contact:</span>
-                <span className="font-medium text-ink flex items-center gap-1 mt-0.5">
-                  <User size={12} className="text-brand" />
-                  {selectedReport.reporter_name} ({selectedReport.reporter_email})
-                </span>
+                <div className="flex items-center justify-between gap-2 mt-0.5 flex-wrap">
+                  <span className="font-medium text-ink flex items-center gap-1">
+                    <User size={12} className="text-brand" />
+                    {selectedReport.reporter_name} ({selectedReport.reporter_email})
+                  </span>
+                  <a
+                    href={`mailto:${selectedReport.reporter_email}?subject=${encodeURIComponent(`[FurFeel Support] Ticket #${selectedReport.id.slice(0, 8)}: ${selectedReport.title}`)}&body=${encodeURIComponent(`Hi ${selectedReport.reporter_name},\n\nRegarding your ticket "${selectedReport.title}" (#${selectedReport.id.slice(0, 8)}):\n\n`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand hover:underline"
+                  >
+                    <Mail size={11} /> Reply via Email
+                  </a>
+                </div>
               </div>
 
               <div>
                 <span className="font-semibold text-ink-muted block">Client Build &amp; Platform:</span>
-                <span className="font-mono text-ink flex items-center gap-1 mt-0.5">
-                  <Smartphone size={12} className="text-brand" />
+                <span className="font-mono text-ink flex items-center gap-1 mt-0.5 truncate">
+                  <Smartphone size={12} className="text-brand flex-shrink-0" />
                   {selectedReport.app_version} — {selectedReport.platform}
                 </span>
               </div>
@@ -567,22 +579,40 @@ export function BugReportsTab({
 
             {/* Description */}
             <div>
-              <Label className="mb-1 block text-xs font-semibold text-ink">User Problem Description</Label>
-              <div className="rounded-md border border-hairline bg-surface p-3 text-xs text-ink whitespace-pre-wrap leading-relaxed">
+              <Label className="mb-1 block text-xs font-semibold text-ink">Problem Details &amp; Diagnostics</Label>
+              <div className="rounded-md border border-hairline bg-surface p-3 text-xs text-ink whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
                 {selectedReport.description}
               </div>
             </div>
 
-            {/* Stack trace / Error Log (If present) */}
+            {/* Stack trace / Screenshot / Error Log (If present) */}
             {selectedReport.stack_trace && (
               <div>
                 <Label className="mb-1 block text-xs font-semibold text-rose-700 flex items-center gap-1">
                   <ShieldAlert size={13} />
-                  Client Exception / Stack Trace Log
+                  Attached Diagnostics / Trace Log
                 </Label>
-                <pre className="max-h-48 overflow-y-auto rounded-md bg-ink-subtle p-3 font-mono text-[11px] text-high-soft border border-rose-900/40">
-                  {selectedReport.stack_trace}
-                </pre>
+                {selectedReport.stack_trace.startsWith("http") ? (
+                  <div className="rounded-md border border-hairline bg-surface p-3 flex flex-col gap-2">
+                    <img
+                      src={selectedReport.stack_trace}
+                      alt="Bug Report Screenshot Attachment"
+                      className="max-h-56 rounded object-contain border border-hairline bg-black/5"
+                    />
+                    <a
+                      href={selectedReport.stack_trace}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-brand flex items-center gap-1 hover:underline"
+                    >
+                      <ExternalLink size={12} /> Open Full Resolution Image
+                    </a>
+                  </div>
+                ) : (
+                  <pre className="max-h-48 overflow-y-auto rounded-md bg-ink-subtle p-3 font-mono text-[11px] text-high-soft border border-rose-900/40">
+                    {selectedReport.stack_trace}
+                  </pre>
+                )}
               </div>
             )}
 
