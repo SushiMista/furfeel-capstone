@@ -61,16 +61,28 @@ export function AlertCard({
           </Link>
         )}
 
-        {isDeviceOffline && (
-          <Link
-            to="/admin/devices?status=offline"
-            className="inline-flex items-center gap-1 rounded-md border border-hairline bg-surface px-2.5 py-1 text-xs font-semibold text-ink-muted hover:bg-surface-alt hover:text-ink transition-colors duration-fast"
-            title="Open Admin Device Fleet panel"
-          >
-            <Cpu size={13} />
-            <span>Check Device</span>
-          </Link>
-        )}
+        {isDeviceOffline && (() => {
+          const matchCode = alert.message.match(/Device\s+([A-Za-z0-9_-]+)/i)
+            ?? alert.message.match(/([A-Za-z0-9_-]+-DEV-[A-Za-z0-9_-]+)/i);
+          const deviceCode = matchCode ? matchCode[1] : null;
+
+          const targetUrl = deviceCode
+            ? `/admin/devices?device_code=${encodeURIComponent(deviceCode)}`
+            : alert.dog_id
+              ? `/admin/devices?dog_id=${encodeURIComponent(alert.dog_id)}`
+              : `/admin/devices?status=offline`;
+
+          return (
+            <Link
+              to={targetUrl}
+              className="inline-flex items-center gap-1 rounded-md border border-hairline bg-surface px-2.5 py-1 text-xs font-semibold text-ink-muted hover:bg-surface-alt hover:text-ink transition-colors duration-fast"
+              title="Open Device details modal"
+            >
+              <Cpu size={13} />
+              <span>Check Device</span>
+            </Link>
+          );
+        })()}
 
         {open && onAcknowledge && (
           <Button variant="secondary" size="sm" disabled={busy} onClick={handleAcknowledge}>
