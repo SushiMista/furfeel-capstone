@@ -251,7 +251,7 @@ export function DogCard({
               aria-hidden="true"
             />
             <span className={cn(online ? "text-calm-fg" : offline ? "text-high-fg" : "text-ink-muted")}>
-              {online ? "Collar Active" : offline ? "Offline" : "Unassigned"}
+              {online ? `Collar Active ${device?.device_code ? `(${device.device_code})` : ""}` : offline ? `Offline (${device?.device_code ?? ""})` : "Unassigned"}
             </span>
           </div>
 
