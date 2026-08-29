@@ -5,6 +5,7 @@ import {
   deleteClinic,
   deleteDevice,
   deleteUserAccount,
+  reactivateUserAccount,
   fetchSystemHealth,
   updateClinic,
 } from "../src/lib/adminQueries.ts";
@@ -91,14 +92,33 @@ describe("createUserAccount", () => {
   });
 });
 
-describe("deleteUserAccount", () => {
-  it("invokes admin-delete-user with the target id", async () => {
-    const invoke = vi.fn().mockResolvedValue({ data: { ok: true }, error: null });
+describe("deleteUserAccount & reactivateUserAccount", () => {
+  it("invokes admin-delete-user with default auto mode and target id", async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { ok: true, action: "deactivated" }, error: null });
     const client = { functions: { invoke } } as unknown as SupabaseClient;
 
-    await deleteUserAccount(client, "u1");
+    const res = await deleteUserAccount(client, "u1");
 
-    expect(invoke).toHaveBeenCalledWith("admin-delete-user", { body: { userId: "u1" } });
+    expect(invoke).toHaveBeenCalledWith("admin-delete-user", { body: { userId: "u1", mode: "auto", reassignOwnerId: undefined } });
+    expect(res.action).toBe("deactivated");
+  });
+
+  it("passes mode and reassignOwnerId options when provided", async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { ok: true, action: "deactivated" }, error: null });
+    const client = { functions: { invoke } } as unknown as SupabaseClient;
+
+    await deleteUserAccount(client, "u1", { mode: "deactivate", reassignOwnerId: "u2" });
+
+    expect(invoke).toHaveBeenCalledWith("admin-delete-user", { body: { userId: "u1", mode: "deactivate", reassignOwnerId: "u2" } });
+  });
+
+  it("invokes reactivateUserAccount with reactivate: true", async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { ok: true, action: "reactivated" }, error: null });
+    const client = { functions: { invoke } } as unknown as SupabaseClient;
+
+    await reactivateUserAccount(client, "u1");
+
+    expect(invoke).toHaveBeenCalledWith("admin-delete-user", { body: { userId: "u1", reactivate: true } });
   });
 
   it("surfaces the function's JSON error body (e.g. an owner who still owns dogs)", async () => {

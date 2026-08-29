@@ -12,6 +12,8 @@ export interface User {
   phone: string | null;
   /** Free text ("name and number") — who the clinic should reach if the owner can't be. */
   emergency_contact: string | null;
+  is_active?: boolean;
+  deactivated_at?: string | null;
   created_at: string;
 }
 
