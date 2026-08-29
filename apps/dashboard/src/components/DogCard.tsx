@@ -3,20 +3,22 @@
 // upload — monitored dogs recognizable at a glance, not just rows.
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, Camera } from "lucide-react";
+import {
+  Activity,
+  Bell,
+  Building2,
+  Camera,
+  Heart,
+  Thermometer,
+  User,
+  Wind,
+} from "lucide-react";
 import { supabase } from "../lib/supabaseClient.ts";
 import { getMediaSignedUrl, uploadDogPhoto, type MonitoringBoardRow } from "../lib/queries.ts";
 import { StressLevelBadge } from "./StressLevelBadge.tsx";
 import { cn } from "../lib/cn.ts";
 import { dogTint } from "../lib/dogTint.ts";
 import type { StressLevel } from "../../../../packages/shared/types/index.ts";
-
-const RING_CLASS: Record<StressLevel, string> = {
-  calm: "ring-calm-fg",
-  mild: "ring-mild-fg",
-  moderate: "ring-moderate-fg",
-  high: "ring-high-fg",
-};
 
 function timeAgo(iso: string): string {
   const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -28,14 +30,24 @@ function timeAgo(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function Vital({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function MetricItem({
+  icon: Icon,
+  value,
+  unit,
+  label,
+}: {
+  icon: React.ElementType;
+  value: string;
+  unit?: string;
+  label: string;
+}) {
   return (
-    <div className="min-w-0">
-      <div className="truncate text-lg font-bold tabular-nums text-ink">
-        {value}
-        {unit && <span className="ml-0.5 text-xs font-normal text-ink-muted">{unit}</span>}
+    <div className="flex items-center gap-1.5 min-w-0" title={`${label}: ${value} ${unit ?? ""}`}>
+      <Icon size={14} className="text-brand shrink-0 opacity-80" aria-hidden="true" />
+      <div className="flex items-baseline gap-0.5 truncate">
+        <span className="text-xs font-bold tabular-nums text-ink">{value}</span>
+        {unit && <span className="text-[10px] text-ink-muted">{unit}</span>}
       </div>
-      <div className="truncate text-[11px] text-ink-muted">{label}</div>
     </div>
   );
 }
@@ -76,45 +88,45 @@ export function DogCard({
   return (
     <div
       className={cn(
-        "group relative flex flex-col gap-3 rounded-lg border border-hairline bg-surface p-4",
-        "shadow-card transition-shadow duration-fast hover:shadow-lg",
-        // Above-calm dogs get a soft status tint so they stand out (docs/19 §7).
-        level === "mild" && "bg-mild-soft",
-        level === "moderate" && "bg-moderate-soft",
-        level === "high" && "bg-high-soft",
+        "group relative flex flex-col sm:flex-row items-stretch gap-4 rounded-2xl border border-hairline bg-surface p-3.5",
+        "shadow-sm transition-all duration-200 hover:shadow-md hover:border-brand/30",
+        level === "mild" && "bg-mild-soft/40 border-mild-fg/20",
+        level === "moderate" && "bg-moderate-soft/40 border-moderate-fg/20",
+        level === "high" && "bg-high-soft/40 border-high-fg/20",
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className="relative flex-shrink-0">
-          <span
+      {/* Left Column: Photo Container with Floating Action Badge */}
+      <div className="relative shrink-0 w-full sm:w-32 h-32 sm:h-auto rounded-xl overflow-hidden bg-surface-alt border border-hairline/60">
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt={dog.name}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div
             className={cn(
-              "block h-14 w-14 overflow-hidden rounded-pill ring-2 ring-offset-2",
-              "ring-offset-surface transition-colors duration-slow",
-              // Deterministic per-dog tinted ground — shows behind the
-              // placeholder mark, and the same tint the owner app uses.
+              "flex h-full w-full items-center justify-center text-4xl select-none",
               dogTint(dog.id),
-              level ? RING_CLASS[level] : "ring-hairline",
             )}
           >
-            {photoUrl ? (
-              <img
-                src={photoUrl}
-                alt=""
-                width={56}
-                height={56}
-                loading="lazy"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span
-                className="flex h-full w-full items-center justify-center text-2xl"
-                aria-hidden="true"
-              >
-                🐶
-              </span>
-            )}
-          </span>
-          {/* Upload/replace photo, revealed on hover/focus (docs/05). */}
+            🐶
+          </div>
+        )}
+
+        {/* Top-Right Floating Action Badge (Overlay on Image like reference design) */}
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          {openAlertCount > 0 && (
+            <span
+              className="inline-flex items-center gap-0.5 rounded-full bg-high-fg text-white px-2 py-0.5 text-[10px] font-bold shadow-md"
+              title={`${openAlertCount} open alert(s)`}
+            >
+              <Bell size={10} aria-hidden="true" />
+              {openAlertCount}
+            </span>
+          )}
+
           <button
             type="button"
             disabled={uploading}
@@ -122,95 +134,130 @@ export function DogCard({
             aria-label={dog.photo_path ? `Replace ${dog.name}'s photo` : `Add a photo of ${dog.name}`}
             title={dog.photo_path ? "Replace photo" : "Add photo"}
             className={cn(
-              "absolute -bottom-1 -right-1 rounded-pill bg-brand p-1.5 text-surface shadow-card",
-              "opacity-0 transition-opacity duration-fast focus-visible:opacity-100",
-              "group-hover:opacity-100 disabled:opacity-100",
+              "flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 backdrop-blur-md text-ink shadow-sm",
+              "transition-all duration-150 hover:bg-white hover:scale-110 active:scale-95 disabled:opacity-50",
             )}
           >
-            <Camera size={12} aria-hidden="true" className={uploading ? "animate-pulse" : undefined} />
+            <Camera size={13} aria-hidden="true" className={uploading ? "animate-pulse text-brand" : undefined} />
           </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (!file) return;
-              setUploading(true);
-              setUploadError(false);
-              try {
-                await uploadDogPhoto(supabase, dog.id, file);
-                onPhotoChanged(dog.id);
-              } catch {
-                setUploadError(true);
-              } finally {
-                setUploading(false);
-              }
-            }}
-          />
         </div>
 
-        <div className="min-w-0 flex-1">
-          <Link
-            to={`/dogs/${dog.id}`}
-            className="block truncate text-base font-bold text-ink hover:text-brand-strong"
-          >
-            {dog.name}
-          </Link>
-          {dog.breed && <div className="truncate text-xs text-ink-muted">{dog.breed}</div>}
-          {row.ownerName && (
-            <div className="truncate text-[11px] font-medium text-ink-muted">
-              Owner: {row.ownerName}
-            </div>
-          )}
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            setUploading(true);
+            setUploadError(false);
+            try {
+              await uploadDogPhoto(supabase, dog.id, file);
+              onPhotoChanged(dog.id);
+            } catch {
+              setUploadError(true);
+            } finally {
+              setUploading(false);
+            }
+          }}
+        />
+      </div>
+
+      {/* Right Column: Dog Information, Vitals, and Status */}
+      <div className="flex flex-1 flex-col justify-between min-w-0 gap-2.5 py-0.5">
+        {/* Top Row: Name, Breed, and Stress Badge */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <Link
+              to={`/dogs/${dog.id}`}
+              className="block truncate text-base font-bold text-ink hover:text-brand transition-colors"
+            >
+              {dog.name}
+            </Link>
+            {dog.breed && <p className="truncate text-xs font-medium text-ink-muted">{dog.breed}</p>}
+          </div>
+
+          <div className="shrink-0">
             {level ? (
-              <StressLevelBadge level={level} className={level !== "calm" ? "bg-surface" : undefined} />
+              <StressLevelBadge level={level} className="text-[11px] px-2 py-0.5 shadow-2xs" />
             ) : (
-              <span className="text-xs text-ink-muted">No reading yet</span>
-            )}
-            {openAlertCount > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-pill bg-surface px-2 py-0.5 text-xs font-bold text-high-fg">
-                <Bell size={11} aria-hidden="true" />
-                {openAlertCount}
+              <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-medium text-ink-muted">
+                No telemetry
               </span>
             )}
           </div>
         </div>
 
-        <span
-          className={cn(
-            "mt-1 inline-flex items-center gap-1.5 text-[11px] font-medium",
-            online ? "text-calm-fg" : offline ? "text-high-fg" : "text-ink-muted",
+        {/* Location & Owner Meta Row */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
+          {row.ownerName && (
+            <div className="flex items-center gap-1 truncate" title={`Owner: ${row.ownerName}`}>
+              <User size={12} className="shrink-0 text-ink-muted/70" />
+              <span className="truncate">{row.ownerName}</span>
+            </div>
           )}
-        >
-          <span
-            className={cn(
-              "h-2 w-2 rounded-pill",
-              online ? "bg-calm-fg" : offline ? "bg-high-fg" : "bg-hairline",
-            )}
-            aria-hidden="true"
+          {row.clinicName && (
+            <div className="flex items-center gap-1 truncate" title={`Clinic: ${row.clinicName}`}>
+              <Building2 size={12} className="shrink-0 text-ink-muted/70" />
+              <span className="truncate">{row.clinicName}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Horizontal Vitals Metrics Bar (matching icon metric row in reference card) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-xl bg-surface-alt/70 border border-hairline/50 p-2">
+          <MetricItem
+            icon={Heart}
+            value={latestReading?.heart_rate_bpm?.toString() ?? "—"}
+            unit="bpm"
+            label="Heart Rate"
           />
-          {device?.status ?? "unassigned"}
-        </span>
-      </div>
+          <MetricItem
+            icon={Wind}
+            value={latestReading?.respiratory_rate_bpm?.toString() ?? "—"}
+            unit="bpm"
+            label="Respiration"
+          />
+          <MetricItem
+            icon={Activity}
+            value={latestReading?.motion_activity?.toString() ?? "—"}
+            label="Motion"
+          />
+          <MetricItem
+            icon={Thermometer}
+            value={latestReading?.ambient_temperature_c?.toString() ?? "—"}
+            unit="°C"
+            label="Ambient Temp"
+          />
+        </div>
 
-      <div className="grid grid-cols-4 gap-2">
-        <Vital label="Heart" value={latestReading?.heart_rate_bpm?.toString() ?? "—"} unit="bpm" />
-        <Vital label="Resp" value={latestReading?.respiratory_rate_bpm?.toString() ?? "—"} unit="bpm" />
-        <Vital label="Motion" value={latestReading?.motion_activity?.toString() ?? "—"} />
-        <Vital label="Ambient" value={latestReading?.ambient_temperature_c?.toString() ?? "—"} unit="°C" />
-      </div>
+        {/* Footer Row: Device Status & Last Updated Timestamp */}
+        <div className="flex items-center justify-between gap-2 border-t border-hairline/60 pt-2 text-[11px] text-ink-muted">
+          <div className="flex items-center gap-1.5 font-medium truncate">
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full shrink-0",
+                online ? "bg-calm-fg animate-pulse" : offline ? "bg-high-fg" : "bg-hairline",
+              )}
+              aria-hidden="true"
+            />
+            <span className={cn(online ? "text-calm-fg" : offline ? "text-high-fg" : "text-ink-muted")}>
+              {online ? "Collar Active" : offline ? "Offline" : "Unassigned"}
+            </span>
+          </div>
 
-      <div className="text-[11px] text-ink-muted" aria-live="polite">
-        {uploadError
-          ? "Photo upload failed — check the file and try again."
-          : latestReading
-            ? `Updated ${timeAgo(latestReading.captured_at)}`
-            : "Waiting for first reading"}
+          <div className="truncate text-[10px] text-ink-muted/80" aria-live="polite">
+            {uploadError
+              ? "Upload failed"
+              : latestReading
+                ? timeAgo(latestReading.captured_at)
+                : "Awaiting data"}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
