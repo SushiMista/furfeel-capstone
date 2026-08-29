@@ -513,19 +513,41 @@ export async function acknowledgeAlerts(
   return result;
 }
 
+export interface CurrentUserProfile {
+  role: string | null;
+  clinicId: string | null;
+  name: string | null;
+  email: string | null;
+}
+
+/** Fetches full current user profile for role gating and clinic isolation. */
+export async function fetchCurrentUserProfile(
+  client: SupabaseClient,
+  userId: string,
+): Promise<CurrentUserProfile | null> {
+  const { data, error } = await client
+    .from("users")
+    .select("role, clinic_id, name, email")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    role: data.role ?? null,
+    clinicId: data.clinic_id ?? null,
+    name: data.name ?? null,
+    email: data.email ?? null,
+  };
+}
+
 /** The signed-in user's role from public.users (users_select_own RLS). Used only to
  * decide what UI to offer — RLS remains the actual gate on every write. */
 export async function fetchCurrentUserRole(
   client: SupabaseClient,
   userId: string,
 ): Promise<string | null> {
-  const { data, error } = await client
-    .from("users")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return (data as { role: string } | null)?.role ?? null;
+  const profile = await fetchCurrentUserProfile(client, userId);
+  return profile?.role ?? null;
 }
 
 /** Alerts queue (docs/05): every RLS-visible alert across dogs, newest first. */
@@ -805,15 +827,33 @@ export interface ClinicTeam {
   vetStaffCount: number;
 }
 
-export async function fetchClinicTeams(client: SupabaseClient): Promise<ClinicTeam[]> {
+export async function fetchClinicTeams(
+  client: SupabaseClient,
+  scopedClinicId?: string | null,
+): Promise<ClinicTeam[]> {
+  let clinicQuery = client.from("clinics").select("*").order("name");
+  if (scopedClinicId) {
+    clinicQuery = clinicQuery.eq("id", scopedClinicId);
+  }
+
+  let usersQuery = client
+    .from("users")
+    .select("id, name, email, role, clinic_id, avatar_path, phone, created_at")
+    .in("role", ["veterinarian", "vet_staff", "admin"])
+    .order("name");
+  if (scopedClinicId) {
+    usersQuery = usersQuery.eq("clinic_id", scopedClinicId);
+  }
+
+  let dogsQuery = client.from("dogs").select("id, clinic_id");
+  if (scopedClinicId) {
+    dogsQuery = dogsQuery.eq("clinic_id", scopedClinicId);
+  }
+
   const [clinicsRes, usersRes, dogsRes] = await Promise.all([
-    client.from("clinics").select("*").order("name"),
-    client
-      .from("users")
-      .select("id, name, email, role, clinic_id, avatar_path, phone, created_at")
-      .in("role", ["veterinarian", "vet_staff", "admin"])
-      .order("name"),
-    client.from("dogs").select("id, clinic_id"),
+    clinicQuery,
+    usersQuery,
+    dogsQuery,
   ]);
 
   if (clinicsRes.error) throw clinicsRes.error;

@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BugReport,
+  BugReportCategory,
+  BugReportSeverity,
   BugReportStatus,
 } from "../../../../packages/shared/types/index.ts";
 
@@ -103,8 +105,31 @@ export const MOCK_BUG_REPORTS: BugReport[] = [
   },
 ];
 
-// Memory store for local dev fallback mutations
-let localReportsStore: BugReport[] = [...MOCK_BUG_REPORTS];
+const STORAGE_KEY = "furfeel:bug_reports_store";
+
+function getLocalStore(): BugReport[] {
+  if (typeof window === "undefined") return [...MOCK_BUG_REPORTS];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_BUG_REPORTS));
+      return [...MOCK_BUG_REPORTS];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...MOCK_BUG_REPORTS];
+  } catch {
+    return [...MOCK_BUG_REPORTS];
+  }
+}
+
+function saveLocalStore(reports: BugReport[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+  } catch {
+    // ignore
+  }
+}
 
 export async function fetchBugReports(client: SupabaseClient): Promise<BugReport[]> {
   try {
@@ -114,12 +139,13 @@ export async function fetchBugReports(client: SupabaseClient): Promise<BugReport
       .order("created_at", { ascending: false });
 
     if (error || !data || data.length === 0) {
-      return localReportsStore;
+      return getLocalStore();
     }
 
+    saveLocalStore(data as BugReport[]);
     return data as BugReport[];
   } catch {
-    return localReportsStore;
+    return getLocalStore();
   }
 }
 
@@ -142,40 +168,157 @@ export async function updateBugReport(
       .single();
 
     if (error || !data) {
-      // Fallback local store update
-      localReportsStore = localReportsStore.map((item) =>
+      const current = getLocalStore();
+      const next = current.map((item) =>
         item.id === id ? { ...item, ...patch } : item,
       );
-      const updated = localReportsStore.find((item) => item.id === id);
+      saveLocalStore(next);
+      const updated = next.find((item) => item.id === id);
       if (!updated) throw new Error("Report not found");
       return updated;
     }
 
-    // Keep local store in sync
-    localReportsStore = localReportsStore.map((item) =>
+    const current = getLocalStore();
+    const next = current.map((item) =>
       item.id === id ? (data as BugReport) : item,
     );
-
+    saveLocalStore(next);
     return data as BugReport;
   } catch {
-    localReportsStore = localReportsStore.map((item) =>
+    const current = getLocalStore();
+    const next = current.map((item) =>
       item.id === id ? { ...item, ...patch } : item,
     );
-    const updated = localReportsStore.find((item) => item.id === id);
+    saveLocalStore(next);
+    const updated = next.find((item) => item.id === id);
     if (!updated) throw new Error("Report not found");
     return updated;
   }
 }
 
+export interface CreateBugReportPayload {
+  user_id?: string | null;
+  reporter_name: string;
+  reporter_email: string;
+  title: string;
+  description: string;
+  category: BugReportCategory;
+  severity: BugReportSeverity;
+  app_version?: string;
+  platform?: string;
+  stack_trace?: string | null;
+}
+
+export async function createBugReport(
+  client: SupabaseClient,
+  payload: CreateBugReportPayload,
+): Promise<BugReport> {
+  const row = {
+    user_id: payload.user_id ?? null,
+    reporter_name: payload.reporter_name,
+    reporter_email: payload.reporter_email,
+    title: payload.title,
+    description: payload.description,
+    category: payload.category,
+    severity: payload.severity,
+    status: "open" as BugReportStatus,
+    app_version: payload.app_version ?? "v1.4.2-web",
+    platform: payload.platform ?? (typeof navigator !== "undefined" ? navigator.userAgent : "Web Dashboard"),
+    stack_trace: payload.stack_trace ?? null,
+    admin_notes: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    const { data, error } = await client
+      .from("bug_reports")
+      .insert(row)
+      .select("*")
+      .single();
+
+    if (error || !data) {
+      const mockItem: BugReport = {
+        ...row,
+        id: `br-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      };
+      const current = getLocalStore();
+      const updated = [mockItem, ...current];
+      saveLocalStore(updated);
+      return mockItem;
+    }
+
+    const current = getLocalStore();
+    const updated = [data as BugReport, ...current.filter((r) => r.id !== data.id)];
+    saveLocalStore(updated);
+    return data as BugReport;
+  } catch {
+    const mockItem: BugReport = {
+      ...row,
+      id: `br-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    };
+    const current = getLocalStore();
+    const updated = [mockItem, ...current];
+    saveLocalStore(updated);
+    return mockItem;
+  }
+}
+
+export async function fetchMyBugReports(
+  client: SupabaseClient,
+  userId: string,
+): Promise<BugReport[]> {
+  try {
+    const { data, error } = await client
+      .from("bug_reports")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data || data.length === 0) {
+      const local = getLocalStore();
+      return local.filter((r) => r.user_id === userId);
+    }
+
+    return data as BugReport[];
+  } catch {
+    const local = getLocalStore();
+    return local.filter((r) => r.user_id === userId);
+  }
+}
+
+export async function uploadBugReportAttachment(
+  client: SupabaseClient,
+  file: File,
+): Promise<string> {
+  const fileExt = file.name.split(".").pop() || "png";
+  const fileName = `bug_reports/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+
+  const { error } = await client.storage.from("media").upload(fileName, file, {
+    cacheControl: "3600",
+    upsert: false,
+  });
+
+  if (error) {
+    // If upload fails, try creating local data URL
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const { data: publicUrlData } = client.storage.from("media").getPublicUrl(fileName);
+  return publicUrlData?.publicUrl ?? fileName;
+}
+
 export async function deleteBugReport(client: SupabaseClient, id: string): Promise<void> {
   try {
-    const { error } = await client.from("bug_reports").delete().eq("id", id);
-    if (error) {
-      localReportsStore = localReportsStore.filter((item) => item.id !== id);
-    } else {
-      localReportsStore = localReportsStore.filter((item) => item.id !== id);
-    }
-  } catch {
-    localReportsStore = localReportsStore.filter((item) => item.id !== id);
+    await client.from("bug_reports").delete().eq("id", id);
+  } finally {
+    const current = getLocalStore();
+    const next = current.filter((item) => item.id !== id);
+    saveLocalStore(next);
   }
 }

@@ -12,6 +12,7 @@ import {
   Cpu,
   FileText,
   LayoutDashboard,
+  LifeBuoy,
   PawPrint,
   Radio,
   ShieldCheck,
@@ -22,6 +23,7 @@ import { useAuth } from "../lib/useAuth.ts";
 import { useCurrentRole } from "../lib/useCurrentRole.ts";
 import { cn } from "../lib/cn.ts";
 import { AccountMenu } from "./AccountMenu.tsx";
+import { ReportIssueModal } from "./ReportIssueModal.tsx";
 import { supabase } from "../lib/supabaseClient.ts";
 import { useToast } from "./ui/toast.tsx";
 import { ImageAttachmentNotification } from "./ImageAttachmentNotification.tsx";
@@ -50,7 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/board", label: "Monitoring Board", icon: Table2 },
       { to: "/alerts", label: "Alerts Queue", icon: Bell },
       { to: "/handover", label: "Handover Notes", icon: ArrowLeftRight },
-      { to: "/teams", label: "Clinic Teams", icon: Users },
+      { to: "/teams", label: "My Clinic Team", icon: Users },
     ],
   },
   {
@@ -163,6 +165,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       supabase.removeChannel(channel);
     };
   }, [session, toast]);
+
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+
+  // Global shortcut (Ctrl+Shift+B) to quickly report an issue from any screen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setReportModalOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-surface">
@@ -278,9 +294,36 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
+        {/* Support & Issue Reporting Action */}
+        <div className="border-t border-hairline pt-2">
+          <button
+            type="button"
+            onClick={() => setReportModalOpen(true)}
+            title={isCollapsed ? "Report Issue / Feedback (Ctrl+Shift+B)" : undefined}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-md text-xs font-semibold transition-colors duration-fast",
+              isCollapsed
+                ? "justify-center p-2 text-ink-muted hover:bg-surface-alt hover:text-brand"
+                : "px-3 py-2 text-ink-muted hover:bg-brand-soft hover:text-brand",
+            )}
+          >
+            <LifeBuoy size={16} className="text-brand flex-shrink-0" />
+            {!isCollapsed && <span className="truncate flex-1 text-left">Report Issue / Help</span>}
+            {!isCollapsed && (
+              <kbd className="hidden sm:inline-block rounded border border-hairline bg-surface-alt px-1 py-0.2 text-[9px] font-mono text-ink-muted">
+                ⌘⇧B
+              </kbd>
+            )}
+          </button>
+        </div>
+
         {/* Account Menu Footer */}
-        <div className="mt-auto border-t border-hairline pt-3">
-          <AccountMenu email={session?.user.email ?? ""} isCollapsed={isCollapsed} />
+        <div className="border-t border-hairline pt-2">
+          <AccountMenu
+            email={session?.user.email ?? ""}
+            isCollapsed={isCollapsed}
+            onOpenReportModal={() => setReportModalOpen(true)}
+          />
         </div>
       </aside>
 
@@ -294,6 +337,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className={cn(!isDogPage && "mx-auto max-w-[1440px]")}>{children}</div>
       </main>
+
+      {/* Vet to Admin Help & Issue Modal */}
+      <ReportIssueModal
+        open={reportModalOpen}
+        onOpenChange={setReportModalOpen}
+        onToast={toast}
+      />
     </div>
   );
 }
