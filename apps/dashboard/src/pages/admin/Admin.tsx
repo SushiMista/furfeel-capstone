@@ -1157,12 +1157,35 @@ function DevicesTab({
   onDeleted: (id: string) => void;
   onToast: (kind: "success" | "error", message: string) => void;
 }) {
+  const [searchParams] = useSearchParams();
   const [code, setCode] = useState("");
   const [firmware, setFirmware] = useState("");
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
   const [viewingDevice, setViewingDevice] = useState<Device | null>(null);
+
+  // Auto-open device details modal if redirected from an alert with device_code, device_id, or dog_id
+  useEffect(() => {
+    const targetCode = searchParams.get("device_code");
+    const targetId = searchParams.get("device_id");
+    const targetDogId = searchParams.get("dog_id");
+
+    if (devices.length === 0) return;
+
+    let match: Device | undefined;
+    if (targetCode) {
+      match = devices.find((d) => d.device_code.toLowerCase() === targetCode.toLowerCase());
+    } else if (targetId) {
+      match = devices.find((d) => d.id === targetId);
+    } else if (targetDogId) {
+      match = devices.find((d) => d.dog_id === targetDogId);
+    }
+
+    if (match) {
+      setViewingDevice(match);
+    }
+  }, [devices, searchParams]);
 
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [editStatus, setEditStatus] = useState<DeviceStatus>("active");
