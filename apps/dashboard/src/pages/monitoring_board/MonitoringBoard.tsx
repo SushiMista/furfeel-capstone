@@ -289,9 +289,9 @@ export function MonitoringBoard() {
   );
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      {/* Left Division Box: Board Controls & Filters (Sticky on scroll) */}
-      <Card className="w-full shrink-0 p-4 lg:w-72 lg:sticky lg:top-6 z-10 self-start shadow-sm">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:-ml-20">
+      {/* Left Division Box: Board Controls & Filters (Sticky on scroll at top) */}
+      <Card className="w-full shrink-0 p-4 lg:w-72 lg:sticky lg:top-36 z-10 self-start shadow-sm">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-hairline pb-3">
             <div className="flex items-center gap-2">
@@ -481,7 +481,7 @@ export function MonitoringBoard() {
                 </div>
 
                 {view === "grid" ? (
-                  <div className="ff-enter-list grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="ff-enter-list grid gap-4 grid-cols-1 xl:grid-cols-2">
                     {sectionRows.map((row) => (
                       <DogCard key={row.dog.id} row={row} onPhotoChanged={refreshDog} />
                     ))}
@@ -494,7 +494,7 @@ export function MonitoringBoard() {
           </div>
         ) : view === "grid" ? (
           /* Ungrouped Cards View */
-          <div className="ff-enter-list grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="ff-enter-list grid gap-4 grid-cols-1 xl:grid-cols-2">
             {visible.map((row) => (
               <DogCard key={row.dog.id} row={row} onPhotoChanged={refreshDog} />
             ))}
