@@ -368,6 +368,7 @@ function HealthTab({
               <AlertCard
                 key={alert.id}
                 alert={alert}
+                dogName={dogNames.get(alert.dog_id)}
                 onAcknowledge={async (a) => {
                   const userId = session?.user.id;
                   if (!userId) return;

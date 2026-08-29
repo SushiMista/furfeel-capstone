@@ -270,23 +270,17 @@ export function Overview() {
                 <EmptyState>No open system alerts — all hardware operating normally 🐾</EmptyState>
               ) : (
                 alerts.slice(0, 5).map((a) => (
-                  <div key={a.id}>
-                    <Link
-                      to={`/dogs/${a.dog_id}`}
-                      className="mb-1 inline-block text-sm font-semibold text-ink hover:text-brand-strong"
-                    >
-                      {dogNames.get(a.dog_id) ?? "Unknown dog"}
-                    </Link>
-                    <AlertCard
-                      alert={a}
-                      onAcknowledge={async (alert) => {
-                        const userId = session?.user.id;
-                        if (!userId) return;
-                        const updated = await acknowledgeAlert(supabase, alert.id, userId);
-                        if (updated) setAlerts((prev) => prev.filter((x) => x.id !== updated.id));
-                      }}
-                    />
-                  </div>
+                  <AlertCard
+                    key={a.id}
+                    alert={a}
+                    dogName={dogNames.get(a.dog_id)}
+                    onAcknowledge={async (alert) => {
+                      const userId = session?.user.id;
+                      if (!userId) return;
+                      const updated = await acknowledgeAlert(supabase, alert.id, userId);
+                      if (updated) setAlerts((prev) => prev.filter((x) => x.id !== updated.id));
+                    }}
+                  />
                 ))
               )}
             </CardContent>
@@ -418,23 +412,17 @@ export function Overview() {
               <EmptyState>No open alerts — everyone&apos;s doing great 🐾</EmptyState>
             ) : (
               alerts.slice(0, 5).map((a) => (
-                <div key={a.id}>
-                  <Link
-                    to={`/dogs/${a.dog_id}`}
-                    className="mb-1 inline-block text-sm font-semibold text-ink hover:text-brand-strong"
-                  >
-                    {dogNames.get(a.dog_id) ?? "Unknown dog"}
-                  </Link>
-                  <AlertCard
-                    alert={a}
-                    onAcknowledge={async (alert) => {
-                      const userId = session?.user.id;
-                      if (!userId) return;
-                      const updated = await acknowledgeAlert(supabase, alert.id, userId);
-                      if (updated) setAlerts((prev) => prev.filter((x) => x.id !== updated.id));
-                    }}
-                  />
-                </div>
+                <AlertCard
+                  key={a.id}
+                  alert={a}
+                  dogName={dogNames.get(a.dog_id)}
+                  onAcknowledge={async (alert) => {
+                    const userId = session?.user.id;
+                    if (!userId) return;
+                    const updated = await acknowledgeAlert(supabase, alert.id, userId);
+                    if (updated) setAlerts((prev) => prev.filter((x) => x.id !== updated.id));
+                  }}
+                />
               ))
             )}
           </CardContent>
