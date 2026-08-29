@@ -12,7 +12,7 @@ import type {
  * users_update_admin / clinics_admin_manage / devices_admin_all only match for
  * the admin role, so a non-admin gets empty reads and rejected writes. */
 
-const USER_COLUMNS = "id, name, email, role, clinic_id, created_at";
+const USER_COLUMNS = "id, name, email, role, clinic_id, is_active, deactivated_at, created_at";
 const DEVICE_COLUMNS = "id, dog_id, device_code, status, last_seen_at, firmware_version, created_at";
 
 export async function fetchAllUsers(client: SupabaseClient): Promise<User[]> {
@@ -65,16 +65,46 @@ export async function createUserAccount(
   return data as User;
 }
 
-/** Admin deletes another user's account (docs/05 §4). Auth deletion needs the
- * service role, so this goes through the admin-delete-user Edge Function —
- * same reasoning as createUserAccount. The function itself refuses self-delete,
- * deleting the last admin, and deleting a user who still owns dogs, so those
- * checks don't need duplicating here. */
-export async function deleteUserAccount(client: SupabaseClient, userId: string): Promise<void> {
-  const { error } = await client.functions.invoke("admin-delete-user", { body: { userId } });
+export interface DeleteUserOptions {
+  mode?: "auto" | "deactivate" | "hard";
+  reassignOwnerId?: string;
+}
+
+/** Admin deletes or deactivates another user's account (docs/05 §4). */
+export async function deleteUserAccount(
+  client: SupabaseClient,
+  userId: string,
+  options?: DeleteUserOptions,
+): Promise<{ ok: boolean; action?: string }> {
+  const mode = options?.mode ?? "auto";
+
+  // If Hard Delete is requested, use the admin_purge_user RPC function (bypasses RLS & cascades clean purge)
+  if (mode === "hard") {
+    const { error: rpcError } = await client.rpc("admin_purge_user", { target_user_id: userId });
+    if (!rpcError) {
+      return { ok: true, action: "deleted" };
+    }
+  }
+
+  const { data, error } = await client.functions.invoke("admin-delete-user", {
+    body: { userId, mode, reassignOwnerId: options?.reassignOwnerId },
+  });
+
   if (error) {
     const body = await error.context?.json?.().catch(() => null);
-    throw new Error(body?.error ?? error.message ?? "Failed to delete the user");
+    throw new Error(body?.error ?? error.message ?? "Failed to delete/deactivate the user");
+  }
+  return (data ?? { ok: true }) as { ok: boolean; action?: string };
+}
+
+/** Admin reactivates a soft-deleted / deactivated user account. */
+export async function reactivateUserAccount(client: SupabaseClient, userId: string): Promise<void> {
+  const { error } = await client.functions.invoke("admin-delete-user", {
+    body: { userId, reactivate: true },
+  });
+  if (error) {
+    const body = await error.context?.json?.().catch(() => null);
+    throw new Error(body?.error ?? error.message ?? "Failed to reactivate the user");
   }
 }
 

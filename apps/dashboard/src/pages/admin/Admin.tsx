@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Trash2,
   Users as UsersIcon,
@@ -33,6 +34,7 @@ import {
   fetchAllUsers,
   fetchClinics,
   fetchSystemHealth,
+  reactivateUserAccount,
   registerDevice,
   updateClinic,
   updateDevice,
@@ -182,6 +184,7 @@ export function Admin() {
         <UsersTab
           users={users}
           clinics={clinics}
+          dogs={dogs}
           currentUserId={session?.user.id ?? null}
           onChanged={(u) => {
             setUsers((prev) => prev.map((x) => (x.id === u.id ? u : x)));
@@ -392,6 +395,7 @@ const ROLE_BADGE_STYLE: Record<UserRole, string> = {
 function UsersTab({
   users,
   clinics,
+  dogs,
   currentUserId,
   onChanged,
   onCreated,
@@ -400,6 +404,7 @@ function UsersTab({
 }: {
   users: User[];
   clinics: Clinic[];
+  dogs: Dog[];
   currentUserId: string | null;
   onChanged: (u: User) => void;
   onCreated: (u: User) => void;
@@ -426,6 +431,8 @@ function UsersTab({
   const [editSaving, setEditSaving] = useState(false);
 
   const [pendingDelete, setPendingDelete] = useState<User | null>(null);
+  const [deleteMode, setDeleteMode] = useState<"deactivate" | "hard">("deactivate");
+  const [reassignOwnerId, setReassignOwnerId] = useState<string>("");
   const [deleting, setDeleting] = useState(false);
 
   const clinicNames = useMemo(() => new Map(clinics.map((c) => [c.id, c.name])), [clinics]);
@@ -448,13 +455,30 @@ function UsersTab({
     if (!pendingDelete) return;
     setDeleting(true);
     try {
-      await deleteUserAccount(supabase, pendingDelete.id);
-      onDeleted(pendingDelete.id, pendingDelete.name);
+      const res = await deleteUserAccount(supabase, pendingDelete.id, {
+        mode: deleteMode,
+        reassignOwnerId: reassignOwnerId === "" ? undefined : reassignOwnerId,
+      });
+      if (res.action === "deactivated") {
+        onChanged({ ...pendingDelete, is_active: false, clinic_id: null });
+      } else {
+        onDeleted(pendingDelete.id, pendingDelete.name);
+      }
       setPendingDelete(null);
+      setReassignOwnerId("");
     } catch (err) {
-      onError(friendlyError(err, "delete the user"));
+      onError(friendlyError(err, deleteMode === "deactivate" ? "deactivate the user" : "delete the user"));
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleReactivate(u: User) {
+    try {
+      await reactivateUserAccount(supabase, u.id);
+      onChanged({ ...u, is_active: true });
+    } catch (err) {
+      onError(friendlyError(err, "reactivate the user"));
     }
   }
 
@@ -531,6 +555,7 @@ function UsersTab({
               <Th>Name</Th>
               <Th>Email</Th>
               <Th>Role</Th>
+              <Th>Status</Th>
               <Th>Clinic</Th>
               <Th>Actions</Th>
             </Tr>
@@ -544,6 +569,17 @@ function UsersTab({
                   <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", ROLE_BADGE_STYLE[u.role])}>
                     {u.role.replace("_", " ")}
                   </span>
+                </Td>
+                <Td>
+                  {u.is_active === false ? (
+                    <span className="inline-flex items-center rounded-pill bg-surface-alt px-2.5 py-0.5 text-xs font-medium text-ink-muted">
+                      Deactivated
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-pill bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 px-2.5 py-0.5 text-xs font-medium">
+                      Active
+                    </span>
+                  )}
                 </Td>
                 <Td className="text-ink-muted">
                   {u.clinic_id ? (clinicNames.get(u.clinic_id) ?? "— none —") : "— none —"}
@@ -576,13 +612,27 @@ function UsersTab({
                       <Pencil size={15} />
                     </button>
 
-                    {/* Delete Button - Soft Red Box */}
-                    {u.id !== currentUserId ? (
+                    {/* Reactivate or Delete Button */}
+                    {u.is_active === false ? (
                       <button
                         type="button"
-                        aria-label={`Delete ${u.name}`}
-                        title="Delete User Account"
-                        onClick={() => setPendingDelete(u)}
+                        aria-label={`Reactivate ${u.name}`}
+                        title="Reactivate User Account"
+                        onClick={() => handleReactivate(u)}
+                        className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors duration-fast"
+                      >
+                        <RotateCcw size={15} />
+                      </button>
+                    ) : u.id !== currentUserId ? (
+                      <button
+                        type="button"
+                        aria-label={`Delete or deactivate ${u.name}`}
+                        title="Delete or Deactivate Account"
+                        onClick={() => {
+                          setPendingDelete(u);
+                          setDeleteMode("deactivate");
+                          setReassignOwnerId("");
+                        }}
                         className="flex h-8 w-8 items-center justify-center rounded-md bg-high-soft text-high-fg transition-colors duration-fast hover:bg-high hover:text-white"
                       >
                         <Trash2 size={15} />
@@ -599,33 +649,44 @@ function UsersTab({
       </CardContent>
 
       {/* Add User Dialog */}
-      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Add user">
-        <form className="flex flex-col gap-3" onSubmit={submit}>
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Add user account">
+        <form onSubmit={submit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <Label htmlFor="user-name">Name</Label>
-            <Input id="user-name" value={name} onChange={(e) => setName(e.target.value)} required />
+            <Label htmlFor="user-name">Full name</Label>
+            <Input
+              id="user-name"
+              required
+              placeholder="e.g. Dr. Jane Smith"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
+
           <div className="flex flex-col gap-1">
-            <Label htmlFor="user-email">Email</Label>
+            <Label htmlFor="user-email">Email address</Label>
             <Input
               id="user-email"
               type="email"
+              required
+              placeholder="e.g. jane@clinic.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
             />
           </div>
+
           <div className="flex flex-col gap-1">
-            <Label htmlFor="user-password">Temporary password</Label>
+            <Label htmlFor="user-password">Initial password</Label>
             <Input
               id="user-password"
               type="password"
+              required
+              minLength={6}
+              placeholder="At least 6 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
-              required
             />
           </div>
+
           <div className="flex flex-col gap-1">
             <Label htmlFor="user-role">Role</Label>
             <Select
@@ -634,22 +695,22 @@ function UsersTab({
               value={newRole}
               onChange={(e) => setNewRole(e.target.value as UserRole)}
             >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
+              <option value="owner">Dog Owner</option>
+              <option value="vet_staff">Vet Staff</option>
+              <option value="veterinarian">Veterinarian</option>
+              <option value="admin">Admin</option>
             </Select>
           </div>
+
           <div className="flex flex-col gap-1">
-            <Label htmlFor="user-clinic">Clinic</Label>
+            <Label htmlFor="user-clinic">Assigned Clinic (Optional)</Label>
             <Select
               id="user-clinic"
               className="h-10 w-full"
               value={newClinicId}
               onChange={(e) => setNewClinicId(e.target.value)}
             >
-              <option value="">— none —</option>
+              <option value="">— None (Independent) —</option>
               {clinics.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -657,78 +718,57 @@ function UsersTab({
               ))}
             </Select>
           </div>
-          <div className="flex justify-end gap-2">
+
+          <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setAddOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={saving || name.trim() === "" || email.trim() === "" || password.length < 6}
-            >
-              {saving ? "Adding…" : "Add user"}
+            <Button type="submit" disabled={saving}>
+              {saving ? "Creating…" : "Create account"}
             </Button>
           </div>
         </form>
       </Dialog>
 
       {/* View User Details Dialog */}
-      <Dialog open={viewingUser !== null} onClose={() => setViewingUser(null)} title="User details">
+      <Dialog
+        open={viewingUser !== null}
+        onClose={() => setViewingUser(null)}
+        title={viewingUser ? `User Details — ${viewingUser.name}` : "User Details"}
+      >
         {viewingUser && (
-          <div className="flex flex-col gap-4 py-1">
-            <div className="flex flex-col gap-1 border-b border-hairline pb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Account Name</span>
-              <span className="text-base font-bold text-ink">{viewingUser.name}</span>
+          <div className="flex flex-col gap-3 text-sm">
+            <div className="grid grid-cols-3 gap-1 border-b border-border pb-2">
+              <span className="font-semibold text-ink-muted">Name</span>
+              <span className="col-span-2 font-medium text-ink">{viewingUser.name}</span>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Email</span>
-                <span className="text-sm font-medium text-ink">{viewingUser.email}</span>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Role</span>
-                <div>
-                  <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", ROLE_BADGE_STYLE[viewingUser.role])}>
-                    {viewingUser.role.replace("_", " ")}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Assigned Clinic</span>
-                <span className="text-sm font-medium text-ink">
-                  {viewingUser.clinic_id ? (clinicNames.get(viewingUser.clinic_id) ?? "— none —") : "— none —"}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Created Date</span>
-                <span className="text-sm font-medium text-ink">
-                  {viewingUser.created_at ? formatPhilippineTime(viewingUser.created_at) : "—"}
-                </span>
-              </div>
+            <div className="grid grid-cols-3 gap-1 border-b border-border pb-2">
+              <span className="font-semibold text-ink-muted">Email</span>
+              <span className="col-span-2 font-medium text-ink">{viewingUser.email}</span>
             </div>
-
-            <div className="flex flex-col gap-1 rounded-md bg-surface-alt p-3">
-              <span className="text-[11px] font-semibold text-ink-muted">Account ID</span>
-              <span className="font-mono text-xs text-ink">{viewingUser.id}</span>
+            <div className="grid grid-cols-3 gap-1 border-b border-border pb-2">
+              <span className="font-semibold text-ink-muted">Role</span>
+              <span className="col-span-2 capitalize font-medium text-ink">{viewingUser.role.replace("_", " ")}</span>
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="secondary" onClick={() => setViewingUser(null)}>
+            <div className="grid grid-cols-3 gap-1 border-b border-border pb-2">
+              <span className="font-semibold text-ink-muted">Status</span>
+              <span className="col-span-2 font-medium text-ink">
+                {viewingUser.is_active === false ? "Deactivated" : "Active"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1 border-b border-border pb-2">
+              <span className="font-semibold text-ink-muted">Clinic</span>
+              <span className="col-span-2 font-medium text-ink">
+                {viewingUser.clinic_id ? (clinicNames.get(viewingUser.clinic_id) ?? "None") : "None"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              <span className="font-semibold text-ink-muted">User ID</span>
+              <span className="col-span-2 font-mono text-xs text-ink-muted">{viewingUser.id}</span>
+            </div>
+            <div className="flex justify-end pt-3">
+              <Button type="button" variant="secondary" onClick={() => setViewingUser(null)}>
                 Close
-              </Button>
-              <Button
-                onClick={() => {
-                  const u = viewingUser;
-                  setViewingUser(null);
-                  setEditingUser(u);
-                  setEditRole(u.role);
-                  setEditClinicId(u.clinic_id ?? "");
-                }}
-              >
-                <Pencil size={14} /> Edit user
               </Button>
             </div>
           </div>
@@ -736,14 +776,13 @@ function UsersTab({
       </Dialog>
 
       {/* Edit User Dialog */}
-      <Dialog open={editingUser !== null} onClose={() => setEditingUser(null)} title="Edit user">
+      <Dialog
+        open={editingUser !== null}
+        onClose={() => setEditingUser(null)}
+        title={editingUser ? `Edit ${editingUser.name}` : "Edit user"}
+      >
         {editingUser && (
-          <form className="flex flex-col gap-4" onSubmit={saveEdit}>
-            <div className="flex flex-col gap-1">
-              <Label>Account</Label>
-              <div className="text-sm font-semibold text-ink">{editingUser.name} ({editingUser.email})</div>
-            </div>
-
+          <form onSubmit={saveEdit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <Label htmlFor="edit-user-role">Role</Label>
               <Select
@@ -752,11 +791,10 @@ function UsersTab({
                 value={editRole}
                 onChange={(e) => setEditRole(e.target.value as UserRole)}
               >
-                {ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
+                <option value="owner">Dog Owner</option>
+                <option value="vet_staff">Vet Staff</option>
+                <option value="veterinarian">Veterinarian</option>
+                <option value="admin">Admin</option>
               </Select>
             </div>
 
@@ -768,7 +806,7 @@ function UsersTab({
                 value={editClinicId}
                 onChange={(e) => setEditClinicId(e.target.value)}
               >
-                <option value="">— none —</option>
+                <option value="">— None (Independent) —</option>
                 {clinics.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -789,18 +827,107 @@ function UsersTab({
         )}
       </Dialog>
 
-      <ConfirmDeleteDialog
+      {/* Delete / Deactivate User Dialog */}
+      <Dialog
         open={pendingDelete !== null}
-        title="Delete user"
-        description={
-          pendingDelete
-            ? `Delete ${pendingDelete.name} (${pendingDelete.email})? This can't be undone. Accounts that still own dog profiles or authored records can't be deleted.`
-            : ""
-        }
-        busy={deleting}
-        onConfirm={confirmDelete}
         onClose={() => setPendingDelete(null)}
-      />
+        title={pendingDelete ? `Manage Account — ${pendingDelete.name}` : "Manage Account"}
+      >
+        {pendingDelete && (
+          <div className="flex flex-col gap-4">
+            <p className="m-0 text-sm text-ink-muted">
+              Choose how to handle the account for <strong>{pendingDelete.name}</strong> ({pendingDelete.email}).
+            </p>
+
+            {/* Dog Reassignment Warning if user owns dogs */}
+            {(() => {
+              const ownedDogs = dogs.filter((d) => d.owner_user_id === pendingDelete.id);
+              if (ownedDogs.length === 0) return null;
+              const otherOwners = users.filter((u) => u.id !== pendingDelete.id);
+              return (
+                <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+                  <div className="font-semibold">
+                    ⚠️ Account owns {ownedDogs.length} dog profile(s): {ownedDogs.map((d) => d.name).join(", ")}
+                  </div>
+                  <p className="m-0 text-xs">
+                    To deactivate or delete this owner, select another registered user to transfer dog ownership to:
+                  </p>
+                  <Select
+                    className="mt-1 h-9 w-full bg-white text-xs text-ink dark:bg-surface"
+                    value={reassignOwnerId}
+                    onChange={(e) => setReassignOwnerId(e.target.value)}
+                  >
+                    <option value="">— Select New Owner —</option>
+                    {otherOwners.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name} ({o.email})
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              );
+            })()}
+
+            {/* Mode Selector */}
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs font-semibold">Action Type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteMode("deactivate")}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors",
+                    deleteMode === "deactivate"
+                      ? "border-brand bg-brand-soft/40 text-brand-strong"
+                      : "border-border bg-surface text-ink-muted hover:border-border-strong",
+                  )}
+                >
+                  <span className="text-xs font-semibold">Deactivate (Soft Delete)</span>
+                  <span className="text-[11px] leading-tight opacity-80">
+                    Recommended. Revokes login access while keeping medical notes & history intact.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDeleteMode("hard")}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors",
+                    deleteMode === "hard"
+                      ? "border-high bg-high-soft/40 text-high-fg"
+                      : "border-border bg-surface text-ink-muted hover:border-border-strong",
+                  )}
+                >
+                  <span className="text-xs font-semibold">Hard Delete</span>
+                  <span className="text-[11px] leading-tight opacity-80">
+                    Permanently purge user & owned dog profile(s). Fails if clinical notes block deletion.
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setPendingDelete(null)} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant={deleteMode === "hard" ? "destructive" : "default"}
+                onClick={confirmDelete}
+                disabled={deleting}
+              >
+                {deleting
+                  ? deleteMode === "deactivate"
+                    ? "Deactivating…"
+                    : "Deleting…"
+                  : deleteMode === "deactivate"
+                  ? "Deactivate Account"
+                  : "Hard Delete"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
     </Card>
   );
 }
