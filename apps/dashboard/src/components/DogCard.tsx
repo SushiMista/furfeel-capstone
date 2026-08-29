@@ -2,7 +2,7 @@
 // status-color ring, vitals, a mini stress-trend ribbon, and in-place photo
 // upload — monitored dogs recognizable at a glance, not just rows.
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Activity,
   Bell,
@@ -59,6 +59,7 @@ export function DogCard({
   row: MonitoringBoardRow;
   onPhotoChanged: (dogId: string) => void;
 }) {
+  const navigate = useNavigate();
   const { dog, device, latestReading, latestClassification, openAlertCount } = row;
   const level = latestClassification?.stress_level;
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -87,12 +88,18 @@ export function DogCard({
 
   return (
     <div
+      onClick={(e) => {
+        // Prevent navigation if clicking interactive elements like camera button or file input
+        if ((e.target as HTMLElement).closest("button, input")) return;
+        navigate(`/dogs/${dog.id}`);
+      }}
       className={cn(
         "group relative flex flex-col sm:flex-row items-stretch gap-4 rounded-2xl border border-hairline bg-surface p-3.5",
-        "shadow-sm transition-all duration-200 hover:shadow-md hover:border-brand/30",
-        level === "mild" && "bg-mild-soft/40 border-mild-fg/20",
-        level === "moderate" && "bg-moderate-soft/40 border-moderate-fg/20",
-        level === "high" && "bg-high-soft/40 border-high-fg/20",
+        "shadow-sm cursor-pointer transition-all duration-200",
+        "hover:shadow-xl hover:-translate-y-1 hover:border-brand/40 hover:ring-2 hover:ring-brand/20 active:scale-[0.992]",
+        level === "mild" && "bg-mild-soft/40 border-mild-fg/20 hover:bg-mild-soft/70",
+        level === "moderate" && "bg-moderate-soft/40 border-moderate-fg/20 hover:bg-moderate-soft/70",
+        level === "high" && "bg-high-soft/40 border-high-fg/20 hover:bg-high-soft/70",
       )}
     >
       {/* Left Column: Photo Container with Floating Action Badge */}

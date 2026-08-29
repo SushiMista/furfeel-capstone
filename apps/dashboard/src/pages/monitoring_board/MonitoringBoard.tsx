@@ -1,7 +1,7 @@
-import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Filter, LayoutGrid, RotateCcw, Rows3, Search, SlidersHorizontal } from "lucide-react";
+import { friendlyError } from "../../lib/errors.ts";
 import { timed } from "../../lib/perf.ts";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
@@ -78,6 +78,7 @@ type BoardFilter = (typeof BOARD_FILTERS)[number]["id"];
 
 /** Multi-dog live board (docs/05 module 1): stress-sorted, Realtime, filterable, sortable, groupable. */
 export function MonitoringBoard() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<MonitoringBoardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -237,16 +238,32 @@ export function MonitoringBoard() {
           {sectionRows.map((row) => {
             const level = row.latestClassification?.stress_level;
             return (
-              <Tr key={row.dog.id} className={level ? ROW_TINT[level] : undefined}>
-                <Td>
+              <Tr
+                key={row.dog.id}
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("button, input, a")) return;
+                  navigate(`/dogs/${row.dog.id}`);
+                }}
+                className={cn(
+                  "group relative cursor-pointer transition-all duration-200",
+                  "hover:bg-brand-soft/60 hover:shadow-xs active:bg-brand-soft/80 active:scale-[0.998]",
+                  level ? ROW_TINT[level] : undefined,
+                )}
+              >
+                <Td className="relative pl-4">
+                  {/* Glowing left accent border bar on row hover */}
+                  <span
+                    className="absolute left-0 top-1 bottom-1 w-1.5 rounded-r-md bg-brand opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                    aria-hidden="true"
+                  />
                   <Link
                     to={`/dogs/${row.dog.id}`}
-                    className="font-semibold text-ink hover:text-brand-strong"
+                    className="font-bold text-ink transition-colors group-hover:text-brand-strong"
                   >
                     {row.dog.name}
                   </Link>
                   {row.dog.breed && (
-                    <div className="text-xs text-ink-muted">{row.dog.breed}</div>
+                    <div className="text-xs text-ink-muted group-hover:text-ink/80">{row.dog.breed}</div>
                   )}
                 </Td>
                 <Td className="text-xs text-ink-muted">
