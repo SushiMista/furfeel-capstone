@@ -1,7 +1,6 @@
 import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCheck, Filter, Radio, Sparkles } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCheck, Radio } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import { acknowledgeAlert, acknowledgeAlerts, fetchAlertsQueue, fetchDogs } from "../../lib/queries.ts";
 import { useAuth } from "../../lib/useAuth.ts";

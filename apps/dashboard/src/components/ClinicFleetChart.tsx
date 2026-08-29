@@ -111,7 +111,7 @@ export function ClinicFleetChart({ clinics, dogs, devices, users }: ClinicFleetC
                 );
               }}
             />
-            <Legend className="text-xs" />
+            <Legend wrapperStyle={{ fontSize: "12px" }} />
             <Bar dataKey="Dogs" fill="var(--brand, #2563EB)" radius={[4, 4, 0, 0]} barSize={28} />
             <Bar dataKey="Staff" fill="var(--ff-status-calm-fg, #0C7C6F)" radius={[4, 4, 0, 0]} barSize={28} />
             <Bar dataKey="Devices" fill="var(--ff-status-mild-fg, #956603)" radius={[4, 4, 0, 0]} barSize={28} />

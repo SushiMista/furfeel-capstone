@@ -4,6 +4,7 @@ import type {
   Device,
   DeviceStatus,
   Dog,
+  DogSex,
   User,
   UserRole,
 } from "../../../../packages/shared/types/index.ts";
@@ -97,6 +98,27 @@ export async function deleteUserAccount(
   return (data ?? { ok: true }) as { ok: boolean; action?: string };
 }
 
+/** Admin bulk deletes or deactivates multiple user accounts. */
+export async function bulkDeleteUserAccounts(
+  client: SupabaseClient,
+  userIds: string[],
+  options?: DeleteUserOptions,
+): Promise<{ success: string[]; failed: { id: string; error: string }[] }> {
+  const success: string[] = [];
+  const failed: { id: string; error: string }[] = [];
+
+  for (const id of userIds) {
+    try {
+      await deleteUserAccount(client, id, options);
+      success.push(id);
+    } catch (err: unknown) {
+      failed.push({ id, error: (err as Error).message ?? "Operation failed" });
+    }
+  }
+
+  return { success, failed };
+}
+
 /** Admin reactivates a soft-deleted / deactivated user account. */
 export async function reactivateUserAccount(client: SupabaseClient, userId: string): Promise<void> {
   const { error } = await client.functions.invoke("admin-delete-user", {
@@ -153,6 +175,25 @@ export async function deleteClinic(client: SupabaseClient, clinicId: string): Pr
   if (error) throw friendlyDeleteError(error, "staff or dogs");
 }
 
+export async function bulkDeleteClinics(
+  client: SupabaseClient,
+  clinicIds: string[],
+): Promise<{ success: string[]; failed: { id: string; error: string }[] }> {
+  const success: string[] = [];
+  const failed: { id: string; error: string }[] = [];
+
+  for (const id of clinicIds) {
+    try {
+      await deleteClinic(client, id);
+      success.push(id);
+    } catch (err: unknown) {
+      failed.push({ id, error: (err as Error).message ?? "Delete failed" });
+    }
+  }
+
+  return { success, failed };
+}
+
 export async function fetchAllDevices(client: SupabaseClient): Promise<Device[]> {
   const { data, error } = await client.from("devices").select(DEVICE_COLUMNS).order("device_code");
   if (error) throw error;
@@ -197,6 +238,36 @@ export async function deleteDevice(client: SupabaseClient, deviceId: string): Pr
   if (error) throw friendlyDeleteError(error, "telemetry history — set it to inactive instead");
 }
 
+export async function bulkDeleteDevices(
+  client: SupabaseClient,
+  deviceIds: string[],
+  fallbackToInactive = true,
+): Promise<{ deleted: string[]; deactivated: string[]; failed: { id: string; error: string }[] }> {
+  const deleted: string[] = [];
+  const deactivated: string[] = [];
+  const failed: { id: string; error: string }[] = [];
+
+  for (const id of deviceIds) {
+    try {
+      await deleteDevice(client, id);
+      deleted.push(id);
+    } catch (err: unknown) {
+      if (fallbackToInactive) {
+        try {
+          await updateDevice(client, id, { status: "inactive", dog_id: null });
+          deactivated.push(id);
+        } catch (innerErr: unknown) {
+          failed.push({ id, error: (innerErr as Error).message ?? "Failed to deactivate" });
+        }
+      } else {
+        failed.push({ id, error: (err as Error).message ?? "Delete failed" });
+      }
+    }
+  }
+
+  return { deleted, deactivated, failed };
+}
+
 export interface SystemHealth {
   telemetry_last_hour: number;
   telemetry_last_24h: number;
@@ -232,18 +303,130 @@ export async function fetchAllDogs(client: SupabaseClient): Promise<Dog[]> {
   return (data ?? []) as unknown as Dog[];
 }
 
-/** Admin can also (re)assign a dog's clinic (docs/04 clinic linkage note). */
-export async function updateDogClinic(
+export interface CreateDogInput {
+  name: string;
+  breed?: string | null;
+  sex?: DogSex | null;
+  birthdate?: string | null;
+  weight_kg?: number | null;
+  notes?: string | null;
+  owner_user_id: string;
+  clinic_id?: string | null;
+  photo_path?: string | null;
+}
+
+export async function createDog(
   client: SupabaseClient,
-  dogId: string,
-  clinicId: string | null,
+  input: CreateDogInput,
 ): Promise<Dog> {
   const { data, error } = await client
     .from("dogs")
-    .update({ clinic_id: clinicId })
+    .insert({
+      name: input.name.trim(),
+      breed: input.breed?.trim() || null,
+      sex: input.sex || null,
+      birthdate: input.birthdate || null,
+      weight_kg: input.weight_kg != null && !isNaN(Number(input.weight_kg)) ? Number(input.weight_kg) : null,
+      notes: input.notes?.trim() || null,
+      owner_user_id: input.owner_user_id,
+      clinic_id: input.clinic_id || null,
+      photo_path: input.photo_path || null,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as unknown as Dog;
+}
+
+export async function updateDog(
+  client: SupabaseClient,
+  dogId: string,
+  patch: Partial<CreateDogInput>,
+): Promise<Dog> {
+  const payload: Record<string, unknown> = {};
+  if (patch.name !== undefined) payload.name = patch.name.trim();
+  if (patch.breed !== undefined) payload.breed = patch.breed?.trim() || null;
+  if (patch.sex !== undefined) payload.sex = patch.sex || null;
+  if (patch.birthdate !== undefined) payload.birthdate = patch.birthdate || null;
+  if (patch.weight_kg !== undefined) {
+    payload.weight_kg = patch.weight_kg != null && !isNaN(Number(patch.weight_kg)) ? Number(patch.weight_kg) : null;
+  }
+  if (patch.notes !== undefined) payload.notes = patch.notes?.trim() || null;
+  if (patch.owner_user_id !== undefined) payload.owner_user_id = patch.owner_user_id;
+  if (patch.clinic_id !== undefined) payload.clinic_id = patch.clinic_id || null;
+  if (patch.photo_path !== undefined) payload.photo_path = patch.photo_path || null;
+
+  const { data, error } = await client
+    .from("dogs")
+    .update(payload)
     .eq("id", dogId)
     .select("*")
     .single();
   if (error) throw error;
   return data as unknown as Dog;
 }
+
+export async function deleteDog(client: SupabaseClient, dogId: string): Promise<void> {
+  const { error } = await client.from("dogs").delete().eq("id", dogId);
+  if (error) throw friendlyDeleteError(error, "telemetry history or media submissions");
+}
+
+export async function bulkDeleteDogs(
+  client: SupabaseClient,
+  dogIds: string[],
+): Promise<{ success: string[]; failed: { id: string; error: string }[] }> {
+  const success: string[] = [];
+  const failed: { id: string; error: string }[] = [];
+
+  for (const id of dogIds) {
+    try {
+      await deleteDog(client, id);
+      success.push(id);
+    } catch (err: unknown) {
+      failed.push({ id, error: (err as Error).message ?? "Delete failed" });
+    }
+  }
+
+  return { success, failed };
+}
+
+/** Admin can also (re)assign a dog's clinic (docs/04 clinic linkage note). */
+export async function updateDogClinic(
+  client: SupabaseClient,
+  dogId: string,
+  clinicId: string | null,
+): Promise<Dog> {
+  return updateDog(client, dogId, { clinic_id: clinicId });
+}
+
+export interface AdminInefficiencies {
+  unassignedActiveDevices: Device[];
+  unassignedDogs: Dog[];
+  staleDevices: Device[];
+  inactiveUsers: User[];
+}
+
+export function calculateAdminInefficiencies(
+  devices: Device[],
+  dogs: Dog[],
+  users: User[],
+): AdminInefficiencies {
+  const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+
+  const unassignedActiveDevices = devices.filter((d) => d.status === "active" && !d.dog_id);
+  const unassignedDogs = dogs.filter((d) => !d.clinic_id);
+  const staleDevices = devices.filter((d) => {
+    if (d.status === "offline") return true;
+    if (!d.last_seen_at) return true;
+    return new Date(d.last_seen_at).getTime() < fourteenDaysAgo;
+  });
+  const inactiveUsers = users.filter((u) => u.is_active === false);
+
+  return {
+    unassignedActiveDevices,
+    unassignedDogs,
+    staleDevices,
+    inactiveUsers,
+  };
+}
+
