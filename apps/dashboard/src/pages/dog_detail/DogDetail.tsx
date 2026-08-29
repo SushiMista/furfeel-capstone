@@ -338,6 +338,7 @@ export function DogDetail() {
                     <AlertCard
                       key={a.id}
                       alert={a}
+                      dogName={dog.name}
                       onAcknowledge={async (alert) => {
                         const userId = session?.user.id;
                         if (!userId) return;

@@ -306,9 +306,9 @@ export function MonitoringBoard() {
   );
 
   return (
-    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:-ml-20">
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start w-full">
       {/* Left Division Box: Board Controls & Filters (Sticky on scroll at top) */}
-      <Card className="w-full shrink-0 p-4 lg:w-72 lg:sticky lg:top-36 z-10 self-start shadow-sm">
+      <Card className="w-full shrink-0 p-4 lg:w-64 xl:w-72 lg:sticky lg:top-6 z-10 self-start shadow-sm">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-hairline pb-3">
             <div className="flex items-center gap-2">
