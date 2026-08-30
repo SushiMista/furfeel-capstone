@@ -6,8 +6,12 @@ import {
   ArrowLeft,
   BarChart3,
   BellRing,
+  Check,
+  Edit3,
   FileText,
   HeartPulse,
+  MapPin,
+  Pill,
   SlidersHorizontal,
   Stethoscope,
   Thermometer,
@@ -18,12 +22,14 @@ import { supabase } from "../../lib/supabaseClient.ts";
 import {
   acknowledgeAlert,
   fetchClassificationHistory,
+  fetchClinicalInterventions,
   fetchDailyStressSummary,
   fetchDog,
   fetchRecentAlerts,
   fetchTelemetryHistory,
   fetchStressLabels,
   fetchMediaSubmissions,
+  updateDogWardAndAdmission,
   type DailyStressSummaryRow,
   type StressLabelWithVet,
 } from "../../lib/queries.ts";
@@ -36,14 +42,18 @@ import { StressLevelBadge } from "../../components/StressLevelBadge.tsx";
 import { MicroSparkline } from "../../components/MicroSparkline.tsx";
 import { AlertCard } from "../../components/AlertCard.tsx";
 import { VetNotes } from "../../components/VetNotes.tsx";
+import { ClinicalInterventionsList } from "../../components/ClinicalInterventionsList.tsx";
 import { ThresholdEditor } from "../../components/ThresholdEditor.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
-import { Select } from "../../components/ui/input.tsx";
+import { Input, Select } from "../../components/ui/input.tsx";
+import { Button } from "../../components/ui/button.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
+import { useToast } from "../../components/ui/toast.tsx";
 import { cn } from "../../lib/cn.ts";
 import type {
   Alert,
+  ClinicalIntervention,
   Dog,
   StressClassification,
   TelemetryReading,
@@ -56,6 +66,7 @@ const HISTORY_LIMIT = 50;
 const TABS = [
   { id: "alerts", label: "Alerts", icon: BellRing },
   { id: "telemetry", label: "Live telemetry", icon: Activity },
+  { id: "interventions", label: "Treatments & Meds", icon: Pill },
   { id: "stress", label: "Stress history", icon: BarChart3 },
   { id: "notes", label: "Vet notes", icon: FileText },
   { id: "thresholds", label: "Thresholds", icon: SlidersHorizontal },
@@ -108,6 +119,7 @@ function seriesOf(
 export function DogDetail() {
   const { dogId } = useParams<{ dogId: string }>();
   const { session } = useAuth();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [dog, setDog] = useState<Dog | null>(null);
   const [readings, setReadings] = useState<TelemetryReading[]>([]);
@@ -117,6 +129,11 @@ export function DogDetail() {
   const [stressMixDays, setStressMixDays] = useState<number>(14);
   const [labels, setLabels] = useState<StressLabelWithVet[]>([]);
   const [media, setMedia] = useState<MediaSubmission[]>([]);
+  const [interventions, setInterventions] = useState<ClinicalIntervention[]>([]);
+  const [editingWard, setEditingWard] = useState(false);
+  const [wardDraft, setWardDraft] = useState("");
+  const [admissionDraft, setAdmissionDraft] = useState<string>("outpatient");
+  const [savingWard, setSavingWard] = useState(false);
   const [tab, setTabState] = useState<TabId>(() => {
     const defaultTab = searchParams.get("tab") as TabId;
     return TABS.some((t) => t.id === defaultTab) ? defaultTab : "alerts";
@@ -135,7 +152,7 @@ export function DogDetail() {
   const load = useCallback(async () => {
     if (!dogId) return;
     try {
-      const [dogRow, history, classHistory, recentAlerts, mixRows, labelRows, mediaRows] = await Promise.all([
+      const [dogRow, history, classHistory, recentAlerts, mixRows, labelRows, mediaRows, interventionRows] = await Promise.all([
         fetchDog(supabase, dogId),
         fetchTelemetryHistory(supabase, dogId, HISTORY_LIMIT),
         fetchClassificationHistory(supabase, dogId, HISTORY_LIMIT),
@@ -143,14 +160,20 @@ export function DogDetail() {
         fetchDailyStressSummary(supabase, dogId, stressMixDays),
         fetchStressLabels(supabase, dogId),
         fetchMediaSubmissions(supabase, dogId),
+        fetchClinicalInterventions(supabase, dogId),
       ]);
       setDog(dogRow);
+      if (dogRow) {
+        setWardDraft(dogRow.ward_location ?? "");
+        setAdmissionDraft(dogRow.admission_status ?? "outpatient");
+      }
       setReadings(history);
       setClassifications(classHistory);
       setAlerts(recentAlerts);
       setMixSummary(mixRows);
       setLabels(labelRows);
       setMedia(mediaRows);
+      setInterventions(interventionRows);
       setError(null);
     } catch (err) {
       setError(friendlyError(err, "load this dog"));
@@ -162,6 +185,21 @@ export function DogDetail() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleSaveWard = async () => {
+    if (!dogId) return;
+    setSavingWard(true);
+    try {
+      await updateDogWardAndAdmission(supabase, dogId, wardDraft.trim() || null, admissionDraft);
+      setDog((prev) => (prev ? { ...prev, ward_location: wardDraft.trim() || null, admission_status: admissionDraft as any } : null));
+      setEditingWard(false);
+      toast("success", "Hospital ward & admission status updated");
+    } catch (err) {
+      toast("error", friendlyError(err, "update ward"));
+    } finally {
+      setSavingWard(false);
+    }
+  };
 
   // Single-dog page: safe to filter Realtime by dog_id directly.
   useEffect(() => {
@@ -192,6 +230,11 @@ export function DogDetail() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "alerts", filter: `dog_id=eq.${dogId}` },
         (payload) => setAlerts((prev) => [payload.new as Alert, ...prev]),
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "clinical_interventions", filter: `dog_id=eq.${dogId}` },
+        (payload) => setInterventions((prev) => [payload.new as ClinicalIntervention, ...prev]),
       )
       .subscribe();
 
@@ -241,12 +284,89 @@ export function DogDetail() {
       {/* Hero Header & Telemetry Vitals Card */}
       <Card className="shadow-sm">
         <CardContent className="p-5">
-          <p className="m-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-            {dog.breed ?? "Unknown breed"}
-          </p>
-          <h1 className="m-0 mb-4 flex items-center gap-3 text-2xl font-bold text-ink">
-            {dog.name} {latest && <StressLevelBadge level={latest.stress_level} />}
-          </h1>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                {dog.breed ?? "Unknown breed"}
+              </p>
+              <h1 className="m-0 flex items-center gap-3 text-2xl font-bold text-ink">
+                {dog.name} {latest && <StressLevelBadge level={latest.stress_level} />}
+              </h1>
+            </div>
+
+            {/* Ward & Admission Status Badge Row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand-soft px-3 py-1 text-xs font-bold text-brand-strong">
+                <MapPin size={13} className="text-brand" />
+                <span>{dog.ward_location || "Ward / Cage: Unassigned"}</span>
+              </div>
+              <span
+                className={cn(
+                  "rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-wider border",
+                  dog.admission_status === "in_surgery"
+                    ? "bg-purple-50 text-purple-700 border-purple-200"
+                    : dog.admission_status === "recovery"
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : dog.admission_status === "admitted"
+                        ? "bg-sky-50 text-sky-700 border-sky-200"
+                        : "bg-emerald-50 text-emerald-700 border-emerald-200",
+                )}
+              >
+                {dog.admission_status ? dog.admission_status.replace(/_/g, " ") : "Outpatient"}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setEditingWard(!editingWard)}
+                className="h-8 px-2 text-xs font-semibold text-ink-muted hover:text-ink border border-hairline"
+              >
+                <Edit3 size={12} className="mr-1" />
+                {editingWard ? "Close" : "Edit Status"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Inline Ward Location & Status Quick-Editor */}
+          {editingWard && (
+            <div className="mb-4 rounded-xl border border-brand/30 bg-brand-soft/30 p-3.5 flex flex-wrap items-center gap-3 animate-in fade-in-50 duration-150">
+              <div className="flex flex-col gap-1 min-w-44 flex-1">
+                <label className="text-[11px] font-bold text-ink">Ward / Cage Location</label>
+                <Input
+                  placeholder="e.g. ICU - Cage 2, Ward A - 4"
+                  value={wardDraft}
+                  onChange={(e) => setWardDraft(e.target.value)}
+                  className="h-8 text-xs bg-surface"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1 min-w-40 flex-1">
+                <label className="text-[11px] font-bold text-ink">Admission Stage</label>
+                <Select
+                  value={admissionDraft}
+                  onChange={(e) => setAdmissionDraft(e.target.value)}
+                  className="h-8 text-xs bg-surface"
+                >
+                  <option value="outpatient">Outpatient</option>
+                  <option value="admitted">Admitted (General)</option>
+                  <option value="in_surgery">In-Surgery</option>
+                  <option value="recovery">Post-Op Recovery</option>
+                  <option value="ready_for_discharge">Ready for Discharge</option>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2 self-end pb-0.5">
+                <Button
+                  size="sm"
+                  onClick={handleSaveWard}
+                  disabled={savingWard}
+                  className="h-8 text-xs font-bold"
+                >
+                  <Check size={12} className="mr-1" />
+                  {savingWard ? "Saving…" : "Update Ward"}
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Vital
               label="Heart rate"
@@ -360,6 +480,19 @@ export function DogDetail() {
               </CardHeader>
               <CardContent>
                 <TelemetryChart readings={readings} />
+              </CardContent>
+            </Card>
+          )}
+
+          {tab === "interventions" && (
+            <Card>
+              <CardContent className="p-5">
+                <ClinicalInterventionsList
+                  dogId={dog.id}
+                  clinicId={dog.clinic_id}
+                  interventions={interventions}
+                  onRecorded={load}
+                />
               </CardContent>
             </Card>
           )}

@@ -12,6 +12,8 @@ export interface Dog {
   weight_kg: number | null;
   notes: string | null;
   photo_path: string | null;
+  ward_location?: string | null;
+  admission_status?: "admitted" | "in_surgery" | "recovery" | "ready_for_discharge" | "outpatient" | null;
   created_at: string;
 }
 

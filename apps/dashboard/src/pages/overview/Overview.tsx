@@ -8,6 +8,7 @@ import {
   Cpu,
   Dog as DogIcon,
   HeartHandshake,
+  MapPin,
   Users as UsersIcon,
   WifiOff,
 } from "lucide-react";
@@ -139,6 +140,12 @@ export function Overview() {
     (r) => r.latestClassification && r.latestClassification.stress_level !== "calm",
   );
   const offlineDevices = rows.filter((r) => r.device?.status === "offline").length;
+  const admittedCount = rows.filter(
+    (r) =>
+      r.dog.admission_status &&
+      r.dog.admission_status !== "outpatient" &&
+      r.dog.admission_status !== "ready_for_discharge",
+  ).length;
 
   const calmToday = useMemo(() => {
     const today = mix[mix.length - 1];
@@ -321,35 +328,36 @@ export function Overview() {
         </p>
       </div>
 
-      {/* Layer 1: 5 Clinical KPI Cards */}
-      <div className="ff-enter-list flex flex-wrap gap-4">
-        <Kpi label="Dogs Monitored" value={String(rows.length)} icon={<DogIcon size={20} strokeWidth={1.75} />} />
+      {/* Layer 1: Clinical KPI Cards */}
+      <div className="ff-enter-list grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        <Kpi label="Monitored" value={String(rows.length)} icon={<DogIcon size={18} strokeWidth={1.75} />} />
+        <Kpi label="Inpatients" value={String(admittedCount)} icon={<MapPin size={18} strokeWidth={1.75} />} tone="positive" />
         {calmToday !== null && (
           <Kpi
             label="Calm Today"
             value={`${calmToday}%`}
-            icon={<HeartHandshake size={20} strokeWidth={1.75} />}
+            icon={<HeartHandshake size={18} strokeWidth={1.75} />}
             tone="positive"
           />
         )}
         <Kpi
-          label="Needs Attention"
+          label="Attention"
           value={String(needsAttention.length)}
-          icon={<Activity size={20} strokeWidth={1.75} />}
+          icon={<Activity size={18} strokeWidth={1.75} />}
           tone="attention"
           attention={needsAttention.length > 0}
         />
         <Kpi
           label="Open Alerts"
           value={String(alerts.length)}
-          icon={<BellRing size={20} strokeWidth={1.75} />}
+          icon={<BellRing size={18} strokeWidth={1.75} />}
           tone="attention"
           attention={alerts.length > 0}
         />
         <Kpi
-          label="Devices Offline"
+          label="Offline"
           value={String(offlineDevices)}
-          icon={<WifiOff size={20} strokeWidth={1.75} />}
+          icon={<WifiOff size={18} strokeWidth={1.75} />}
           tone="attention"
           attention={offlineDevices > 0}
         />

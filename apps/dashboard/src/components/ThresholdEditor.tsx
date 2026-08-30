@@ -9,9 +9,107 @@ import { Button } from "./ui/button.tsx";
 import { Input, Label } from "./ui/input.tsx";
 import { useToast } from "./ui/toast.tsx";
 import { cn } from "../lib/cn.ts";
+import { Sparkles } from "lucide-react";
 // Single source of truth for every threshold (CLAUDE.md: "don't invent
 // thresholds silently") — the same file the classifier itself reads.
 import classifierConfig from "../../../../packages/shared/classifier_config.json";
+
+interface Preset {
+  id: string;
+  name: string;
+  badge: string;
+  description: string;
+  values: Partial<Record<Key, number>>;
+}
+
+const SCORE_RULES = classifierConfig.level_thresholds;
+const SCORING = classifierConfig.scoring_rules;
+const ENV = SCORING.environmental_amplifier;
+
+const MEDICAL_PRESETS: Preset[] = [
+  {
+    id: "standard",
+    name: "Standard Adult Canine",
+    badge: "Default Baseline",
+    description: "Standard multi-signal physiological cutoffs calibrated for adult dogs.",
+    values: {
+      threshold_mild_min: SCORE_RULES.mild.min,
+      threshold_moderate_min: SCORE_RULES.moderate.min,
+      threshold_high_min: SCORE_RULES.high.min,
+      hr_ratio_elevated_min: SCORING.heart_rate_elevated.tiers[0].min,
+      hr_ratio_moderate_min: SCORING.heart_rate_elevated.tiers[1].min,
+      hr_ratio_high_min: SCORING.heart_rate_elevated.tiers[2].min,
+      rr_ratio_elevated_min: SCORING.respiratory_elevated.tiers[0].min,
+      rr_ratio_high_min: SCORING.respiratory_elevated.tiers[1].min,
+      motion_elevated_min: SCORING.motion_restlessness.tiers[0].min,
+      motion_high_min: SCORING.motion_restlessness.tiers[1].min,
+    },
+  },
+  {
+    id: "post_op",
+    name: "Post-Op ICU Recovery",
+    badge: "Tighter Bounds",
+    description: "Low threshold trigger for early alert during anesthesia recovery.",
+    values: {
+      threshold_mild_min: 15,
+      threshold_moderate_min: 30,
+      threshold_high_min: 50,
+      hr_ratio_elevated_min: 1.15,
+      hr_ratio_moderate_min: 1.3,
+      hr_ratio_high_min: 1.5,
+      rr_ratio_elevated_min: 1.2,
+      rr_ratio_high_min: 1.45,
+    },
+  },
+  {
+    id: "toy_breed",
+    name: "Small / Toy Breed",
+    badge: "High Resting HR",
+    description: "Accommodates higher resting heart rate & fine-grain motion sensitivity.",
+    values: {
+      threshold_mild_min: 25,
+      threshold_moderate_min: 45,
+      threshold_high_min: 75,
+      hr_ratio_elevated_min: 1.3,
+      hr_ratio_moderate_min: 1.55,
+      hr_ratio_high_min: 1.85,
+      motion_elevated_min: 0.25,
+      motion_high_min: 0.55,
+    },
+  },
+  {
+    id: "senior_cardiac",
+    name: "Senior / Cardiac",
+    badge: "Cardiac Vigilance",
+    description: "Tight HR ratio limits with sensitive ambient thermal thresholds.",
+    values: {
+      threshold_mild_min: 18,
+      threshold_moderate_min: 35,
+      threshold_high_min: 55,
+      hr_ratio_elevated_min: 1.18,
+      hr_ratio_moderate_min: 1.35,
+      hr_ratio_high_min: 1.6,
+      ambient_heat_c: 28.0,
+      humidity_heat_pct: 65.0,
+    },
+  },
+  {
+    id: "athletic_large",
+    name: "Large / Working Breed",
+    badge: "High Motion",
+    description: "Higher motion threshold allowance with standard cardiovascular tiers.",
+    values: {
+      threshold_mild_min: 22,
+      threshold_moderate_min: 42,
+      threshold_high_min: 68,
+      motion_elevated_min: 0.5,
+      motion_high_min: 1.1,
+      hr_ratio_elevated_min: 1.22,
+      hr_ratio_moderate_min: 1.45,
+      hr_ratio_high_min: 1.75,
+    },
+  },
+];
 
 type Key = keyof DogThresholdOverrides;
 
@@ -23,10 +121,6 @@ interface Field {
   /** Whole-number input (score cutoffs) vs. decimal (ratios/°C/%). */
   step?: string;
 }
-
-const SCORE_RULES = classifierConfig.level_thresholds;
-const SCORING = classifierConfig.scoring_rules;
-const ENV = SCORING.environmental_amplifier;
 
 /** Score-level cutoffs: how many total points reach mild/moderate/high. */
 const SCORE_FIELDS: Field[] = [
@@ -312,6 +406,21 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
     setDraft((prev) => ({ ...prev, [key]: "" }));
   }
 
+  function applyPreset(preset: Preset) {
+    setDraft((prev) => {
+      const next = { ...prev };
+      for (const field of ALL_FIELDS) {
+        if (preset.values[field.key] !== undefined) {
+          next[field.key] = preset.values[field.key]!.toString();
+        } else if (preset.id === "standard") {
+          next[field.key] = "";
+        }
+      }
+      return next;
+    });
+    toast("info", `Applied ${preset.name} preset`);
+  }
+
   const dirty = ALL_FIELDS.some((f) => draft[f.key] !== savedDraft[f.key]);
 
   // Helper to render clinical physical conversion badge next to input
@@ -413,6 +522,35 @@ export function ThresholdEditor({ dogId }: { dogId: string }) {
           <div className="py-6 text-center text-sm text-ink-muted">Loading thresholds & baselines…</div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {/* 1-Click Clinical Medical Presets */}
+            <div className="rounded-xl border border-hairline bg-surface-alt/40 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                  <Sparkles size={14} className="text-brand" />
+                  <span>1-Click Medical Presets</span>
+                </div>
+                <span className="text-[11px] text-ink-muted">Click any clinical profile to autofill physiological bounds</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                {MEDICAL_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => applyPreset(preset)}
+                    className="flex flex-col items-start gap-1 rounded-lg border border-hairline bg-surface p-2.5 text-left transition-all hover:border-brand/50 hover:bg-brand-soft/20 hover:shadow-2xs active:scale-[0.99] cursor-pointer"
+                  >
+                    <span className="text-xs font-bold text-ink truncate w-full">{preset.name}</span>
+                    <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[10px] font-semibold text-brand-strong">
+                      {preset.badge}
+                    </span>
+                    <p className="m-0 text-[10px] text-ink-muted line-clamp-2 leading-tight">
+                      {preset.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Categorized Tab Bar */}
             <div role="tablist" aria-label="Threshold categories" className="flex flex-wrap gap-1.5 border-b border-surface-alt pb-3">
               {CATEGORIES.map((cat, i) => {

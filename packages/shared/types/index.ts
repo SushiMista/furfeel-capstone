@@ -1,6 +1,7 @@
 export type { Alert, AlertSeverity, AlertStatus } from "./alert.ts";
 export type { BugReport, BugReportCategory, BugReportSeverity, BugReportStatus } from "./bug_report.ts";
 export type { CareGuidance } from "./care_guidance.ts";
+export type { ClinicalIntervention, ClinicalInterventionType } from "./clinical_intervention.ts";
 export type { Dog, DogBaselines, DogSex } from "./dog.ts";
 export type { Device, DeviceStatus } from "./device.ts";
 export type { MediaSubmission, MediaType } from "./media.ts";
