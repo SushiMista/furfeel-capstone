@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, Info, XCircle } from "lucide-react";
 import { cn } from "../../lib/cn.ts";
 
 interface Toast {
@@ -47,7 +47,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={cn(
-              "pointer-events-auto flex items-center gap-2 rounded-md border px-4 py-3 text-sm shadow-card max-w-sm w-auto",
+              "pointer-events-auto flex items-center gap-2.5 rounded-md border px-4 py-3 text-sm shadow-card max-w-sm w-auto",
               "animate-[toast-in_150ms_ease-out]",
               t.kind === "success" && "border-calm/30 bg-calm-soft text-calm-fg",
               t.kind === "error" && "border-high/30 bg-high-soft text-high-fg",
@@ -55,8 +55,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             )}
             role="status"
           >
-            {t.kind === "success" && <CheckCircle2 size={16} className="flex-shrink-0" />}
-            {t.kind === "error" && <XCircle size={16} className="flex-shrink-0" />}
+            {t.kind === "success" && <CheckCircle2 size={16} strokeWidth={1.75} className="flex-shrink-0" />}
+            {t.kind === "error" && <XCircle size={16} strokeWidth={1.75} className="flex-shrink-0" />}
+            {t.kind === "info" && <Info size={16} strokeWidth={1.75} className="flex-shrink-0 text-brand" />}
             {t.message}
           </div>
         ))}

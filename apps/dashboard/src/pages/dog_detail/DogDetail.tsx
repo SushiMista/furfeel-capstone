@@ -5,11 +5,11 @@ import {
   Activity,
   ArrowLeft,
   BarChart3,
-  Bell,
-  ClipboardCheck,
+  BellRing,
   FileText,
-  Heart,
+  HeartPulse,
   SlidersHorizontal,
+  Stethoscope,
   Thermometer,
   Wind,
   type LucideIcon,
@@ -54,12 +54,12 @@ const HISTORY_LIMIT = 50;
 
 /** Section tabs (docs/05): redesigned with icons & matching Board Controls style. */
 const TABS = [
-  { id: "alerts", label: "Alerts", icon: Bell },
+  { id: "alerts", label: "Alerts", icon: BellRing },
   { id: "telemetry", label: "Live telemetry", icon: Activity },
   { id: "stress", label: "Stress history", icon: BarChart3 },
   { id: "notes", label: "Vet notes", icon: FileText },
   { id: "thresholds", label: "Thresholds", icon: SlidersHorizontal },
-  { id: "review", label: "Vet review", icon: ClipboardCheck },
+  { id: "review", label: "Vet review", icon: Stethoscope },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
@@ -250,7 +250,7 @@ export function DogDetail() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Vital
               label="Heart rate"
-              icon={Heart}
+              icon={HeartPulse}
               value={latestReading?.heart_rate_bpm}
               unit="bpm"
               series={seriesOf(readings, (r) => r.heart_rate_bpm)}

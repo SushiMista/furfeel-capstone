@@ -1,7 +1,16 @@
 import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, Bell, Building2, Cpu, Dog as DogIcon, HeartHandshake, Users as UsersIcon, WifiOff } from "lucide-react";
+import {
+  Activity,
+  BellRing,
+  Building2,
+  Cpu,
+  Dog as DogIcon,
+  HeartHandshake,
+  Users as UsersIcon,
+  WifiOff,
+} from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   acknowledgeAlert,
@@ -175,14 +184,14 @@ export function Overview() {
 
         {/* Layer 1: 5 Platform Administrator KPI Cards */}
         <div className="ff-enter-list grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Kpi label="Total Users" value={String(users.length || 0)} icon={<UsersIcon size={20} />} />
-          <Kpi label="Partner Clinics" value={String(clinics.length)} icon={<Building2 size={20} />} tone="positive" />
-          <Kpi label="Dogs Monitored" value={String(dogs.length || rows.length)} icon={<DogIcon size={20} />} />
-          <Kpi label="Active Devices" value={String(devices.length)} icon={<Cpu size={20} />} />
+          <Kpi label="Total Users" value={String(users.length || 0)} icon={<UsersIcon size={20} strokeWidth={1.75} />} />
+          <Kpi label="Partner Clinics" value={String(clinics.length)} icon={<Building2 size={20} strokeWidth={1.75} />} tone="positive" />
+          <Kpi label="Dogs Monitored" value={String(dogs.length || rows.length)} icon={<DogIcon size={20} strokeWidth={1.75} />} />
+          <Kpi label="Active Devices" value={String(devices.length)} icon={<Cpu size={20} strokeWidth={1.75} />} />
           <Kpi
             label="System Alerts"
             value={String(alerts.length)}
-            icon={<Bell size={20} />}
+            icon={<BellRing size={20} strokeWidth={1.75} />}
             tone="attention"
             attention={alerts.length > 0}
           />
@@ -314,33 +323,33 @@ export function Overview() {
 
       {/* Layer 1: 5 Clinical KPI Cards */}
       <div className="ff-enter-list flex flex-wrap gap-4">
-        <Kpi label="Dogs Monitored" value={String(rows.length)} icon={<DogIcon size={20} />} />
+        <Kpi label="Dogs Monitored" value={String(rows.length)} icon={<DogIcon size={20} strokeWidth={1.75} />} />
         {calmToday !== null && (
           <Kpi
             label="Calm Today"
             value={`${calmToday}%`}
-            icon={<HeartHandshake size={20} />}
+            icon={<HeartHandshake size={20} strokeWidth={1.75} />}
             tone="positive"
           />
         )}
         <Kpi
           label="Needs Attention"
           value={String(needsAttention.length)}
-          icon={<Activity size={20} />}
+          icon={<Activity size={20} strokeWidth={1.75} />}
           tone="attention"
           attention={needsAttention.length > 0}
         />
         <Kpi
           label="Open Alerts"
           value={String(alerts.length)}
-          icon={<Bell size={20} />}
+          icon={<BellRing size={20} strokeWidth={1.75} />}
           tone="attention"
           attention={alerts.length > 0}
         />
         <Kpi
           label="Devices Offline"
           value={String(offlineDevices)}
-          icon={<WifiOff size={20} />}
+          icon={<WifiOff size={20} strokeWidth={1.75} />}
           tone="attention"
           attention={offlineDevices > 0}
         />

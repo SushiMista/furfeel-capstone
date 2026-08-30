@@ -112,7 +112,7 @@ export function AlertCard({
       className={cn(
         "relative mb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border p-4 shadow-xs transition-all duration-200",
         cardBorder,
-        isAcknowledged && "opacity-75 shadow-none",
+        isAcknowledged && "opacity-75 shadow-none alert-acknowledged",
         className,
       )}
     >
@@ -139,7 +139,8 @@ export function AlertCard({
                   badgeBg,
                 )}
               >
-                🐶 {dogName}
+                <DogIcon className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+                <span>{dogName}</span>
               </span>
             )}
           </div>
@@ -170,7 +171,7 @@ export function AlertCard({
             title="Investigate dog profile & vitals history"
           >
             <DogIcon size={13} className="text-brand" aria-hidden="true" />
-            <span>Investigate</span>
+            <span>Investigate Dog</span>
           </Link>
         )}
 
