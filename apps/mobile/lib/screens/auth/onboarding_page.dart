@@ -123,46 +123,17 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 controller: _controller,
                 itemCount: _slides.length,
                 onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (context, i) => _SlideView(slide: _slides[i]),
+                itemBuilder: (context, i) => _SlideView(
+                  slide: _slides[i],
+                  slideIndex: i,
+                  totalSlides: _slides.length,
+                  isLast: i == _slides.length - 1,
+                  onNext: () => _next(context),
+                ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(FurFeelTokens.space5),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      for (var i = 0; i < _slides.length; i++) ...[
-                        if (i > 0) const SizedBox(width: FurFeelTokens.space2),
-                        AnimatedContainer(
-                          duration: FurFeelTokens.motionFast,
-                          curve: Curves.easeOut,
-                          width: i == _index ? 24 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: i == _index
-                                ? context.ff.brand
-                                : context.ff.hairline,
-                            borderRadius: BorderRadius.circular(
-                              FurFeelTokens.radiusPill,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: FurFeelTokens.space5),
-                  ElevatedButton(
-                    onPressed: () => _next(context),
-                    child: Text(_isLast ? 'Get started' : 'Next'),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: FurFeelTokens.space4),
+              padding: const EdgeInsets.only(bottom: FurFeelTokens.space4, top: FurFeelTokens.space2),
               child: Text(
                 'Decision support for you and your care team, never a diagnosis.',
                 textAlign: TextAlign.center,
@@ -179,9 +150,19 @@ class _OnboardingPageState extends State<OnboardingPage> {
 }
 
 class _SlideView extends StatelessWidget {
-  const _SlideView({required this.slide});
+  const _SlideView({
+    required this.slide,
+    required this.slideIndex,
+    required this.totalSlides,
+    required this.isLast,
+    required this.onNext,
+  });
 
   final _Slide slide;
+  final int slideIndex;
+  final int totalSlides;
+  final bool isLast;
+  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -223,6 +204,41 @@ class _SlideView extends StatelessWidget {
                     height: 1.5,
                   ),
                 ).entrance(context, index: 2),
+                const SizedBox(height: FurFeelTokens.space6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < totalSlides; i++) ...[
+                      if (i > 0) const SizedBox(width: FurFeelTokens.space2),
+                      Container(
+                        width: i == slideIndex ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: i == slideIndex
+                              ? context.ff.brand
+                              : context.ff.hairline,
+                          borderRadius: BorderRadius.circular(
+                            FurFeelTokens.radiusPill,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ).entrance(context, index: 3),
+                const SizedBox(height: FurFeelTokens.space5),
+                ElevatedButton(
+                  onPressed: onNext,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: context.ff.brand, // Explicitly use the blue brand color
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(200, FurFeelTokens.touchTargetMin),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
+                    ),
+                  ),
+                  child: Text(isLast ? 'Get started' : 'Next'),
+                ).entrance(context, index: 4),
               ],
             ),
           ),
