@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'data/furfeel_repository.dart';
 import 'data/settings_controller.dart';
 import 'data/status_cache.dart';
-import 'package:furfeel_mobile/screens/auth/onboarding_page.dart';
 import 'package:furfeel_mobile/screens/home/root_shell.dart';
 import 'package:furfeel_mobile/screens/auth/splash_page.dart';
 import 'package:furfeel_mobile/screens/auth/welcome_page.dart';
@@ -63,13 +61,13 @@ Future<void> main() async {
 // OS brightness changes for the 'system' theme.
 class FurFeelApp extends StatefulWidget {
   const FurFeelApp({super.key});
+  static bool isProgressiveOnboarding = false;
 
   @override
   State<FurFeelApp> createState() => _FurFeelAppState();
 }
 
 class _FurFeelAppState extends State<FurFeelApp> {
-  static const _onboardingSeenKey = 'furfeel_onboarding_seen_v1';
 
   late final SupabaseClient _client = Supabase.instance.client;
   late final SupabaseFurFeelRepository _repository = SupabaseFurFeelRepository(_client);
@@ -78,7 +76,6 @@ class _FurFeelAppState extends State<FurFeelApp> {
 
   // Cold-start gate: splash holds until the seen-flag is read AND the brand
   // beat has had a moment on screen, so the splash never just flickers.
-  bool? _onboardingSeen;
   bool _splashDone = false;
 
   @override
@@ -88,10 +85,9 @@ class _FurFeelAppState extends State<FurFeelApp> {
     _client.auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedIn) {
         _settings.load();
-        // OAuth sign-ins (e.g. Google) land via this stream while a pushed
-        // auth screen may still sit on top of the home StreamBuilder -- pop
-        // back so the freshly signed-in shell is actually visible.
-        _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+        if (!FurFeelApp.isProgressiveOnboarding) {
+          _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+        }
       }
       if (state.event == AuthChangeEvent.signedOut) {
         _settings.clear();
@@ -113,24 +109,14 @@ class _FurFeelAppState extends State<FurFeelApp> {
   static const _minSplash = Duration(milliseconds: 400);
 
   Future<void> _bootstrap() async {
-    final prefs = SharedPreferences.getInstance();
-    await Future.wait([
-      prefs,
-      Future<void>.delayed(_minSplash),
-    ]);
-    final seen = (await prefs).getBool(_onboardingSeenKey) ?? false;
+    await Future<void>.delayed(_minSplash);
     if (!mounted) return;
     setState(() {
-      _onboardingSeen = seen;
       _splashDone = true;
     });
   }
 
-  Future<void> _completeOnboarding() async {
-    setState(() => _onboardingSeen = true);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_onboardingSeenKey, true);
-  }
+
 
   @override
   void dispose() {
@@ -160,16 +146,13 @@ class _FurFeelAppState extends State<FurFeelApp> {
             // short without the launch looking like a flicker.
             home: AnimatedSwitcher(
               duration: const Duration(milliseconds: 320),
-              child: !_splashDone || _onboardingSeen == null
+              child: !_splashDone
                 ? const SplashPage()
                 : StreamBuilder<AuthState>(
                     stream: _client.auth.onAuthStateChange,
                     builder: (context, snapshot) {
                       final session = _client.auth.currentSession;
                       if (session == null) {
-                        if (!_onboardingSeen!) {
-                          return OnboardingPage(onDone: _completeOnboarding);
-                        }
                         return WelcomePage(client: _client);
                       }
                       // A real network wait, unlike the cold-start beat, so
