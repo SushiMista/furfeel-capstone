@@ -18,7 +18,9 @@ import {
   Search,
   ShieldAlert,
   Trash2,
+  UserX,
   Users as UsersIcon,
+  WifiOff,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
@@ -369,9 +371,14 @@ function AdminInefficienciesBanner({ inefficiencies }: { inefficiencies: AdminIn
           to="/admin/devices"
           className="flex items-center justify-between rounded-lg border border-amber-200/80 bg-surface p-3 transition-colors hover:bg-amber-100/40"
         >
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-bold text-ink truncate">Unpaired Active Devices</span>
-            <span className="text-[11px] text-ink-muted">Online but no patient</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand">
+              <Cpu className="h-4 w-4" strokeWidth={1.75} />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-ink truncate">Unpaired Devices</span>
+              <span className="text-[11px] text-ink-muted">Online but no patient</span>
+            </div>
           </div>
           <span
             className={cn(
@@ -390,9 +397,14 @@ function AdminInefficienciesBanner({ inefficiencies }: { inefficiencies: AdminIn
           to="/admin/dogs"
           className="flex items-center justify-between rounded-lg border border-amber-200/80 bg-surface p-3 transition-colors hover:bg-amber-100/40"
         >
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-bold text-ink truncate">Unassigned Patients</span>
-            <span className="text-[11px] text-ink-muted">Not linked to a clinic</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-800">
+              <DogIcon className="h-4 w-4" strokeWidth={1.75} />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-ink truncate">Unassigned Dogs</span>
+              <span className="text-[11px] text-ink-muted">Not linked to a clinic</span>
+            </div>
           </div>
           <span
             className={cn(
@@ -409,9 +421,14 @@ function AdminInefficienciesBanner({ inefficiencies }: { inefficiencies: AdminIn
           to="/admin/devices"
           className="flex items-center justify-between rounded-lg border border-amber-200/80 bg-surface p-3 transition-colors hover:bg-amber-100/40"
         >
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-bold text-ink truncate">Stale / Offline Hardware</span>
-            <span className="text-[11px] text-ink-muted">Inactive &gt; 14 days</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-red-100 text-red-700">
+              <WifiOff className="h-4 w-4" strokeWidth={1.75} />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-ink truncate">Offline Hardware</span>
+              <span className="text-[11px] text-ink-muted">Inactive &gt; 14 days</span>
+            </div>
           </div>
           <span
             className={cn(
@@ -428,9 +445,14 @@ function AdminInefficienciesBanner({ inefficiencies }: { inefficiencies: AdminIn
           to="/admin/users"
           className="flex items-center justify-between rounded-lg border border-amber-200/80 bg-surface p-3 transition-colors hover:bg-amber-100/40"
         >
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-bold text-ink truncate">Deactivated Accounts</span>
-            <span className="text-[11px] text-ink-muted">Soft-deleted users</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-200 text-slate-700">
+              <UserX className="h-4 w-4" strokeWidth={1.75} />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-ink truncate">Deactivated Users</span>
+              <span className="text-[11px] text-ink-muted">Soft-deleted users</span>
+            </div>
           </div>
           <span
             className={cn(

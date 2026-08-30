@@ -8,7 +8,7 @@ import {
   Bell,
   Building2,
   Camera,
-  Heart,
+  HeartPulse,
   Thermometer,
   User,
   Wind,
@@ -215,7 +215,7 @@ export function DogCard({
         {/* Horizontal Vitals Metrics Bar (matching icon metric row in reference card) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-xl bg-surface-alt/70 border border-hairline/50 p-2">
           <MetricItem
-            icon={Heart}
+            icon={HeartPulse}
             value={latestReading?.heart_rate_bpm?.toString() ?? "—"}
             unit="bpm"
             label="Heart Rate"

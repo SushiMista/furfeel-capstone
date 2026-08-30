@@ -1,6 +1,6 @@
 import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, CheckCheck, Radio } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCheck, WifiOff } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import { acknowledgeAlert, acknowledgeAlerts, fetchAlertsQueue, fetchDogs } from "../../lib/queries.ts";
 import { useAuth } from "../../lib/useAuth.ts";
@@ -227,7 +227,7 @@ export function AlertsQueue() {
               : "bg-surface text-ink-muted border-hairline hover:bg-sky-50 hover:text-[#0088D6]",
           )}
         >
-          <Radio size={13} className={typeFilter === "device_offline" ? "text-white" : "text-[#0088D6]"} />
+          <WifiOff size={13} strokeWidth={1.75} className={typeFilter === "device_offline" ? "text-white" : "text-[#0088D6]"} />
           <span>Device Offline</span>
           {counts.offline > 0 && (
             <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] font-extrabold text-white">

@@ -11,6 +11,14 @@ vi.mock("../src/lib/useAuth.ts", () => ({
   }),
 }));
 
+vi.mock("../src/lib/useCurrentRole.ts", () => ({
+  useCurrentRole: () => ({
+    role: "admin",
+    clinicId: null,
+    loading: false,
+  }),
+}));
+
 vi.mock("../src/lib/queries.ts", async () => {
   const actual = await vi.importActual<typeof queries>("../src/lib/queries.ts");
   return {
