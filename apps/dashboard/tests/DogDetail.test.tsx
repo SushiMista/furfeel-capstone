@@ -32,6 +32,8 @@ vi.mock("../src/lib/queries.ts", async (importOriginal) => ({
   fetchDailyStressSummary: vi.fn().mockResolvedValue([]),
   fetchStressLabels: vi.fn().mockResolvedValue([]),
   fetchMediaSubmissions: vi.fn().mockResolvedValue([]),
+  fetchClinicalInterventions: vi.fn().mockResolvedValue([]),
+  updateDogWardAndAdmission: vi.fn().mockResolvedValue(undefined),
   fetchRecentAlerts: vi.fn().mockResolvedValue([
     {
       id: "a1",

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Check, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { Camera, Check, LifeBuoy, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { signOut } from "../lib/useAuth.ts";
 import { useAccount, type ThemeSetting } from "../lib/userSettings.ts";
 import { cn } from "../lib/cn.ts";
@@ -32,7 +32,15 @@ function Avatar({ url, name, size = 32 }: { url: string | null; name: string; si
   );
 }
 
-export function AccountMenu({ email, isCollapsed = false }: { email: string; isCollapsed?: boolean }) {
+export function AccountMenu({
+  email,
+  isCollapsed = false,
+  onOpenReportModal,
+}: {
+  email: string;
+  isCollapsed?: boolean;
+  onOpenReportModal?: () => void;
+}) {
   const { profile, avatarUrl, theme, setTheme, changeAvatar } = useAccount();
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -158,6 +166,22 @@ export function AccountMenu({ email, isCollapsed = false }: { email: string; isC
               }
             }}
           />
+          {onOpenReportModal && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onOpenReportModal();
+              }}
+              className={cn(
+                "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium text-ink",
+                "transition-colors duration-fast hover:bg-surface-alt",
+              )}
+            >
+              <LifeBuoy size={15} className="text-brand" aria-hidden="true" />
+              <span>Report Issue / Help</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => signOut()}

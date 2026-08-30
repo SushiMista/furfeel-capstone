@@ -2,25 +2,30 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Activity,
-  ArrowLeftRight,
-  Bell,
+  BarChart3,
+  BellRing,
+  Bug,
   Building2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Cpu,
-  FileText,
+  Dog,
+  FileSearch,
+  HeartPulse,
   LayoutDashboard,
+  LifeBuoy,
   PawPrint,
   Radio,
-  ShieldCheck,
-  Table2,
+  UserCog,
   Users,
 } from "lucide-react";
 import { useAuth } from "../lib/useAuth.ts";
 import { useCurrentRole } from "../lib/useCurrentRole.ts";
 import { cn } from "../lib/cn.ts";
 import { AccountMenu } from "./AccountMenu.tsx";
+import { ReportIssueModal } from "./ReportIssueModal.tsx";
 import { supabase } from "../lib/supabaseClient.ts";
 import { useToast } from "./ui/toast.tsx";
 import { ImageAttachmentNotification } from "./ImageAttachmentNotification.tsx";
@@ -46,10 +51,10 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Clinical Operations",
     items: [
       { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
-      { to: "/board", label: "Monitoring Board", icon: Table2 },
-      { to: "/alerts", label: "Alerts Queue", icon: Bell },
-      { to: "/handover", label: "Handover Notes", icon: ArrowLeftRight },
-      { to: "/teams", label: "Clinic Teams", icon: Users },
+      { to: "/board", label: "Monitoring Board", icon: HeartPulse },
+      { to: "/alerts", label: "Alerts Queue", icon: BellRing },
+      { to: "/handover", label: "Handover Notes", icon: ClipboardList },
+      { to: "/teams", label: "My Clinic Team", icon: Users },
     ],
   },
   {
@@ -57,7 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Fleet & Telemetry",
     items: [
       { to: "/devices", label: "Device Fleet", icon: Radio },
-      { to: "/reports", label: "Analytics & Reports", icon: FileText },
+      { to: "/reports", label: "Analytics & Reports", icon: BarChart3 },
     ],
   },
   {
@@ -65,10 +70,12 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Admin Console",
     adminOnly: true,
     items: [
-      { to: "/admin/users", label: "User Accounts", icon: Users },
+      { to: "/admin/users", label: "User Accounts", icon: UserCog },
       { to: "/admin/clinics", label: "Partner Clinics", icon: Building2 },
       { to: "/admin/devices", label: "Device Management", icon: Cpu },
-      { to: "/admin/audit", label: "Audit Logs", icon: ShieldCheck },
+      { to: "/admin/dogs", label: "Dog Management", icon: Dog },
+      { to: "/admin/bugs", label: "Bug Reports", icon: Bug },
+      { to: "/admin/audit", label: "Audit Logs", icon: FileSearch },
       { to: "/admin/health", label: "System Health", icon: Activity },
     ],
   },
@@ -160,6 +167,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       supabase.removeChannel(channel);
     };
   }, [session, toast]);
+
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+
+  // Global shortcut (Ctrl+Shift+B) to quickly report an issue from any screen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setReportModalOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-surface">
@@ -275,9 +296,36 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
+        {/* Support & Issue Reporting Action */}
+        <div className="border-t border-hairline pt-2">
+          <button
+            type="button"
+            onClick={() => setReportModalOpen(true)}
+            title={isCollapsed ? "Report Issue / Feedback (Ctrl+Shift+B)" : undefined}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-md text-xs font-semibold transition-colors duration-fast",
+              isCollapsed
+                ? "justify-center p-2 text-ink-muted hover:bg-surface-alt hover:text-brand"
+                : "px-3 py-2 text-ink-muted hover:bg-brand-soft hover:text-brand",
+            )}
+          >
+            <LifeBuoy size={16} className="text-brand flex-shrink-0" />
+            {!isCollapsed && <span className="truncate flex-1 text-left">Report Issue / Help</span>}
+            {!isCollapsed && (
+              <kbd className="hidden sm:inline-block rounded border border-hairline bg-surface-alt px-1 py-0.2 text-[9px] font-mono text-ink-muted">
+                ⌘⇧B
+              </kbd>
+            )}
+          </button>
+        </div>
+
         {/* Account Menu Footer */}
-        <div className="mt-auto border-t border-hairline pt-3">
-          <AccountMenu email={session?.user.email ?? ""} isCollapsed={isCollapsed} />
+        <div className="border-t border-hairline pt-2">
+          <AccountMenu
+            email={session?.user.email ?? ""}
+            isCollapsed={isCollapsed}
+            onOpenReportModal={() => setReportModalOpen(true)}
+          />
         </div>
       </aside>
 
@@ -289,8 +337,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           !isDogPage && "px-8 py-6",
         )}
       >
-        <div className={cn(!isDogPage && "mx-auto max-w-6xl")}>{children}</div>
+        <div className={cn(!isDogPage && "mx-auto max-w-[1440px]")}>{children}</div>
       </main>
+
+      {/* Vet to Admin Help & Issue Modal */}
+      <ReportIssueModal
+        open={reportModalOpen}
+        onOpenChange={setReportModalOpen}
+        onToast={toast}
+      />
     </div>
   );
 }

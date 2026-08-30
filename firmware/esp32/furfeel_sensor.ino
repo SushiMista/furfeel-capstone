@@ -3,65 +3,87 @@
 #include <MPU9250_asukiaaa.h>
 #include "MAX30105.h"
 #include "heartRate.h"
+#include "posture_model.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <time.h>
-#include "posture_model.h"
 
-//================== FurFeel / Supabase ==================
-// Provision the device first (dashboard Admin > Devices, plus the one-time
-// SQL that sets devices.ingest_key_hash) and paste the values it gives you.
-const char* WIFI_SSID     = "YOUR-WIFI-SSID";
-const char* WIFI_PASSWORD = "YOUR-WIFI-PASSWORD";
-const char* DEVICE_CODE   = "FURFEEL-DEV-0010";
-const char* DEVICE_KEY    = "YOUR-LONG-RANDOM-SECRET"; // plaintext ingest key, not the hash
+//================ WIFI & CREDENTIALS ====================
+const char* WIFI_SSID     = "llalalalaa";
+const char* WIFI_PASSWORD = "nyanyanya";
+const char* DEVICE_CODE   = "FURFEEL-DEV-0002";
+const char* DEVICE_KEY    = "014561cd2c1ab0f56a5e5c3ee0814122a868837f45ec441e";
 const char* FUNCTION_URL  = "https://kkbumkjvltlrggfefnkp.supabase.co/functions/v1/telemetry-intake";
-const unsigned long SEND_INTERVAL_MS = 10000; // docs/07 default transmit interval
 
-//================== DHT22 ==================
+// ⏱️ Reduced from 10000 (10s) to 3000 (3s) for fast real-time app updates!
+const unsigned long SEND_INTERVAL_MS = 3000;
+
+//================ DHT22 ===================
 #define DHTPIN 4
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
-//================== MPU9250 ==================
+//================ FLEX SENSOR =============
+#define FLEX_PIN 34
+const int BREATH_THRESHOLD = 1260;
+bool readyForNextBreath = true;
+int breathCount = 0;
+int respiratoryRate = 0;
+
+//================ MPU9250 =================
 MPU9250_asukiaaa imu;
 
-// Posture model (ml/train_posture_model.py -> ml/export_posture_model_to_arduino.py
-// -> posture_model.h). Runs on-device because raw IMU samples never leave the
-// device (docs/07 payload-size decision) -- only the classified posture does.
-// PROVISIONAL: trained on standing/lying only so far (see posture_model.h's
-// class list) -- will only ever predict one of the classes it's been trained
-// on. Regenerate posture_model.h and re-upload as more postures are added.
+//================ POSTURE MODEL ===========
 Eloquent::ML::Port::RandomForest postureModel;
-
-const int WINDOW_SIZE = 20;                  // ~1s at 20Hz, matches training (docs/07)
+const int WINDOW_SIZE = 20;                  // ~1s at 20Hz, matches training
 const unsigned long SAMPLE_INTERVAL_MS = 50; // 20Hz
 float winAccelX[WINDOW_SIZE], winAccelY[WINDOW_SIZE], winAccelZ[WINDOW_SIZE];
 float winGyroX[WINDOW_SIZE], winGyroY[WINDOW_SIZE], winGyroZ[WINDOW_SIZE];
+String currentPosture = "unknown";
+float currentMotion = 0;
 
-//================== MAX30102 ==================
+//================ MAX30102 ================
 MAX30105 particleSensor;
 TwoWire I2C_MAX = TwoWire(1);
 
-const byte RATE_SIZE = 4;
+//================ HEART RATE ==============
+const byte RATE_SIZE = 8;
 byte rates[RATE_SIZE];
 byte rateSpot = 0;
 byte validReadings = 0;
-
 long lastBeat = 0;
 float beatsPerMinute = 0;
 float beatAvg = 0;
+long irValue = 0;
+bool fingerDetected = false;
 
+//================ TIMERS ==================
 unsigned long lastSendMs = 0;
+unsigned long lastPrint = 0;
+unsigned long lastDHT = 0;
+unsigned long lastRespiration = 0;
+float temperature = NAN;
+float humidity = NAN;
 
-//==================================================
+//================ PROTOTYPES ==============
+void connectWifi();
+void syncTime();
+void updateHeartRate();
+void updateRespiration();
+void printReadings();
+void capturePostureWindow();
+void computeStats(float *arr, int n, float &mean, float &stdDev, float &mn, float &mx);
+void sendTelemetry();
+
+//================ SETUP ===================
 void setup()
 {
   Serial.begin(115200);
-  delay(1000);
+  delay(500);
 
   dht.begin();
+  pinMode(FLEX_PIN, INPUT);
 
   Wire.begin(21, 22);
   imu.setWire(&Wire);
@@ -71,78 +93,55 @@ void setup()
   I2C_MAX.begin(25, 26);
   if (!particleSensor.begin(I2C_MAX))
   {
-    Serial.println("MAX30102 NOT FOUND!");
-    while (1);
+    Serial.println("⚠️ MAX30102 NOT FOUND on pins 25, 26");
   }
-  particleSensor.setup(0x1F, 4, 2, 100, 215, 2048);
-  particleSensor.setPulseAmplitudeRed(0x1F);
-  particleSensor.setPulseAmplitudeIR(0x1F);
-  particleSensor.setPulseAmplitudeGreen(0);
+  else
+  {
+    particleSensor.setup(0x3F, 4, 2, 400, 411, 4096);
+    particleSensor.setPulseAmplitudeRed(0x3F);
+    particleSensor.setPulseAmplitudeIR(0x3F);
+    particleSensor.setPulseAmplitudeGreen(0);
+  }
 
   connectWifi();
   syncTime();
 
-  Serial.println("=================================");
-  Serial.println(" FurFeel Sensor System Ready");
-  Serial.println("=================================");
+  lastRespiration = millis();
+  Serial.println();
+  Serial.println("==============================");
+  Serial.println(" FurFeel Ready (3s Real-Time)");
+  Serial.println("==============================");
 }
 
-void connectWifi()
+//================ LOOP ====================
+void loop()
 {
-  Serial.print("Connecting to WiFi");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED)
+  // ~1s: samples IMU, keeps HR/respiration alive, runs posture classifier
+  capturePostureWindow();
+
+  if (millis() - lastDHT >= 2000)
   {
-    delay(500);
-    Serial.print(".");
+    lastDHT = millis();
+    humidity = dht.readHumidity();
+    temperature = dht.readTemperature();
   }
-  Serial.println(" connected: " + WiFi.localIP().toString());
-}
 
-void syncTime()
-{
-  // captured_at must be real UTC — the server flags readings whose timestamp
-  // drifts more than an hour, and the ESP32 has no RTC of its own.
-  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-  struct tm timeinfo;
-  Serial.print("Syncing time");
-  while (!getLocalTime(&timeinfo))
+  if (millis() - lastPrint >= 3000)
   {
-    delay(500);
-    Serial.print(".");
+    lastPrint = millis();
+    printReadings();
   }
-  Serial.println(" synced");
-}
 
-// Polls the heart-rate sensor once -- called every ~50ms during the posture
-// window instead of once/second, so beat detection is more responsive than
-// before, not less, despite the loop restructuring below.
-void pollHeartRate(long &irValueOut, bool &fingerDetectedOut)
-{
-  irValueOut = particleSensor.getIR();
-  fingerDetectedOut = irValueOut > 50000;
-
-  if (fingerDetectedOut && checkForBeat(irValueOut))
+  if (millis() - lastSendMs >= SEND_INTERVAL_MS)
   {
-    long delta = millis() - lastBeat;
-    lastBeat = millis();
-    beatsPerMinute = 60.0 / (delta / 1000.0);
-
-    if (beatsPerMinute > 20 && beatsPerMinute < 220)
-    {
-      rates[rateSpot++] = (byte)beatsPerMinute;
-      rateSpot %= RATE_SIZE;
-      if (validReadings < RATE_SIZE) validReadings++;
-
-      beatAvg = 0;
-      for (byte i = 0; i < validReadings; i++) beatAvg += rates[i];
-      beatAvg /= validReadings;
-    }
+    lastSendMs = millis();
+    sendTelemetry();
   }
 }
 
-// Mean/std(population)/min/max of one window -- must match the statistics
-// ml/train_posture_model.py's window_features() computes, in the same order.
+//===========================================
+// POSTURE MODEL
+//===========================================
 void computeStats(float *arr, int n, float &mean, float &stdDev, float &mn, float &mx)
 {
   float sum = 0, sumSq = 0;
@@ -163,11 +162,7 @@ void computeStats(float *arr, int n, float &mean, float &stdDev, float &mn, floa
   stdDev = sqrt(sumSq / n);
 }
 
-// Samples the IMU at 20Hz for one ~1s window (also keeps heart-rate detection
-// running during that second), builds the 26 features in the exact order
-// ml/train_posture_model.py's window_features() uses, and classifies posture.
-// Replaces the old single-sample motionActivity() placeholder.
-String capturePostureWindow(float &motionOut, long &irValueOut, bool &fingerDetectedOut)
+void capturePostureWindow()
 {
   for (int i = 0; i < WINDOW_SIZE; i++)
   {
@@ -176,8 +171,14 @@ String capturePostureWindow(float &motionOut, long &irValueOut, bool &fingerDete
     winAccelX[i] = imu.accelX(); winAccelY[i] = imu.accelY(); winAccelZ[i] = imu.accelZ();
     winGyroX[i] = imu.gyroX();   winGyroY[i] = imu.gyroY();   winGyroZ[i] = imu.gyroZ();
 
-    pollHeartRate(irValueOut, fingerDetectedOut);
-    delay(SAMPLE_INTERVAL_MS);
+    // Poll heart rate fast during this slot
+    unsigned long slotStart = millis();
+    while (millis() - slotStart < SAMPLE_INTERVAL_MS)
+    {
+      updateHeartRate();
+      delay(2);
+    }
+    updateRespiration();
   }
 
   float feats[26];
@@ -191,117 +192,174 @@ String capturePostureWindow(float &motionOut, long &irValueOut, bool &fingerDete
 
   float mag[WINDOW_SIZE];
   for (int i = 0; i < WINDOW_SIZE; i++)
-    mag[i] = sqrt(winAccelX[i] * winAccelX[i] + winAccelY[i] * winAccelY[i] + winAccelZ[i] * winAccelZ[i]);
+    mag[i] = sqrt(winAccelX[i]*winAccelX[i] + winAccelY[i]*winAccelY[i] + winAccelZ[i]*winAccelZ[i]);
   computeStats(mag, WINDOW_SIZE, mean, stdDev, mn, mx); feats[24] = mean; feats[25] = stdDev;
 
-  // motion_activity: same gyro-magnitude heuristic as before (docs/15: revisit
-  // with real baseline data), now averaged over the window instead of one
-  // sample -- less noisy, same 0-1 scale.
   float gyroMagSum = 0;
   for (int i = 0; i < WINDOW_SIZE; i++)
-    gyroMagSum += sqrt(winGyroX[i] * winGyroX[i] + winGyroY[i] * winGyroY[i] + winGyroZ[i] * winGyroZ[i]);
-  float normalized = (gyroMagSum / WINDOW_SIZE) / 250.0; // rough dps scale, not a measured max
-  motionOut = normalized < 0 ? 0 : (normalized > 1 ? 1 : normalized);
-
-  return String(postureModel.predictLabel(feats));
+    gyroMagSum += sqrt(winGyroX[i]*winGyroX[i] + winGyroY[i]*winGyroY[i] + winGyroZ[i]*winGyroZ[i]);
+  float normalized = (gyroMagSum / WINDOW_SIZE) / 250.0;
+  currentMotion = normalized < 0 ? 0 : (normalized > 1 ? 1 : normalized);
+  currentPosture = String(postureModel.predictLabel(feats));
 }
 
-//==================================================
-void loop()
+//===========================================
+// HEART RATE
+//===========================================
+void updateHeartRate()
 {
-  float humidity = dht.readHumidity();
-  float temperature = dht.readTemperature();
+  irValue = particleSensor.getIR();
+  fingerDetected = (irValue > 50000);
 
-  float motion;
-  long irValue;
-  bool fingerDetected;
-  String posture = capturePostureWindow(motion, irValue, fingerDetected);
-
-  printReadings(temperature, humidity, irValue, fingerDetected, posture);
-
-  if (millis() - lastSendMs >= SEND_INTERVAL_MS)
-  {
-    lastSendMs = millis();
-    sendTelemetry(temperature, humidity, fingerDetected, motion, posture);
-  }
-}
-
-void printReadings(float temperature, float humidity, long irValue, bool fingerDetected, String posture)
-{
-  Serial.println("========================================");
-  Serial.println("DHT22");
-  Serial.print("Temperature : "); Serial.print(temperature); Serial.println(" C");
-  Serial.print("Humidity    : "); Serial.print(humidity); Serial.println(" %");
-  Serial.println();
-  Serial.println("MPU9250");
-  Serial.print("Accel X : "); Serial.println(imu.accelX());
-  Serial.print("Accel Y : "); Serial.println(imu.accelY());
-  Serial.print("Accel Z : "); Serial.println(imu.accelZ());
-  Serial.print("Gyro X  : "); Serial.println(imu.gyroX());
-  Serial.print("Gyro Y  : "); Serial.println(imu.gyroY());
-  Serial.print("Gyro Z  : "); Serial.println(imu.gyroZ());
-  Serial.print("Posture : "); Serial.println(posture);
-  Serial.println();
-  Serial.println("MAX30102");
-  Serial.print("IR Value : "); Serial.println(irValue);
   if (!fingerDetected)
   {
-    Serial.println("Contact : Not Detected");
+    beatsPerMinute = 0;
+    beatAvg = 0;
+    validReadings = 0;
+    rateSpot = 0;
+    return;
   }
-  else
+
+  if (checkForBeat(irValue))
   {
-    Serial.println("Contact : Detected");
-    Serial.print("Heart Rate : "); Serial.print(beatsPerMinute, 1); Serial.println(" BPM");
-    Serial.print("Average BPM : "); Serial.println(beatAvg, 1);
+    long delta = millis() - lastBeat;
+    lastBeat = millis();
+    beatsPerMinute = 60.0 / (delta / 1000.0);
+
+    if (beatsPerMinute > 35 && beatsPerMinute < 220)
+    {
+      rates[rateSpot++] = (byte)beatsPerMinute;
+      rateSpot %= RATE_SIZE;
+      if (validReadings < RATE_SIZE) validReadings++;
+
+      beatAvg = 0;
+      for (byte i = 0; i < validReadings; i++)
+        beatAvg += rates[i];
+      beatAvg /= validReadings;
+    }
   }
-  Serial.println("========================================\n");
 }
 
-void sendTelemetry(float temperature, float humidity, bool fingerDetected, float motion, String posture)
+//===========================================
+// RESPIRATORY RATE (FLEX SENSOR)
+//===========================================
+void updateRespiration()
+{
+  int rawValue = analogRead(FLEX_PIN);
+
+  if (rawValue >= BREATH_THRESHOLD && readyForNextBreath)
+  {
+    breathCount++;
+    readyForNextBreath = false;
+  }
+  else if (rawValue < (BREATH_THRESHOLD - 40))
+  {
+    readyForNextBreath = true;
+  }
+
+  // Calculate breaths per minute every 6 seconds
+  if (millis() - lastRespiration >= 6000)
+  {
+    respiratoryRate = breathCount * 10; // scale 6s to 60s
+    breathCount = 0;
+    lastRespiration = millis();
+  }
+}
+
+//===========================================
+// WIFI & TIME
+//===========================================
+void connectWifi()
+{
+  Serial.print("Connecting WiFi");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(400);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("Connected : ");
+  Serial.println(WiFi.localIP());
+}
+
+void syncTime()
+{
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  struct tm timeinfo;
+  while (!getLocalTime(&timeinfo))
+  {
+    delay(400);
+    Serial.print(".");
+  }
+  Serial.println("\nTime Synced (UTC)");
+}
+
+//===========================================
+// SERIAL MONITOR
+//===========================================
+void printReadings()
+{
+  Serial.println();
+  Serial.println("======================================");
+  Serial.print("Temperature      : "); Serial.println(temperature);
+  Serial.print("Humidity         : "); Serial.println(humidity);
+  Serial.print("Heart Rate       : "); Serial.print(beatAvg); Serial.println(" BPM");
+  Serial.print("Respiratory Rate : "); Serial.print(respiratoryRate); Serial.println(" BPM");
+  Serial.print("Flex Value       : "); Serial.println(analogRead(FLEX_PIN));
+  Serial.print("Motion           : "); Serial.println(currentMotion, 3);
+  Serial.print("Posture          : "); Serial.println(currentPosture);
+  Serial.println("======================================");
+}
+
+//===========================================
+// SUPABASE TELEMETRY TRANSMISSION
+//===========================================
+void sendTelemetry()
 {
   if (WiFi.status() != WL_CONNECTED)
   {
-    Serial.println("WiFi not connected, skipping send");
+    connectWifi();
     return;
   }
 
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo))
-  {
-    Serial.println("Time not synced yet, skipping send");
     return;
-  }
-  char capturedAt[25];
+
+  char capturedAt[30];
   strftime(capturedAt, sizeof(capturedAt), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
 
-  char payload[512];
-  int len = snprintf(payload, sizeof(payload),
-    "{\"device_code\":\"%s\",\"captured_at\":\"%s\","
-    "\"motion_activity\":%.3f,\"posture\":\"%s\"",
-    DEVICE_CODE, capturedAt, motion, posture.c_str());
+  char payload[700];
+  int len = snprintf(
+    payload, sizeof(payload),
+    "{\"device_code\":\"%s\","
+    "\"captured_at\":\"%s\","
+    "\"motion_activity\":%.3f,"
+    "\"posture\":\"%s\"",
+    DEVICE_CODE, capturedAt, currentMotion, currentPosture.c_str()
+  );
 
   if (fingerDetected && beatAvg > 0)
   {
-    len += snprintf(payload + len, sizeof(payload) - len,
-      ",\"heart_rate_bpm\":%.0f", beatAvg);
+    len += snprintf(payload + len, sizeof(payload) - len, ",\"heart_rate_bpm\":%.0f", beatAvg);
+  }
+  if (respiratoryRate > 0)
+  {
+    len += snprintf(payload + len, sizeof(payload) - len, ",\"respiratory_rate_bpm\":%d", respiratoryRate);
   }
   if (!isnan(temperature))
   {
-    // DHT22 reads ambient air near the harness, not core body temp — there's
-    // no dedicated body-temp sensor on this board, so body_temperature_c is
-    // left out rather than faked from this reading.
-    len += snprintf(payload + len, sizeof(payload) - len,
-      ",\"ambient_temperature_c\":%.1f", temperature);
+    len += snprintf(payload + len, sizeof(payload) - len, ",\"ambient_temperature_c\":%.1f", temperature);
   }
   if (!isnan(humidity))
   {
-    len += snprintf(payload + len, sizeof(payload) - len,
-      ",\"humidity_percent\":%.1f", humidity);
+    len += snprintf(payload + len, sizeof(payload) - len, ",\"humidity_percent\":%.1f", humidity);
   }
   snprintf(payload + len, sizeof(payload) - len, "}");
 
   WiFiClientSecure client;
-  client.setInsecure(); // ponytail: skips cert validation for the prototype; pin Supabase's root CA before shipping past bench testing
+  client.setInsecure();
 
   HTTPClient https;
   https.begin(client, FUNCTION_URL);
@@ -309,9 +367,12 @@ void sendTelemetry(float temperature, float humidity, bool fingerDetected, float
   https.addHeader("x-device-key", DEVICE_KEY);
 
   int code = https.POST((uint8_t*)payload, strlen(payload));
-  Serial.print("POST -> ");
-  Serial.print(code);
-  Serial.print(" ");
-  Serial.println(https.getString());
+  Serial.println();
+  Serial.println("========== SUPABASE ==========");
+  Serial.print("HTTP Status : ");
+  Serial.println(code);
+  Serial.print("Payload     : ");
+  Serial.println(payload);
+  Serial.println("==============================");
   https.end();
 }

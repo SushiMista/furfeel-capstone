@@ -45,7 +45,7 @@ describe("AlertCard", () => {
     );
     expect(screen.queryByRole("button", { name: /acknowledge/i })).not.toBeInTheDocument();
     expect(container.querySelector(".alert-acknowledged")).not.toBeNull();
-    expect(screen.getByText(/acknowledged/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/acknowledged/i).length).toBeGreaterThan(0);
   });
 
   it("renders Investigate Dog link and Check Device link for device_offline alerts", () => {
