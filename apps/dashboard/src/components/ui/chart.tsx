@@ -57,7 +57,6 @@ export function ChartTooltipContent({
   payload,
   label,
   hideLabel = false,
-  indicator = "dot",
 }: any) {
   if (!active || !payload || !payload.length) return null;
 

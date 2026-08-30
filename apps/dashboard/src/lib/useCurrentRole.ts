@@ -1,29 +1,37 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient.ts";
-import { fetchCurrentUserRole } from "./queries.ts";
+import { fetchCurrentUserProfile, type CurrentUserProfile } from "./queries.ts";
 import { useAuth } from "./useAuth.ts";
 
-/** The signed-in user's public.users role — used only to decide which UI to show
- * (e.g. the Admin nav item); RLS remains the actual gate on every query/write. */
-export function useCurrentRole(): { role: string | null; loading: boolean } {
+export interface UserRoleState {
+  role: string | null;
+  clinicId: string | null;
+  name: string | null;
+  email: string | null;
+  loading: boolean;
+}
+
+/** The signed-in user's public.users profile and role — used to gate UI features
+ * and isolate multi-tenant clinic operations to their own clinic. */
+export function useCurrentRole(): UserRoleState {
   const { session } = useAuth();
-  const [role, setRole] = useState<string | null>(null);
+  const [profile, setProfile] = useState<CurrentUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const userId = session?.user.id;
     if (!userId) {
-      setRole(null);
+      setProfile(null);
       setLoading(false);
       return;
     }
     let cancelled = false;
-    fetchCurrentUserRole(supabase, userId)
-      .then((r) => {
-        if (!cancelled) setRole(r);
+    fetchCurrentUserProfile(supabase, userId)
+      .then((p) => {
+        if (!cancelled) setProfile(p);
       })
       .catch(() => {
-        if (!cancelled) setRole(null);
+        if (!cancelled) setProfile(null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -33,5 +41,12 @@ export function useCurrentRole(): { role: string | null; loading: boolean } {
     };
   }, [session?.user.id]);
 
-  return { role, loading };
+  return {
+    role: profile?.role ?? null,
+    clinicId: profile?.clinicId ?? null,
+    name: profile?.name ?? null,
+    email: profile?.email ?? null,
+    loading,
+  };
 }
+
