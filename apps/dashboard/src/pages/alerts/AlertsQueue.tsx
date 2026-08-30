@@ -1,10 +1,10 @@
 import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, CheckCheck, WifiOff } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCheck, Volume2, VolumeX, WifiOff } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import { acknowledgeAlert, acknowledgeAlerts, fetchAlertsQueue, fetchDogs } from "../../lib/queries.ts";
 import { useAuth } from "../../lib/useAuth.ts";
-import { useRealtimeInsert } from "../../lib/useRealtimeInsert.ts";
+import { playAlertChime } from "../../lib/sound.ts";
 import { AlertCard } from "../../components/AlertCard.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Card, CardContent } from "../../components/ui/card.tsx";
@@ -18,16 +18,28 @@ const SEVERITY_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2
 type TypeFilter = "all" | "critical" | "device_offline" | "stress";
 
 /** Alerts queue (docs/05): every RLS-visible alert across the clinic's dogs, open
- * first for fast triage, live via Realtime. */
+ * first for fast triage, live via Realtime with audio chime and multi-vet synchronization. */
 export function AlertsQueue() {
   const { session } = useAuth();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [showAll, setShowAll] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    return localStorage.getItem("furfeel:alert-sound") !== "false";
+  });
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [loading, setLoading] = useState(true);
   const [acking, setAcking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const toggleSound = () => {
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem("furfeel:alert-sound", String(next));
+      if (next) playAlertChime();
+      return next;
+    });
+  };
 
   const load = useCallback(async () => {
     try {
@@ -49,9 +61,45 @@ export function AlertsQueue() {
     load();
   }, [load]);
 
-  useRealtimeInsert<Alert>("alerts", (row) => {
-    setAlerts((prev) => (prev.some((a) => a.id === row.id) ? prev : [row, ...prev]));
-  });
+  // Full bi-directional Realtime Sync (INSERT, UPDATE, DELETE)
+  useEffect(() => {
+    const channel = supabase
+      .channel("alerts-queue-live-channel")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "alerts" },
+        (payload) => {
+          const row = payload.new as Alert;
+          setAlerts((prev) => (prev.some((a) => a.id === row.id) ? prev : [row, ...prev]));
+          if (soundEnabled && row.severity === "critical" && row.status === "open") {
+            playAlertChime();
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "alerts" },
+        (payload) => {
+          const row = payload.new as Alert;
+          setAlerts((prev) => prev.map((a) => (a.id === row.id ? row : a)));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "alerts" },
+        (payload) => {
+          const old = payload.old as { id?: string };
+          if (old?.id) {
+            setAlerts((prev) => prev.filter((a) => a.id !== old.id));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [soundEnabled]);
 
   const dogNames = useMemo(() => new Map(dogs.map((d) => [d.id, d.name])), [dogs]);
 
@@ -136,6 +184,22 @@ export function AlertsQueue() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={toggleSound}
+            title={soundEnabled ? "Critical audio chime enabled — click to mute" : "Critical audio chime muted — click to enable"}
+            className={cn(
+              "font-bold text-xs shadow-xs border flex items-center gap-1.5",
+              soundEnabled
+                ? "border-brand/30 bg-brand-soft text-brand-strong hover:bg-brand-soft/80"
+                : "border-hairline bg-surface-alt text-ink-muted hover:bg-surface-alt/80",
+            )}
+          >
+            {soundEnabled ? <Volume2 size={14} className="text-brand" /> : <VolumeX size={14} />}
+            <span>{soundEnabled ? "Audio Alarm On" : "Alarm Muted"}</span>
+          </Button>
+
           {openIds.length > 1 && (
             <Button
               size="sm"

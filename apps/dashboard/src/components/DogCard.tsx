@@ -9,6 +9,7 @@ import {
   Building2,
   Camera,
   HeartPulse,
+  MapPin,
   Thermometer,
   User,
   Wind,
@@ -198,6 +199,28 @@ export function DogCard({
 
         {/* Location & Owner Meta Row */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
+          {dog.ward_location && (
+            <div className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-1.5 py-0.5 text-[11px] font-bold text-brand" title={`Hospital Ward: ${dog.ward_location}`}>
+              <MapPin size={11} className="shrink-0" />
+              <span>{dog.ward_location}</span>
+            </div>
+          )}
+          {dog.admission_status && dog.admission_status !== "outpatient" && (
+            <span
+              className={cn(
+                "rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                dog.admission_status === "in_surgery"
+                  ? "bg-purple-100 text-purple-800 border border-purple-200"
+                  : dog.admission_status === "recovery"
+                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                    : dog.admission_status === "admitted"
+                      ? "bg-sky-100 text-sky-800 border border-sky-200"
+                      : "bg-emerald-100 text-emerald-800 border border-emerald-200",
+              )}
+            >
+              {dog.admission_status.replace(/_/g, " ")}
+            </span>
+          )}
           {row.ownerName && (
             <div className="flex items-center gap-1 truncate" title={`Owner: ${row.ownerName}`}>
               <User size={12} className="shrink-0 text-ink-muted/70" />

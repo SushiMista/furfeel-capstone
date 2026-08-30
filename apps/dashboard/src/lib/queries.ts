@@ -3,6 +3,8 @@ import { recordAuditLog } from "./auditLogger.ts";
 import type {
   Alert,
   Clinic,
+  ClinicalIntervention,
+  ClinicalInterventionType,
   Device,
   Dog,
   DogBaselines,
@@ -898,5 +900,58 @@ export async function fetchClinicsReadOnly(client: SupabaseClient): Promise<Clin
   const { data, error } = await client.from("clinics").select("*").order("name");
   if (error) throw error;
   return (data ?? []) as unknown as Clinic[];
+}
+
+export async function fetchClinicalInterventions(
+  client: SupabaseClient,
+  dogId: string,
+): Promise<ClinicalIntervention[]> {
+  const { data, error } = await client
+    .from("clinical_interventions")
+    .select(`
+      id, dog_id, clinic_id, intervention_type, title, notes, dosage, administered_by, created_at,
+      users:administered_by ( name )
+    `)
+    .eq("dog_id", dogId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    administered_by_name: row.users?.name ?? null,
+  })) as ClinicalIntervention[];
+}
+
+export async function recordClinicalIntervention(
+  client: SupabaseClient,
+  payload: {
+    dog_id: string;
+    clinic_id?: string | null;
+    intervention_type: ClinicalInterventionType;
+    title: string;
+    notes?: string | null;
+    dosage?: string | null;
+    administered_by?: string | null;
+  },
+): Promise<ClinicalIntervention> {
+  const { data, error } = await client
+    .from("clinical_interventions")
+    .insert(payload)
+    .select("id, dog_id, clinic_id, intervention_type, title, notes, dosage, administered_by, created_at")
+    .single();
+  if (error) throw error;
+  return data as unknown as ClinicalIntervention;
+}
+
+export async function updateDogWardAndAdmission(
+  client: SupabaseClient,
+  dogId: string,
+  wardLocation: string | null,
+  admissionStatus: string,
+): Promise<void> {
+  const { error } = await client
+    .from("dogs")
+    .update({ ward_location: wardLocation, admission_status: admissionStatus })
+    .eq("id", dogId);
+  if (error) throw error;
 }
 

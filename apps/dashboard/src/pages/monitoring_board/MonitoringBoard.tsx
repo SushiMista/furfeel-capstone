@@ -60,7 +60,7 @@ function DeviceStatus({ status }: { status: string | undefined }) {
 }
 
 type BoardView = "grid" | "table";
-type BoardGroupKey = "none" | "owner" | "clinic";
+type BoardGroupKey = "none" | "owner" | "clinic" | "ward" | "admission";
 
 const VIEW_KEY = "furfeel:board-view";
 const FILTER_KEY = "furfeel:board-filter";
@@ -103,7 +103,7 @@ export function MonitoringBoard() {
 
   const [groupBy, setGroupBy] = useState<BoardGroupKey>(() => {
     const saved = localStorage.getItem(GROUP_KEY);
-    return saved === "owner" || saved === "clinic" ? (saved as BoardGroupKey) : "none";
+    return saved === "owner" || saved === "clinic" || saved === "ward" || saved === "admission" ? (saved as BoardGroupKey) : "none";
   });
   const switchGroup = (next: BoardGroupKey) => {
     setGroupBy(next);
@@ -176,6 +176,8 @@ export function MonitoringBoard() {
         (r) =>
           r.dog.name.toLowerCase().includes(q) ||
           (r.dog.breed ?? "").toLowerCase().includes(q) ||
+          (r.dog.ward_location ?? "").toLowerCase().includes(q) ||
+          (r.dog.admission_status ?? "").toLowerCase().includes(q) ||
           (r.ownerName ?? "").toLowerCase().includes(q) ||
           (r.clinicName ?? "").toLowerCase().includes(q),
       );
@@ -187,7 +189,14 @@ export function MonitoringBoard() {
     if (groupBy === "none") return null;
     const map = new Map<string, MonitoringBoardRow[]>();
     for (const r of visible) {
-      const key = groupBy === "owner" ? (r.ownerName ?? "Unknown Owner") : (r.clinicName ?? "Unassigned Clinic");
+      const key =
+        groupBy === "owner"
+          ? (r.ownerName ?? "Unknown Owner")
+          : groupBy === "clinic"
+            ? (r.clinicName ?? "Unassigned Clinic")
+            : groupBy === "ward"
+              ? (r.dog.ward_location ?? "General Ward / Unassigned")
+              : (r.dog.admission_status ? r.dog.admission_status.replace(/_/g, " ").toUpperCase() : "OUTPATIENT");
       const list = map.get(key) ?? [];
       list.push(r);
       map.set(key, list);
@@ -416,6 +425,8 @@ export function MonitoringBoard() {
               onChange={(e) => switchGroup(e.target.value as BoardGroupKey)}
             >
               <option value="none">No Grouping</option>
+              <option value="ward">Hospital Ward / Cage</option>
+              <option value="admission">Admission Stage</option>
               <option value="owner">Owner</option>
               <option value="clinic">Clinic</option>
             </Select>
