@@ -25,6 +25,10 @@ begin
   end if;
 end $$;
 
+-- Devices linkages (Cascade telemetry when a device is deleted)
+alter table public.telemetry_readings drop constraint if exists telemetry_readings_device_id_fkey;
+alter table public.telemetry_readings add constraint telemetry_readings_device_id_fkey foreign key (device_id) references public.devices (id) on delete cascade;
+
 -- Dogs linkages (Set null on devices, cascade delete telemetry, clinical data, notes, media)
 alter table public.devices drop constraint if exists devices_dog_id_fkey;
 alter table public.devices add constraint devices_dog_id_fkey foreign key (dog_id) references public.dogs (id) on delete set null;
@@ -174,31 +178,40 @@ set search_path = public, pg_temp
 as $$
 declare
   reading_ids uuid[];
+  classification_ids uuid[];
 begin
   if public.current_user_role() != 'admin' then
     raise exception 'Unauthorized: Only administrators can delete devices';
   end if;
 
-  -- Collect reading IDs for this device
+  -- 1. Unlink any dog currently paired with this device
+  update public.devices set dog_id = null where id = p_device_id;
+
+  -- 2. Collect reading and classification IDs
   select array_agg(id) into reading_ids from public.telemetry_readings where device_id = p_device_id;
 
   if reading_ids is not null and array_length(reading_ids, 1) > 0 then
-    -- Delete stress labels referencing these readings
+    select array_agg(id) into classification_ids from public.stress_classifications where telemetry_reading_id = any(reading_ids);
+
+    -- Delete stress labels referencing these readings or classifications
     if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'stress_labels') then
       delete from public.stress_labels where telemetry_reading_id = any(reading_ids);
+      if classification_ids is not null and array_length(classification_ids, 1) > 0 then
+        delete from public.stress_labels where classification_id = any(classification_ids);
+      end if;
     end if;
 
     -- Delete alerts referencing classifications of these readings
-    delete from public.alerts where classification_id in (
-      select id from public.stress_classifications where telemetry_reading_id = any(reading_ids)
-    );
+    if classification_ids is not null and array_length(classification_ids, 1) > 0 then
+      delete from public.alerts where classification_id = any(classification_ids);
+    end if;
 
     -- Delete classifications and telemetry readings
     delete from public.stress_classifications where telemetry_reading_id = any(reading_ids);
     delete from public.telemetry_readings where device_id = p_device_id;
   end if;
 
-  -- Delete the device
+  -- 3. Delete the device
   delete from public.devices where id = p_device_id;
 end;
 $$;
@@ -213,21 +226,29 @@ set search_path = public, pg_temp
 as $$
 declare
   reading_ids uuid[];
+  classification_ids uuid[];
 begin
   if public.current_user_role() != 'admin' then
     raise exception 'Unauthorized: Only administrators can delete devices';
   end if;
 
+  update public.devices set dog_id = null where id = any(p_device_ids);
+
   select array_agg(id) into reading_ids from public.telemetry_readings where device_id = any(p_device_ids);
 
   if reading_ids is not null and array_length(reading_ids, 1) > 0 then
+    select array_agg(id) into classification_ids from public.stress_classifications where telemetry_reading_id = any(reading_ids);
+
     if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'stress_labels') then
       delete from public.stress_labels where telemetry_reading_id = any(reading_ids);
+      if classification_ids is not null and array_length(classification_ids, 1) > 0 then
+        delete from public.stress_labels where classification_id = any(classification_ids);
+      end if;
     end if;
 
-    delete from public.alerts where classification_id in (
-      select id from public.stress_classifications where telemetry_reading_id = any(reading_ids)
-    );
+    if classification_ids is not null and array_length(classification_ids, 1) > 0 then
+      delete from public.alerts where classification_id = any(classification_ids);
+    end if;
 
     delete from public.stress_classifications where telemetry_reading_id = any(reading_ids);
     delete from public.telemetry_readings where device_id = any(p_device_ids);
