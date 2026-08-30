@@ -60,6 +60,8 @@ import type {
   MediaSubmission,
 } from "../../../../../packages/shared/types/index.ts";
 
+import { formatPosture } from "../../lib/posture.ts";
+
 const HISTORY_LIMIT = 50;
 
 /** Section tabs (docs/05): redesigned with icons & matching Board Controls style. */
@@ -86,8 +88,8 @@ function Vital({
   label: string;
   icon: LucideIcon;
   value: number | string | null | undefined;
-  unit: string;
-  series: number[];
+  unit?: string;
+  series?: number[];
 }) {
   return (
     <div className="flex min-w-28 flex-1 flex-col gap-1.5 rounded-md bg-surface-alt px-4 py-3">
@@ -95,11 +97,11 @@ function Vital({
         <Icon size={14} aria-hidden="true" className="text-brand" />
         {label}
       </div>
-      <div className="text-3xl font-bold leading-tight tabular-nums text-ink">
+      <div className="text-xl sm:text-2xl lg:text-3xl font-bold leading-tight tabular-nums text-ink truncate">
         {value ?? "—"}
-        <span className="ml-1 text-xs font-normal text-ink-muted">{unit}</span>
+        {unit && <span className="ml-1 text-xs font-normal text-ink-muted">{unit}</span>}
       </div>
-      <MicroSparkline series={series} track className="mt-0.5" />
+      {series && <MicroSparkline series={series} track className="mt-0.5" />}
     </div>
   );
 }
@@ -383,10 +385,9 @@ export function DogDetail() {
               series={seriesOf(readings, (r) => r.respiratory_rate_bpm)}
             />
             <Vital
-              label="Motion"
+              label="Posture"
               icon={Activity}
-              value={latestReading?.motion_activity}
-              unit=""
+              value={formatPosture(latestReading?.posture).label}
               series={seriesOf(readings, (r) => r.motion_activity)}
             />
             <Vital

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.ts";
 import { getMediaSignedUrl, uploadDogPhoto, type MonitoringBoardRow } from "../lib/queries.ts";
+import { formatPosture } from "../lib/posture.ts";
 import { StressLevelBadge } from "./StressLevelBadge.tsx";
 import { cn } from "../lib/cn.ts";
 import { dogTint } from "../lib/dogTint.ts";
@@ -251,8 +252,8 @@ export function DogCard({
           />
           <MetricItem
             icon={Activity}
-            value={latestReading?.motion_activity?.toString() ?? "—"}
-            label="Motion"
+            value={formatPosture(latestReading?.posture).shortLabel}
+            label="Posture"
           />
           <MetricItem
             icon={Thermometer}

@@ -22,6 +22,7 @@ import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { cn } from "../../lib/cn.ts";
+import { formatPosture } from "../../lib/posture.ts";
 import type {
   Alert,
   StressClassification,
@@ -238,7 +239,7 @@ export function MonitoringBoard() {
             <Th>Stress level</Th>
             <Th className="text-right">HR (bpm)</Th>
             <Th className="text-right">RR (bpm)</Th>
-            <Th className="text-right">Motion</Th>
+            <Th>Posture</Th>
             <Th>Last reading</Th>
             <Th className="text-right">Open alerts</Th>
           </Tr>
@@ -291,7 +292,20 @@ export function MonitoringBoard() {
                 </Td>
                 <Td className="text-right tabular-nums">{row.latestReading?.heart_rate_bpm ?? "—"}</Td>
                 <Td className="text-right tabular-nums">{row.latestReading?.respiratory_rate_bpm ?? "—"}</Td>
-                <Td className="text-right tabular-nums">{row.latestReading?.motion_activity ?? "—"}</Td>
+                <Td>
+                  {row.latestReading?.posture ? (
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold border",
+                        formatPosture(row.latestReading.posture).badge,
+                      )}
+                    >
+                      {formatPosture(row.latestReading.posture).label}
+                    </span>
+                  ) : (
+                    <span className="text-ink-muted text-xs">—</span>
+                  )}
+                </Td>
                 <Td className="text-xs text-ink-muted">
                   {row.latestReading
                     ? new Date(row.latestReading.captured_at).toLocaleString()
