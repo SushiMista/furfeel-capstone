@@ -171,6 +171,19 @@ function friendlyDeleteError(error: { code?: string; message?: string }, linkedT
 }
 
 export async function deleteClinic(client: SupabaseClient, clinicId: string): Promise<void> {
+  // 1. Try server-side RPC first (security definer atomic cascade delete / unlink)
+  if (typeof client.rpc === "function") {
+    const { error: rpcError } = await client.rpc("admin_delete_clinic", { p_clinic_id: clinicId });
+    if (!rpcError) return;
+  }
+
+  // 2. Fallback: unlink users/dogs and delete clinic
+  await Promise.allSettled([
+    client.from("users").update({ clinic_id: null }).eq("clinic_id", clinicId),
+    client.from("dogs").update({ clinic_id: null }).eq("clinic_id", clinicId),
+    client.from("care_guidance").delete().eq("clinic_id", clinicId),
+  ]);
+
   const { error } = await client.from("clinics").delete().eq("id", clinicId);
   if (error) throw friendlyDeleteError(error, "staff or dogs");
 }
@@ -179,6 +192,14 @@ export async function bulkDeleteClinics(
   client: SupabaseClient,
   clinicIds: string[],
 ): Promise<{ success: string[]; failed: { id: string; error: string }[] }> {
+  // Try atomic bulk RPC first
+  if (typeof client.rpc === "function") {
+    const { error: rpcError } = await client.rpc("admin_bulk_delete_clinics", { p_clinic_ids: clinicIds });
+    if (!rpcError) {
+      return { success: clinicIds, failed: [] };
+    }
+  }
+
   const success: string[] = [];
   const failed: { id: string; error: string }[] = [];
 
@@ -229,11 +250,16 @@ export async function updateDevice(
   return data as unknown as Device;
 }
 
-/** Devices with telemetry history can't be deleted (ADR-003: raw telemetry is
- * never deleted, and telemetry_readings.device_id is a NOT NULL FK with no
- * cascade) — set status to inactive/maintenance instead. Freshly registered,
- * never-used devices delete cleanly. */
+/** Deletes a device cleanly. Uses server-side admin RPC to handle associated
+ * telemetry and linkages, with direct delete fallback. */
 export async function deleteDevice(client: SupabaseClient, deviceId: string): Promise<void> {
+  // 1. Try server-side RPC first (security definer atomic cleanup & delete)
+  if (typeof client.rpc === "function") {
+    const { error: rpcError } = await client.rpc("admin_delete_device", { p_device_id: deviceId });
+    if (!rpcError) return;
+  }
+
+  // 2. Direct delete fallback
   const { error } = await client.from("devices").delete().eq("id", deviceId);
   if (error) throw friendlyDeleteError(error, "telemetry history — set it to inactive instead");
 }
@@ -243,6 +269,14 @@ export async function bulkDeleteDevices(
   deviceIds: string[],
   fallbackToInactive = true,
 ): Promise<{ deleted: string[]; deactivated: string[]; failed: { id: string; error: string }[] }> {
+  // Try atomic bulk RPC first
+  if (typeof client.rpc === "function") {
+    const { error: rpcError } = await client.rpc("admin_bulk_delete_devices", { p_device_ids: deviceIds });
+    if (!rpcError) {
+      return { deleted: deviceIds, deactivated: [], failed: [] };
+    }
+  }
+
   const deleted: string[] = [];
   const deactivated: string[] = [];
   const failed: { id: string; error: string }[] = [];
@@ -379,6 +413,7 @@ export async function deleteDog(client: SupabaseClient, dogId: string): Promise<
     client.from("vet_notes").delete().eq("dog_id", dogId),
     client.from("handover_notes").delete().eq("dog_id", dogId),
     client.from("media_submissions").delete().eq("dog_id", dogId),
+    client.from("stress_labels").delete().eq("dog_id", dogId),
     client.from("dog_baselines").delete().eq("dog_id", dogId),
     client.from("stress_classifications").delete().eq("dog_id", dogId),
     client.from("telemetry_readings").delete().eq("dog_id", dogId),

@@ -1916,8 +1916,8 @@ function DevicesTab({
         {/* Bulk Delete Devices Modal */}
         <ConfirmDeleteDialog
           open={bulkDeleteOpen}
-          title={`Bulk Decommission Devices (${selectedIds.size})`}
-          description={`Are you sure you want to decommission these ${selectedIds.size} devices? Devices with telemetry history will be safely set to 'inactive' status.`}
+          title={`Bulk Delete Devices (${selectedIds.size})`}
+          description={`Are you sure you want to delete these ${selectedIds.size} devices? Associated telemetry history and linkages will be cleaned up.`}
           busy={bulkDeleting}
           onConfirm={handleBulkDelete}
           onClose={() => setBulkDeleteOpen(false)}
@@ -2079,7 +2079,7 @@ function DevicesTab({
           title="Delete device"
           description={
             pendingDelete
-              ? `Delete ${pendingDelete.device_code}? This can't be undone. Devices with telemetry history can't be deleted — set status to inactive instead.`
+              ? `Delete ${pendingDelete.device_code}? This can't be undone. Associated telemetry history and linkages will be cleaned up.`
               : ""
           }
           busy={deleting}
