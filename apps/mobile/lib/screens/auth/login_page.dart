@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
-import 'package:furfeel_mobile/widgets/furfeel_logo.dart';
+import 'package:furfeel_mobile/widgets/auth_pattern_background.dart';
 
 /// Sign-in callback: returns null on success, or a user-facing error message.
 typedef SignIn = Future<String?> Function(String email, String password);
@@ -46,6 +47,30 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  Future<void> _resetPassword() async {
+    final email = _email.text.trim();
+    if (email.isEmpty) {
+      setState(() => _error = 'Please enter your email to reset your password.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      // Assuming SupabaseClient is available globally or we can use Supabase.instance.client
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Password reset link sent to $email.')),
+      );
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Could not send reset link. Check your email address.');
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
@@ -71,14 +96,10 @@ class _LoginPageState extends State<LoginPage> {
     });
     final error = await widget.onGoogleSignIn!();
     if (!mounted) return;
-    if (error == null) {
-      // Stay busy: the page is about to redirect (web) or the session will
-      // arrive via deep link and the root auth stream pops this screen.
-      return;
-    }
+    
     setState(() {
       _googleBusy = false;
-      _error = error;
+      if (error != null) _error = error;
     });
   }
 
@@ -89,19 +110,27 @@ class _LoginPageState extends State<LoginPage> {
       // Transparent app bar — just the back arrow, no title clutter.
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       extendBodyBehindAppBar: true,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: FurFeelTokens.space5,
-                vertical: FurFeelTokens.space4,
-              ),
-              children: [
-                // ── Branding header ──────────────────────────────────────
-                const SizedBox(height: FurFeelTokens.space4),
-                const Center(child: FurFeelLogo.auth(size: 48, animate: true)),
+      body: AuthPatternBackground(
+        color: context.ff.brand,
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FurFeelTokens.space5,
+                  vertical: FurFeelTokens.space4,
+                ),
+                children: [
+                  // ── Branding header ──────────────────────────────────────
+                  const SizedBox(height: FurFeelTokens.space4),
+                  Center(
+                    child: Image.asset(
+                      'assets/photos/logo_title.png',
+                      height: 56,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 const SizedBox(height: FurFeelTokens.space5),
 
                 // ── Divider with subtle brand tint ───────────────────────
@@ -175,6 +204,14 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _submitting ? null : _resetPassword,
+                          child: const Text('Forgot password?'),
+                        ),
+                      ),
                     ],
                   ),
                 ).entrance(context, index: 2),
@@ -225,6 +262,7 @@ class _LoginPageState extends State<LoginPage> {
                 ],
               ],
             ),
+          ),
           ),
         ),
       ),

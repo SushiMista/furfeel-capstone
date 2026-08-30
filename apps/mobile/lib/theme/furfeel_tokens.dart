@@ -90,7 +90,7 @@ class FurFeelPalette extends ThemeExtension<FurFeelPalette> {
     ink: Color(0xFF0F172A),
     inkMuted: Color(0xFF64748B),
     hairline: Color(0xFFE2E8F0),
-    brand: Color(0xFF2563EB),
+    brand: Color(0xFF2F56A7),
     brandStrong: Color(0xFF1D4ED8),
     brandInk: Color(0xFF1E3A8A),
     brandSoft: Color(0xFFEAF1FE),
