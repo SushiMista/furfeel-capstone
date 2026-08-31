@@ -8,10 +8,7 @@ import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
 import 'package:furfeel_mobile/widgets/auth_pattern_background.dart';
 import 'package:furfeel_mobile/screens/auth/progressive_signup_page.dart';
-import 'package:furfeel_mobile/widgets/furfeel_logo.dart';
 import 'package:furfeel_mobile/screens/auth/login_page.dart';
-import 'package:furfeel_mobile/screens/auth/otp_verification_page.dart';
-import 'package:furfeel_mobile/screens/home/root_shell.dart';
 
 /// ADDED: real first-run flow (docs/04 Onboarding/sign-up): a warm animated
 /// welcome, then create account (Supabase Auth) or sign in. After sign-up the
@@ -31,20 +28,16 @@ class _WelcomePageState extends State<WelcomePage> {
 
   Future<String?> _signIn(String email, String password) async {
     try {
-<<<<<<< HEAD
-      final res = await client.auth.signInWithPassword(email: email, password: password);
+      final res = await widget.client.auth.signInWithPassword(email: email, password: password);
       final user = res.user;
       if (user != null) {
-        final userRow = await client.from('users').select('role').eq('id', user.id).maybeSingle();
+        final userRow = await widget.client.from('users').select('role').eq('id', user.id).maybeSingle();
         final role = userRow?['role'] as String?;
         if (role != null && role != 'owner') {
-          await client.auth.signOut();
+          await widget.client.auth.signOut();
           return 'Access Denied: Clinic staff & admin accounts must log in via the FurFeel Web Dashboard.';
         }
       }
-=======
-      await widget.client.auth.signInWithPassword(email: email, password: password);
->>>>>>> joshua-app-updated
       return null;
     } on AuthException catch (e) {
       if (e.message.toLowerCase().contains('email not confirmed')) {

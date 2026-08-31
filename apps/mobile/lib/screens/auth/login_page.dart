@@ -97,10 +97,12 @@ class _LoginPageState extends State<LoginPage> {
     final error = await widget.onGoogleSignIn!();
     if (!mounted) return;
     
-    setState(() {
-      _googleBusy = false;
-      if (error != null) _error = error;
-    });
+    if (error != null) {
+      setState(() {
+        _googleBusy = false;
+        _error = error;
+      });
+    }
   }
 
   @override

@@ -127,10 +127,17 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
     await _loadFont('test/fonts/Inter.ttf', _interFamilies);
     // Material icons are a font too; unloaded they render as tofu boxes.
-    await _loadFont(
+    final flutterRoot = Platform.environment['FLUTTER_ROOT'];
+    final fontPaths = [
+      if (flutterRoot != null) '$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
       '/opt/homebrew/share/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
-      ['MaterialIcons'],
-    );
+    ];
+    for (final path in fontPaths) {
+      if (File(path).existsSync()) {
+        await _loadFont(path, ['MaterialIcons']);
+        break;
+      }
+    }
   });
 
   // Written to the repo-root docs/ folder (path is relative to this test file).
