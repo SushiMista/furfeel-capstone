@@ -8,6 +8,7 @@ import 'data/status_cache.dart';
 import 'package:furfeel_mobile/screens/home/root_shell.dart';
 import 'package:furfeel_mobile/screens/auth/splash_page.dart';
 import 'package:furfeel_mobile/screens/auth/welcome_page.dart';
+import 'package:furfeel_mobile/screens/auth/pending_activation_page.dart';
 import 'theme/furfeel_theme.dart';
 import 'theme/furfeel_tokens.dart';
 
@@ -77,20 +78,26 @@ class _FurFeelAppState extends State<FurFeelApp> {
   // Cold-start gate: splash holds until the seen-flag is read AND the brand
   // beat has had a moment on screen, so the splash never just flickers.
   bool _splashDone = false;
+  bool? _isActivated;
 
   @override
   void initState() {
     super.initState();
-    if (_client.auth.currentSession != null) _settings.load();
+    if (_client.auth.currentSession != null) {
+      _settings.load();
+      _checkActivation();
+    }
     _client.auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedIn) {
         _settings.load();
+        _checkActivation();
         if (!FurFeelApp.isProgressiveOnboarding) {
           _navigatorKey.currentState?.popUntil((route) => route.isFirst);
         }
       }
       if (state.event == AuthChangeEvent.signedOut) {
         _settings.clear();
+        if (mounted) setState(() => _isActivated = null);
         StatusCache.clear(); // cached readings belong to the signed-out account
         // Sign-out can fire while AccountPage (or another screen) is pushed
         // on top of the home StreamBuilder -- pop back so the freshly
@@ -100,6 +107,11 @@ class _FurFeelAppState extends State<FurFeelApp> {
       }
     });
     _bootstrap();
+  }
+
+  Future<void> _checkActivation() async {
+    final activated = await _repository.isAccountActivated();
+    if (mounted) setState(() => _isActivated = activated);
   }
 
   /// Minimum time the brand splash stays up. Short on purpose: it exists only
@@ -157,7 +169,13 @@ class _FurFeelAppState extends State<FurFeelApp> {
                       }
                       // A real network wait, unlike the cold-start beat, so
                       // this one earns a loader.
-                      if (!_settings.loaded) return const SplashPage.loading();
+                      if (!_settings.loaded || _isActivated == null) return const SplashPage.loading();
+                      if (!_isActivated!) {
+                        return PendingActivationPage(
+                          onCheckActivation: _checkActivation,
+                          onSignOut: () => _client.auth.signOut(),
+                        );
+                      }
                       return RootShell(
                         repository: _repository,
                         userEmail: session.user.email,

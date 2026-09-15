@@ -18,6 +18,7 @@ import {
   LifeBuoy,
   PawPrint,
   Radio,
+  UserCheck,
   UserCog,
   Users,
 } from "lucide-react";
@@ -55,6 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/alerts", label: "Alerts Queue", icon: BellRing },
       { to: "/handover", label: "Handover Notes", icon: ClipboardList },
       { to: "/teams", label: "My Clinic Team", icon: Users },
+      { to: "/activations", label: "Account Activations", icon: UserCheck },
     ],
   },
   {

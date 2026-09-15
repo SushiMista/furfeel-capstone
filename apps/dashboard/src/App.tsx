@@ -15,6 +15,7 @@ import { Devices } from "./pages/devices/Devices.tsx";
 import { Reports } from "./pages/reports/Reports.tsx";
 import { ClinicTeams } from "./pages/teams/ClinicTeams.tsx";
 import { Admin } from "./pages/admin/Admin.tsx";
+import { AccountActivations } from "./pages/activations/AccountActivations.tsx";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading: authLoading } = useAuth();
@@ -140,6 +141,14 @@ export function App() {
             element={
               <RequireAuth>
                 <ClinicTeams />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/activations"
+            element={
+              <RequireAuth>
+                <AccountActivations />
               </RequireAuth>
             }
           />
