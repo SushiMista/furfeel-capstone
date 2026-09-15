@@ -138,6 +138,7 @@ abstract class FurFeelRepository {
   Future<void> registerPushToken(String platform, String token);
 
   // ---- Account & settings (docs/04 Account, Settings & Personalization) ----
+  Future<bool> isAccountActivated();
   Future<UserProfile> fetchMyProfile();
   Future<UserProfile> updateMyName(String name);
 
@@ -740,6 +741,20 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw const FurFeelDataException('You need to be signed in.');
     return userId;
+  }
+
+  // ---- Account & Settings ----
+  @override
+  Future<bool> isAccountActivated() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+    final res = await _client
+        .from('users')
+        .select('is_active')
+        .eq('id', userId)
+        .maybeSingle();
+    if (res == null) return false;
+    return res['is_active'] == true;
   }
 
   @override

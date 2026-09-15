@@ -130,6 +130,20 @@ export async function reactivateUserAccount(client: SupabaseClient, userId: stri
   }
 }
 
+/** Vet / Admin activates a self-registered account that is in the
+ * pre-activation gate (is_active = false, not yet approved). This is distinct
+ * from reactivateUserAccount which un-does a soft-delete/deactivation. */
+export async function activateUserAccount(client: SupabaseClient, userId: string): Promise<User> {
+  const { data, error } = await client
+    .from("users")
+    .update({ is_active: true, deactivated_at: null })
+    .eq("id", userId)
+    .select(USER_COLUMNS)
+    .single();
+  if (error) throw error;
+  return data as unknown as User;
+}
+
 export async function fetchClinics(client: SupabaseClient): Promise<Clinic[]> {
   const { data, error } = await client.from("clinics").select("*").order("name");
   if (error) throw error;
@@ -463,6 +477,8 @@ export interface AdminInefficiencies {
   unassignedDogs: Dog[];
   staleDevices: Device[];
   inactiveUsers: User[];
+  /** Owner accounts that self-registered but have not yet been activated by a vet/admin. */
+  pendingActivations: User[];
 }
 
 export function calculateAdminInefficiencies(
@@ -480,12 +496,15 @@ export function calculateAdminInefficiencies(
     return new Date(d.last_seen_at).getTime() < fourteenDaysAgo;
   });
   const inactiveUsers = users.filter((u) => u.is_active === false);
+  // Pending = inactive owner accounts (self-registered, awaiting vet approval)
+  const pendingActivations = users.filter((u) => u.is_active === false && u.role === "owner");
 
   return {
     unassignedActiveDevices,
     unassignedDogs,
     staleDevices,
     inactiveUsers,
+    pendingActivations,
   };
 }
 

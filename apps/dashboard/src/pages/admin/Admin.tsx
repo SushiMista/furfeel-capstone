@@ -18,6 +18,7 @@ import {
   Search,
   ShieldAlert,
   Trash2,
+  UserCheck,
   UserX,
   Users as UsersIcon,
   WifiOff,
@@ -28,6 +29,7 @@ import {
   type AuditLogRecord,
 } from "../../lib/auditLogger.ts";
 import {
+  activateUserAccount,
   bulkDeleteClinics,
   bulkDeleteDevices,
   bulkDeleteDogs,
@@ -463,6 +465,31 @@ function AdminInefficienciesBanner({ inefficiencies }: { inefficiencies: AdminIn
             {inactiveUsers.length}
           </span>
         </Link>
+        {/* Pending Activations */}
+        {inefficiencies.pendingActivations && (
+          <Link
+            to="/admin/users"
+            className="flex items-center justify-between rounded-lg border border-amber-200/80 bg-surface p-3 transition-colors hover:bg-amber-100/40"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-100 text-blue-700">
+                <UserCheck className="h-4 w-4" strokeWidth={1.75} />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-ink truncate">Pending Approvals</span>
+                <span className="text-[11px] text-ink-muted">Awaiting activation</span>
+              </div>
+            </div>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-extrabold",
+                inefficiencies.pendingActivations.length > 0 ? "bg-blue-600 text-white" : "bg-surface-alt text-ink-muted",
+              )}
+            >
+              {inefficiencies.pendingActivations.length}
+            </span>
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -738,10 +765,17 @@ function UsersTab({
 
   async function handleReactivate(u: User) {
     try {
-      await reactivateUserAccount(supabase, u.id);
-      onChanged({ ...u, is_active: true });
+      if (u.role === "owner" && u.deactivated_at === null) {
+        // This is a pending self-registered account (never active)
+        const updated = await activateUserAccount(supabase, u.id);
+        onChanged(updated);
+      } else {
+        // This is a previously active account that was soft-deleted
+        await reactivateUserAccount(supabase, u.id);
+        onChanged({ ...u, is_active: true });
+      }
     } catch (err) {
-      onError(friendlyError(err, "reactivate the user"));
+      onError(friendlyError(err, u.deactivated_at === null ? "activate the user" : "reactivate the user"));
     }
   }
 
@@ -879,9 +913,15 @@ function UsersTab({
                   </Td>
                   <Td>
                     {u.is_active === false ? (
-                      <span className="inline-flex items-center rounded-pill bg-surface-alt px-2.5 py-0.5 text-xs font-medium text-ink-muted">
-                        Deactivated
-                      </span>
+                      u.role === "owner" && !u.deactivated_at ? (
+                        <span className="inline-flex items-center rounded-pill bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                          Pending
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-pill bg-surface-alt px-2.5 py-0.5 text-xs font-medium text-ink-muted">
+                          Deactivated
+                        </span>
+                      )
                     ) : (
                       <span className="inline-flex items-center rounded-pill bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 px-2.5 py-0.5 text-xs font-medium">
                         Active
@@ -920,12 +960,17 @@ function UsersTab({
                       {u.is_active === false ? (
                         <button
                           type="button"
-                          aria-label={`Reactivate ${u.name}`}
-                          title="Reactivate User Account"
+                          aria-label={u.role === "owner" && !u.deactivated_at ? `Activate ${u.name}` : `Reactivate ${u.name}`}
+                          title={u.role === "owner" && !u.deactivated_at ? "Activate User Account" : "Reactivate User Account"}
                           onClick={() => handleReactivate(u)}
-                          className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors duration-fast"
+                          className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-fast",
+                            u.role === "owner" && !u.deactivated_at
+                              ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                              : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                          )}
                         >
-                          <RotateCcw size={15} />
+                          {u.role === "owner" && !u.deactivated_at ? <UserCheck size={15} /> : <RotateCcw size={15} />}
                         </button>
                       ) : !isSelf ? (
                         <button
