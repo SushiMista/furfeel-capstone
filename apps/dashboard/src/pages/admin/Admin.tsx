@@ -25,6 +25,7 @@ import {
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   fetchAuditLogs,
+  fetchPendingDeviceDeletionRequests,
   type AuditLogRecord,
 } from "../../lib/auditLogger.ts";
 import {
@@ -1717,6 +1718,22 @@ function DevicesTab({
 
   const [pendingDelete, setPendingDelete] = useState<Device | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deletionRequests, setDeletionRequests] = useState<
+    Map<string, { reason: string; requestedAt: string; requestedBy: string }>
+  >(new Map());
+
+  const loadDelRequests = useCallback(async () => {
+    try {
+      const map = await fetchPendingDeviceDeletionRequests();
+      setDeletionRequests(map);
+    } catch {
+      // non-blocking
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDelRequests();
+  }, [loadDelRequests, devices]);
 
   // Multi-select bulk state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1848,6 +1865,16 @@ function DevicesTab({
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
+          {deletionRequests.size > 0 && (
+            <div className="flex items-center gap-2.5 p-3 rounded-xl border border-warning/40 bg-warning/10 text-xs text-ink font-bold">
+              <ShieldAlert size={16} className="text-warning shrink-0" />
+              <span>
+                {deletionRequests.size} device deletion / decommission request(s) submitted by clinic veterinarians.
+                Review and approve below.
+              </span>
+            </div>
+          )}
+
           <Table>
             <THead>
               <Tr className="border-t-0">
@@ -1870,8 +1897,10 @@ function DevicesTab({
             <TBody>
               {devices.map((d) => {
                 const isSelected = selectedIds.has(d.id);
+                const delRequest = deletionRequests.get(d.id);
+
                 return (
-                  <Tr key={d.id} className={isSelected ? "bg-brand-soft/40" : undefined}>
+                  <Tr key={d.id} className={isSelected ? "bg-brand-soft/40" : delRequest ? "bg-amber-500/5" : undefined}>
                     <Td className="text-center">
                       <input
                         type="checkbox"
@@ -1883,9 +1912,19 @@ function DevicesTab({
                     </Td>
                     <Td className="font-semibold">{d.device_code}</Td>
                     <Td>
-                      <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", DEVICE_STATUS_BADGE_STYLE[d.status])}>
-                        {d.status}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", DEVICE_STATUS_BADGE_STYLE[d.status])}>
+                          {d.status}
+                        </span>
+                        {delRequest && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded"
+                            title={`Reason: ${delRequest.reason} (by ${delRequest.requestedBy})`}
+                          >
+                            ⚠️ Deletion Requested: {delRequest.reason}
+                          </span>
+                        )}
+                      </div>
                     </Td>
                     <Td className="text-ink-muted">
                       {d.dog_id ? (dogNames.get(d.dog_id) ?? "—") : "— unassigned —"}
@@ -1920,11 +1959,16 @@ function DevicesTab({
                         <button
                           type="button"
                           aria-label={`Delete ${d.device_code}`}
-                          title="Delete Device"
+                          title={delRequest ? "Approve Deletion Request" : "Delete Device"}
                           onClick={() => setPendingDelete(d)}
-                          className="flex h-8 w-8 items-center justify-center rounded-md bg-high-soft text-high-fg transition-colors duration-fast hover:bg-high hover:text-white"
+                          className={`flex h-8 items-center justify-center rounded-md transition-colors duration-fast ${
+                            delRequest
+                              ? "px-2 bg-high text-white text-[11px] font-bold gap-1 shadow-xs"
+                              : "w-8 bg-high-soft text-high-fg hover:bg-high hover:text-white"
+                          }`}
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={13} />
+                          {delRequest && <span>Approve Delete</span>}
                         </button>
                       </div>
                     </Td>

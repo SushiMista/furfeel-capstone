@@ -52,16 +52,17 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
       { to: "/board", label: "Monitoring Board", icon: HeartPulse },
+      { to: "/intake", label: "Patient Intake", icon: PawPrint },
+      { to: "/patients", label: "Patient Dogs", icon: Dog },
       { to: "/alerts", label: "Alerts Queue", icon: BellRing },
       { to: "/handover", label: "Handover Notes", icon: ClipboardList },
-      { to: "/teams", label: "My Clinic Team", icon: Users },
     ],
   },
   {
     id: "fleet",
     label: "Fleet & Telemetry",
     items: [
-      { to: "/devices", label: "Device Fleet", icon: Radio },
+      { to: "/devices", label: "Device Management", icon: Radio },
       { to: "/reports", label: "Analytics & Reports", icon: BarChart3 },
     ],
   },

@@ -1,9 +1,30 @@
 import { friendlyError } from "../../lib/errors.ts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Eye } from "lucide-react";
+import {
+  Radio,
+  Plus,
+  Edit,
+  Trash2,
+  AlertTriangle,
+  Search,
+  Cpu,
+  Dog as DogIcon,
+  CheckCircle2,
+  Info,
+  Clock,
+  RotateCcw,
+  Sparkles,
+} from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
-import { fetchDevicesReadOnly, type DeviceWithDog } from "../../lib/queries.ts";
+import { useAuth } from "../../lib/useAuth.ts";
+import { fetchDevicesReadOnly, fetchDogs, type DeviceWithDog, type Dog } from "../../lib/queries.ts";
+import {
+  registerDevice,
+  updateDevice,
+  deleteDevice,
+} from "../../lib/adminQueries.ts";
+import { recordAuditLog, fetchPendingDeviceDeletionRequests } from "../../lib/auditLogger.ts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
@@ -11,7 +32,10 @@ import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { Badge } from "../../components/ui/badge.tsx";
 import { Dialog } from "../../components/ui/dialog.tsx";
 import { Button } from "../../components/ui/button.tsx";
+import { Input, Label, Select } from "../../components/ui/input.tsx";
+import { useToast } from "../../components/ui/toast.tsx";
 import { formatPhilippineTime } from "../../lib/time.ts";
+import type { DeviceStatus } from "../../../../../packages/shared/types/index.ts";
 
 const STATUS_BADGE: Record<string, "default" | "neutral" | "outline"> = {
   active: "default",
@@ -20,20 +44,56 @@ const STATUS_BADGE: Record<string, "default" | "neutral" | "outline"> = {
   maintenance: "neutral",
 };
 
-/** Devices tab (docs/05): view-only fleet list for vets/staff -- no register,
- * assign, or delete controls here. Device management stays admin-only
- * (Admin → Devices); devices_select_owner_or_clinic RLS is the real read
- * scope, this page just doesn't render any write UI on top of it. */
 export function Devices() {
   const [searchParams] = useSearchParams();
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const role = profile?.role;
+  const isAdmin = role === "admin";
+
   const [devices, setDevices] = useState<DeviceWithDog[]>([]);
+  const [dogs, setDogs] = useState<Dog[]>([]);
+  const [deletionRequests, setDeletionRequests] = useState<
+    Map<string, { reason: string; requestedAt: string; requestedBy: string }>
+  >(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewingDevice, setViewingDevice] = useState<DeviceWithDog | null>(null);
+
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
+
+  // Modals state
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<DeviceWithDog | null>(null);
+  const [requestingDeleteDevice, setRequestingDeleteDevice] = useState<DeviceWithDog | null>(null);
+  const [adminDeleteDevice, setAdminDeleteDevice] = useState<DeviceWithDog | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Register Form State
+  const [newDeviceCode, setNewDeviceCode] = useState("");
+  const [newFirmware, setNewFirmware] = useState("0.1.0");
+
+  // Edit Form State
+  const [editStatus, setEditStatus] = useState<DeviceStatus>("active");
+  const [editFirmware, setEditFirmware] = useState("");
+  const [editDogId, setEditDogId] = useState<string>("");
+
+  // Deletion Request Form State
+  const [deletionReason, setDeletionReason] = useState("");
 
   const load = useCallback(async () => {
     try {
-      setDevices(await fetchDevicesReadOnly(supabase));
+      setLoading(true);
+      const [devList, dogList, delRequests] = await Promise.all([
+        fetchDevicesReadOnly(supabase),
+        fetchDogs(supabase).catch(() => [] as Dog[]),
+        fetchPendingDeviceDeletionRequests().catch(() => new Map()),
+      ]);
+      setDevices(devList);
+      setDogs(dogList);
+      setDeletionRequests(delRequests);
       setError(null);
     } catch (err) {
       setError(friendlyError(err, "load devices"));
@@ -46,27 +106,156 @@ export function Devices() {
     load();
   }, [load]);
 
-  // Auto-open device details modal if target params exist
-  useEffect(() => {
-    const targetCode = searchParams.get("device_code");
-    const targetId = searchParams.get("device_id");
-    const targetDogId = searchParams.get("dog_id");
+  // Filtered devices
+  const filteredDevices = useMemo(() => {
+    return devices.filter((d) => {
+      const q = searchQuery.toLowerCase().trim();
+      const hasDelRequest = deletionRequests.has(d.id);
 
-    if (devices.length === 0) return;
+      const matchesSearch =
+        !q ||
+        d.device_code.toLowerCase().includes(q) ||
+        (d.dog?.name && d.dog.name.toLowerCase().includes(q)) ||
+        (d.firmware_version && d.firmware_version.toLowerCase().includes(q));
 
-    let match: DeviceWithDog | undefined;
-    if (targetCode) {
-      match = devices.find((d) => d.device_code.toLowerCase() === targetCode.toLowerCase());
-    } else if (targetId) {
-      match = devices.find((d) => d.id === targetId);
-    } else if (targetDogId) {
-      match = devices.find((d) => d.dog_id === targetDogId);
+      let matchesStatus = true;
+      if (statusFilter === "deletion_requested") {
+        matchesStatus = hasDelRequest;
+      } else if (statusFilter !== "all") {
+        matchesStatus = d.status === statusFilter;
+      }
+
+      let matchesAssignment = true;
+      if (assignmentFilter === "assigned") {
+        matchesAssignment = Boolean(d.dog_id);
+      } else if (assignmentFilter === "unassigned") {
+        matchesAssignment = !d.dog_id;
+      }
+
+      return matchesSearch && matchesStatus && matchesAssignment;
+    });
+  }, [devices, searchQuery, statusFilter, assignmentFilter, deletionRequests]);
+
+  // Open Edit Dialog
+  function handleOpenEdit(dev: DeviceWithDog) {
+    setEditingDevice(dev);
+    setEditStatus(dev.status);
+    setEditFirmware(dev.firmware_version || "0.1.0");
+    setEditDogId(dev.dog_id || "");
+  }
+
+  // Save Edit Device
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editingDevice) return;
+
+    setSaving(true);
+    try {
+      await updateDevice(supabase, editingDevice.id, {
+        status: editStatus,
+        firmware_version: editFirmware.trim() || null,
+        dog_id: editDogId || null,
+      });
+
+      toast("success", `Updated device ${editingDevice.device_code}`);
+      setEditingDevice(null);
+      await load();
+    } catch (err) {
+      toast("error", friendlyError(err, "update device"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Handle Register New Device
+  async function handleRegisterDevice(e: FormEvent) {
+    e.preventDefault();
+    if (!newDeviceCode.trim()) {
+      toast("error", "Please provide a device code.");
+      return;
     }
 
-    if (match) {
-      setViewingDevice(match);
+    setSaving(true);
+    try {
+      const newDev = await registerDevice(
+        supabase,
+        newDeviceCode.trim().toUpperCase(),
+        newFirmware.trim() || "0.1.0",
+      );
+      toast("success", `Registered new collar: ${newDev.device_code}`);
+      setRegisterOpen(false);
+      setNewDeviceCode("");
+      setNewFirmware("0.1.0");
+      await load();
+    } catch (err) {
+      toast("error", friendlyError(err, "register device"));
+    } finally {
+      setSaving(false);
     }
-  }, [devices, searchParams]);
+  }
+
+  // Handle Request Deletion (by Vet)
+  async function handleRequestDeletion(e: FormEvent) {
+    e.preventDefault();
+    if (!requestingDeleteDevice) return;
+    if (!deletionReason.trim()) {
+      toast("error", "Please explain why this device needs to be deleted or decommissioned.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // 1. Set device status to maintenance
+      await updateDevice(supabase, requestingDeleteDevice.id, {
+        status: "maintenance",
+        dog_id: null, // unassign from dog
+      });
+
+      // 2. Record audit log request for Admin
+      await recordAuditLog({
+        actor_role: (role as any) || "veterinarian",
+        surface: "dashboard",
+        action: "device.deletion_requested",
+        target_resource: "devices",
+        target_id: requestingDeleteDevice.id,
+        clinic_id: profile?.clinic_id ?? null,
+        details: {
+          device_code: requestingDeleteDevice.device_code,
+          dog_name: requestingDeleteDevice.dog?.name ?? null,
+          reason: deletionReason.trim(),
+          requested_at: new Date().toISOString(),
+          requested_by: profile?.name || profile?.email || "Clinic Staff",
+        },
+        severity: "warning",
+      });
+
+      toast("success", `Deletion request for ${requestingDeleteDevice.device_code} submitted to Admin.`);
+      setRequestingDeleteDevice(null);
+      setDeletionReason("");
+      await load();
+    } catch (err) {
+      toast("error", friendlyError(err, "submit deletion request"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Handle Admin Immediate Purge / Approval
+  async function handleAdminApproveDelete() {
+    if (!adminDeleteDevice) return;
+
+    setSaving(true);
+    try {
+      await deleteDevice(supabase, adminDeleteDevice.id);
+      toast("success", `Device ${adminDeleteDevice.device_code} permanently purged.`);
+      setAdminDeleteDevice(null);
+      await load();
+    } catch (err) {
+      toast("error", friendlyError(err, "delete device"));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (loading) return <CardSkeleton lines={6} />;
   if (error)
@@ -76,122 +265,445 @@ export function Devices() {
       </p>
     );
 
+  const pendingCount = deletionRequests.size;
+
   return (
-    <div className="flex flex-col gap-5">
-      <h1 className="m-0 text-2xl font-bold text-ink">Devices</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Harness fleet</CardTitle>
-          <CardDescription>
-            Every device linked to your dogs or clinic. View-only — registration and
-            assignment are managed in Admin.
-          </CardDescription>
+    <div className="flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="m-0 text-2xl font-black text-ink tracking-tight flex items-center gap-2.5">
+            <Radio className="text-brand h-7 w-7" />
+            <span>Device Hardware Fleet</span>
+          </h1>
+          <p className="text-sm text-ink-muted mt-1">
+            Build, assign, and manage telemetry sensor collars linked to your clinical operations.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            type="button"
+            onClick={() => setRegisterOpen(true)}
+            className="flex items-center gap-2 font-bold shadow-xs bg-brand hover:bg-brand-strong text-white"
+          >
+            <Plus size={16} />
+            <span>+ Build / Register Collar</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Notice for Pending Deletion Requests if any */}
+      {pendingCount > 0 && (
+        <div className="flex items-center justify-between p-3.5 rounded-xl border border-warning/40 bg-warning/10 text-xs">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle size={16} className="text-warning shrink-0" />
+            <span className="font-bold text-ink">
+              {pendingCount} device{pendingCount > 1 ? "s have" : " has"} a pending Deletion / Decommission request
+              submitted for Administrator review.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("deletion_requested")}
+            className="font-bold text-brand hover:underline"
+          >
+            View Requests →
+          </button>
+        </div>
+      )}
+
+      {/* Main Table Card */}
+      <Card className="border-hairline shadow-xs">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg font-bold text-ink">
+                Hardware Inventory ({filteredDevices.length})
+              </CardTitle>
+              <CardDescription>
+                Live collar telemetry state, firmware revisions, and patient dog bindings.
+              </CardDescription>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+              <div className="relative w-full sm:w-56">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
+                <Input
+                  placeholder="Search code, dog, FW..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 text-xs h-9"
+                />
+              </div>
+
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="text-xs h-9 w-full sm:w-36"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="offline">Offline</option>
+                <option value="inactive">Inactive</option>
+                <option value="maintenance">Maintenance</option>
+                {pendingCount > 0 && <option value="deletion_requested">⚠️ Pending Deletion ({pendingCount})</option>}
+              </Select>
+
+              <Select
+                value={assignmentFilter}
+                onChange={(e) => setAssignmentFilter(e.target.value)}
+                className="text-xs h-9 w-full sm:w-36"
+              >
+                <option value="all">All Collars</option>
+                <option value="assigned">Assigned to Dog</option>
+                <option value="unassigned">Unassigned</option>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          {devices.length === 0 ? (
-            <EmptyState>No devices linked yet 🐾</EmptyState>
+
+        <CardContent className="p-0">
+          {filteredDevices.length === 0 ? (
+            <div className="p-8">
+              <EmptyState>No devices matched the selected criteria.</EmptyState>
+            </div>
           ) : (
             <Table>
               <THead>
-                <Tr className="border-t-0">
-                  <Th>Code</Th>
+                <Tr className="border-t-0 bg-surface-alt/40">
+                  <Th className="pl-4">Device Code</Th>
                   <Th>Status</Th>
-                  <Th>Assigned dog</Th>
+                  <Th>Assigned Patient</Th>
                   <Th>Battery</Th>
                   <Th>Firmware</Th>
-                  <Th>Last seen</Th>
-                  <Th>Actions</Th>
+                  <Th>Last Seen</Th>
+                  <Th className="text-right pr-4">Actions</Th>
                 </Tr>
               </THead>
               <TBody>
-                {devices.map((d) => (
-                  <Tr key={d.id}>
-                    <Td className="font-semibold">{d.device_code}</Td>
-                    <Td>
-                      <Badge variant={STATUS_BADGE[d.status] ?? "neutral"} className="capitalize">
-                        {d.status}
-                      </Badge>
-                    </Td>
-                    <Td className="text-ink-muted">{d.dog?.name ?? "— unassigned —"}</Td>
-                    <Td className="tabular-nums">
-                      {d.battery_percent != null ? `${d.battery_percent}%` : "—"}
-                    </Td>
-                    <Td className="text-ink-muted">{d.firmware_version ?? "—"}</Td>
-                    <Td className="text-xs text-ink-muted">
-                      {d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : "never"}
-                    </Td>
-                    <Td>
-                      <button
-                        type="button"
-                        aria-label={`View details for ${d.device_code}`}
-                        title="View Device Details"
-                        onClick={() => setViewingDevice(d)}
-                        className="flex h-8 w-8 items-center justify-center rounded-md bg-surface-alt text-ink-muted transition-colors duration-fast hover:bg-brand-soft hover:text-brand-strong"
-                      >
-                        <Eye size={15} />
-                      </button>
-                    </Td>
-                  </Tr>
-                ))}
+                {filteredDevices.map((d) => {
+                  const delRequest = deletionRequests.get(d.id);
+
+                  return (
+                    <Tr key={d.id} className="hover:bg-surface-alt/30 transition-colors">
+                      {/* Code */}
+                      <Td className="pl-4 font-mono font-black text-xs text-ink">
+                        <div className="flex items-center gap-2">
+                          <Cpu size={14} className="text-brand opacity-80" />
+                          <span>{d.device_code}</span>
+                        </div>
+                      </Td>
+
+                      {/* Status */}
+                      <Td>
+                        <div className="flex flex-col gap-1 items-start">
+                          <Badge variant={STATUS_BADGE[d.status] ?? "neutral"} className="capitalize text-[11px]">
+                            {d.status}
+                          </Badge>
+                          {delRequest && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded"
+                              title={`Requested by ${delRequest.requestedBy}: ${delRequest.reason}`}
+                            >
+                              <AlertTriangle size={10} /> Pending Deletion
+                            </span>
+                          )}
+                        </div>
+                      </Td>
+
+                      {/* Assigned Dog */}
+                      <Td>
+                        {d.dog ? (
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                            <DogIcon size={13} className="text-brand" />
+                            <span>{d.dog.name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-ink-muted italic">— unassigned —</span>
+                        )}
+                      </Td>
+
+                      {/* Battery */}
+                      <Td className="tabular-nums text-xs font-medium text-ink">
+                        {d.battery_percent != null ? `${d.battery_percent}%` : "—"}
+                      </Td>
+
+                      {/* Firmware */}
+                      <Td className="text-xs text-ink-muted font-mono">{d.firmware_version ?? "0.1.0"}</Td>
+
+                      {/* Last Seen */}
+                      <Td className="text-[11px] text-ink-muted">
+                        {d.last_seen_at ? formatPhilippineTime(d.last_seen_at) : "never"}
+                      </Td>
+
+                      {/* Actions */}
+                      <Td className="text-right pr-4">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Edit / Reassign button */}
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleOpenEdit(d)}
+                            className="h-8 text-xs font-bold flex items-center gap-1"
+                          >
+                            <Edit size={13} />
+                            <span>Edit / Assign</span>
+                          </Button>
+
+                          {/* Vet: Request Deletion / Admin: Direct Delete */}
+                          {isAdmin ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setAdminDeleteDevice(d)}
+                              className="h-8 w-8 p-0 text-high-fg hover:bg-high-soft"
+                              title="Admin: Purge Device"
+                            >
+                              <Trash2 size={13} />
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              disabled={Boolean(delRequest)}
+                              onClick={() => {
+                                setRequestingDeleteDevice(d);
+                                setDeletionReason("");
+                              }}
+                              className={`h-8 px-2 text-[11px] font-semibold flex items-center gap-1 ${
+                                delRequest ? "opacity-50 cursor-not-allowed" : "text-high-fg hover:bg-high-soft"
+                              }`}
+                              title="Request Deletion from Admin"
+                            >
+                              <Trash2 size={12} />
+                              <span>{delRequest ? "Requested" : "Request Delete"}</span>
+                            </Button>
+                          )}
+                        </div>
+                      </Td>
+                    </Tr>
+                  );
+                })}
               </TBody>
             </Table>
           )}
         </CardContent>
       </Card>
 
-      {/* View Device Dialog */}
-      <Dialog open={viewingDevice !== null} onClose={() => setViewingDevice(null)} title="Device details">
-        {viewingDevice && (
-          <div className="flex flex-col gap-4 py-1">
-            <div className="flex flex-col gap-1 border-b border-hairline pb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Device Code</span>
-              <span className="text-base font-bold text-ink">{viewingDevice.device_code}</span>
+      {/* ========================================================================= */}
+      {/* MODAL 1: REGISTER / BUILD NEW COLLAR                                      */}
+      {/* ========================================================================= */}
+      {registerOpen && (
+        <Dialog
+          title="Build & Register Telemetry Collar"
+          open={registerOpen}
+          onClose={() => setRegisterOpen(false)}
+        >
+          <form onSubmit={handleRegisterDevice} className="flex flex-col gap-4">
+            <p className="text-xs text-ink-muted m-0">
+              Register a new hardware telemetry collar device code for live physiological monitoring.
+            </p>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="reg-code" className="text-xs font-bold text-ink">
+                Collar Device Code <span className="text-high-fg">*</span>
+              </Label>
+              <Input
+                id="reg-code"
+                placeholder="e.g. FF-DEV-009"
+                value={newDeviceCode}
+                onChange={(e) => setNewDeviceCode(e.target.value.toUpperCase())}
+                required
+                className="font-mono uppercase font-bold"
+              />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Status</span>
-                <div>
-                  <Badge variant={STATUS_BADGE[viewingDevice.status] ?? "neutral"} className="capitalize">
-                    {viewingDevice.status}
-                  </Badge>
-                </div>
-              </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="reg-fw" className="text-xs font-bold text-ink">
+                Firmware Version
+              </Label>
+              <Input
+                id="reg-fw"
+                placeholder="0.1.0"
+                value={newFirmware}
+                onChange={(e) => setNewFirmware(e.target.value)}
+              />
+            </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Firmware Version</span>
-                <span className="text-sm font-medium text-ink">{viewingDevice.firmware_version ?? "—"}</span>
-              </div>
+            <div className="flex justify-end gap-2 pt-3 border-t border-hairline">
+              <Button type="button" variant="secondary" onClick={() => setRegisterOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || !newDeviceCode.trim()} className="font-bold bg-brand text-white">
+                {saving ? "Registering..." : "Register Collar"}
+              </Button>
+            </div>
+          </form>
+        </Dialog>
+      )}
 
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Assigned Dog</span>
-                <span className="text-sm font-medium text-ink">
-                  {viewingDevice.dog?.name ?? "— unassigned —"}
-                </span>
-              </div>
+      {/* ========================================================================= */}
+      {/* MODAL 2: EDIT DEVICE / ASSIGN TO DOG                                      */}
+      {/* ========================================================================= */}
+      {editingDevice && (
+        <Dialog
+          title={`Edit Device: ${editingDevice.device_code}`}
+          open={Boolean(editingDevice)}
+          onClose={() => setEditingDevice(null)}
+        >
+          <form onSubmit={handleSaveEdit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-status" className="text-xs font-bold text-ink">
+                Hardware Status
+              </Label>
+              <Select
+                id="edit-status"
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as DeviceStatus)}
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="offline">Offline</option>
+                <option value="maintenance">Maintenance</option>
+              </Select>
+            </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Last Seen (PST)</span>
-                <span className="text-sm font-medium text-ink">
-                  {viewingDevice.last_seen_at ? formatPhilippineTime(viewingDevice.last_seen_at) : "never"}
-                </span>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-dev-dog" className="text-xs font-bold text-ink">
+                Assign to Patient Dog
+              </Label>
+              <Select
+                id="edit-dev-dog"
+                value={editDogId}
+                onChange={(e) => setEditDogId(e.target.value)}
+                className="h-10 text-xs font-medium"
+              >
+                <option value="">— Unassigned (Available in Fleet) —</option>
+                {dogs.map((dog) => (
+                  <option key={dog.id} value={dog.id}>
+                    {dog.name} ({dog.breed || "Breed unspecified"})
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-dev-fw" className="text-xs font-bold text-ink">
+                Firmware Version
+              </Label>
+              <Input
+                id="edit-dev-fw"
+                value={editFirmware}
+                onChange={(e) => setEditFirmware(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-hairline">
+              <Button type="button" variant="secondary" onClick={() => setEditingDevice(null)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving} className="font-bold bg-brand text-white">
+                {saving ? "Saving..." : "Save Device Changes"}
+              </Button>
+            </div>
+          </form>
+        </Dialog>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: VET REQUEST DELETION MODAL                                       */}
+      {/* ========================================================================= */}
+      {requestingDeleteDevice && (
+        <Dialog
+          title="Request Device Deletion"
+          open={Boolean(requestingDeleteDevice)}
+          onClose={() => setRequestingDeleteDevice(null)}
+        >
+          <form onSubmit={handleRequestDeletion} className="flex flex-col gap-4">
+            <div className="flex items-start gap-3 p-3 rounded-xl border border-warning/40 bg-warning/10 text-xs text-ink">
+              <AlertTriangle size={18} className="text-warning shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Clinic Hardware Governance:</span>
+                <p className="mt-1 m-0 text-ink-muted">
+                  Veterinarians cannot directly purge hardware devices from the central database. Submitting this request
+                  will set collar <strong>{requestingDeleteDevice.device_code}</strong> to <em>Maintenance</em> status
+                  and notify the Administrator to review and execute the final deletion.
+                </p>
               </div>
             </div>
 
-            <div className="flex flex-col gap-1 rounded-md bg-surface-alt p-3">
-              <span className="text-[11px] font-semibold text-ink-muted">Device ID</span>
-              <span className="font-mono text-xs text-ink">{viewingDevice.id}</span>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="del-reason" className="text-xs font-bold text-ink">
+                Reason for Deletion / Decommission <span className="text-high-fg">*</span>
+              </Label>
+              <textarea
+                id="del-reason"
+                value={deletionReason}
+                onChange={(e) => setDeletionReason(e.target.value)}
+                required
+                rows={3}
+                className="rounded-xl border border-hairline bg-surface p-2.5 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand/30"
+                placeholder="e.g. Sensor electrode damaged beyond repair, battery swelling, obsolete prototype..."
+              />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="secondary" onClick={() => setViewingDevice(null)}>
-                Close
+            <div className="flex justify-end gap-2 pt-3 border-t border-hairline">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setRequestingDeleteDevice(null)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving || !deletionReason.trim()}
+                className="font-bold bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {saving ? "Submitting Request..." : "Submit Deletion Request"}
+              </Button>
+            </div>
+          </form>
+        </Dialog>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: ADMIN DIRECT PURGE MODAL                                         */}
+      {/* ========================================================================= */}
+      {adminDeleteDevice && (
+        <Dialog
+          title={`Admin: Purge Device ${adminDeleteDevice.device_code}`}
+          open={Boolean(adminDeleteDevice)}
+          onClose={() => setAdminDeleteDevice(null)}
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-xs text-ink m-0">
+              Are you sure you want to permanently purge device <strong>{adminDeleteDevice.device_code}</strong> from the
+              database? This action is irreversible.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-hairline">
+              <Button type="button" variant="secondary" onClick={() => setAdminDeleteDevice(null)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAdminApproveDelete}
+                disabled={saving}
+                className="font-bold bg-high-fg hover:bg-high-fg/90 text-white"
+              >
+                {saving ? "Purging..." : "Permanently Delete"}
               </Button>
             </div>
           </div>
-        )}
-      </Dialog>
+        </Dialog>
+      )}
     </div>
   );
 }
-

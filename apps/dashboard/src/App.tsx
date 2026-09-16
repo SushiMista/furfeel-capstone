@@ -13,8 +13,9 @@ import { AlertsQueue } from "./pages/alerts/AlertsQueue.tsx";
 import { Handover } from "./pages/handover/Handover.tsx";
 import { Devices } from "./pages/devices/Devices.tsx";
 import { Reports } from "./pages/reports/Reports.tsx";
-import { ClinicTeams } from "./pages/teams/ClinicTeams.tsx";
 import { Admin } from "./pages/admin/Admin.tsx";
+import { PatientIntake } from "./pages/intake/PatientIntake.tsx";
+import { DogManagement } from "./pages/dogs/DogManagement.tsx";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading: authLoading } = useAuth();
@@ -79,6 +80,22 @@ export function App() {
             }
           />
           <Route
+            path="/intake"
+            element={
+              <RequireAuth>
+                <PatientIntake />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/patients"
+            element={
+              <RequireAuth>
+                <DogManagement />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/dogs/:dogId"
             element={
               <RequireAuth>
@@ -135,14 +152,7 @@ export function App() {
               </RequireAuth>
             }
           />
-          <Route
-            path="/teams"
-            element={
-              <RequireAuth>
-                <ClinicTeams />
-              </RequireAuth>
-            }
-          />
+          <Route path="/teams" element={<Navigate to="/" replace />} />
         </Routes>
       </ToastProvider>
     </BrowserRouter>
