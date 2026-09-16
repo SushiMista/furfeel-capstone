@@ -1,21 +1,17 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:furfeel_mobile/data/furfeel_repository.dart';
 import 'package:furfeel_mobile/insights/biometrics.dart';
-import 'package:furfeel_mobile/insights/owner_moments.dart';
 import 'package:furfeel_mobile/models/activity_state.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/day_timeline.dart';
-import 'package:furfeel_mobile/widgets/setup_checklist_card.dart';
 import 'package:furfeel_mobile/widgets/curved_status_header.dart';
 import 'package:furfeel_mobile/widgets/section_header.dart';
 import 'package:furfeel_mobile/widgets/wave_sparkline.dart';
-import 'package:furfeel_mobile/screens/dogs/device_pairing_page.dart';
-import 'package:furfeel_mobile/screens/dogs/dog_form_page.dart';
 import 'package:furfeel_mobile/screens/vitals/vital_detail_page.dart';
-import 'package:furfeel_mobile/screens/settings/settings_page.dart';
 
 /// Finds the daily summary for one calendar day, or null when there's none.
 DailyStressSummary? _summaryForDay(List<DailyStressSummary> daily, DateTime day) {
@@ -83,14 +79,6 @@ class _HomeTabState extends State<HomeTab> {
       clinicId: widget.dog.clinicId,
     );
 
-    // Owner-delight pass: a new owner always sees the next step, never an
-    // unexplained empty screen.
-    final setup = setupProgress(
-      hasDevice: widget.device != null,
-      hasClinic: widget.dog.clinicId != null,
-      hasReading: widget.reading != null,
-    );
-
     final bottom = MediaQuery.paddingOf(context).bottom;
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
@@ -116,25 +104,6 @@ class _HomeTabState extends State<HomeTab> {
                 if (widget.dog.isBirthday(DateTime.now())) ...[
                   _BirthdayBanner(dog: widget.dog).entrance(context),
                   const SizedBox(height: FurFeelTokens.space3),
-                ],
-                if (!setupComplete(setup)) ...[
-                  SetupChecklistCard(
-                    dogName: widget.dog.name,
-                    progress: setup,
-                    onPairHarness: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => DevicePairingPage(
-                            repository: widget.repository, dog: widget.dog),
-                      ),
-                    ),
-                    onLinkClinic: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => DogFormPage(
-                            repository: widget.repository, dog: widget.dog),
-                      ),
-                    ),
-                  ).entrance(context),
-                  const SizedBox(height: FurFeelTokens.space4),
                 ],
                 // Health overview — one waveform row per vital, each its own
                 // colour, opening a detail screen (docs/22 v7, ADR-024).
@@ -210,13 +179,6 @@ class _ImmersiveHero extends StatelessWidget {
           ? const HeaderCircleButton(icon: Icons.pets)
           : HeaderCircleButton(
               icon: Icons.arrow_back_ios_new, tooltip: 'Back', onTap: onBack),
-      trailing: HeaderCircleButton(
-        icon: Icons.settings_outlined,
-        tooltip: 'Settings',
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
-        ),
-      ),
       chips: [
         HeaderChip(
           icon: openAlerts == 0 ? Icons.check : Icons.notifications_active_outlined,
@@ -308,9 +270,6 @@ class _VitalGridState extends State<_VitalGrid> {
 
   @override
   Widget build(BuildContext context) {
-    // Activity shows what the dog is doing, not a raw 0-1 index -- posture +
-    // intensity mapped to a word (docs/04: a glance should answer without a
-    // sensor feed). Squares with no reading show a dash.
     final activityState = reading == null
         ? ActivityState.noSignal
         : activityStateFrom(
@@ -325,39 +284,80 @@ class _VitalGridState extends State<_VitalGrid> {
           VitalKind.activity => (activityState.label, ''),
         };
 
-    // Health-overview rows (docs/22 v7): a coloured icon chip, the value, the
-    // label, and a smooth waveform in the metric's own colour (ADR-024).
     return Column(
       children: [
-        for (final (i, kind) in VitalKind.values.indexed) ...[
-          if (i > 0) const SizedBox(height: FurFeelTokens.space3),
-          _VitalWaveRow(
-            color: kind.color(context),
-            icon: kind.icon,
-            label: kind.label,
-            value: valueAndUnit(kind).$1,
-            unit: valueAndUnit(kind).$2,
-            series: _waveValues(kind),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => VitalDetailPage(
-                  repository: repository,
-                  dog: dog,
-                  kind: kind,
-                  reading: reading,
+        Row(
+          children: [
+            Expanded(
+              child: _VitalBentoCard(
+                color: VitalKind.heartRate.color(context),
+                icon: VitalKind.heartRate.icon,
+                label: VitalKind.heartRate.label,
+                value: valueAndUnit(VitalKind.heartRate).$1,
+                unit: valueAndUnit(VitalKind.heartRate).$2,
+                series: _waveValues(VitalKind.heartRate),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => VitalDetailPage(
+                      repository: repository,
+                      dog: dog,
+                      kind: VitalKind.heartRate,
+                      reading: reading,
+                    ),
+                  ),
                 ),
               ),
             ),
+            const SizedBox(width: FurFeelTokens.space3),
+            Expanded(
+              child: _VitalBentoCard(
+                color: VitalKind.activity.color(context),
+                icon: VitalKind.activity.icon,
+                label: VitalKind.activity.label,
+                value: valueAndUnit(VitalKind.activity).$1,
+                unit: valueAndUnit(VitalKind.activity).$2,
+                series: _waveValues(VitalKind.activity),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => VitalDetailPage(
+                      repository: repository,
+                      dog: dog,
+                      kind: VitalKind.activity,
+                      reading: reading,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: FurFeelTokens.space3),
+        _VitalBentoCard(
+          isWide: true,
+          color: VitalKind.breathing.color(context),
+          icon: VitalKind.breathing.icon,
+          label: VitalKind.breathing.label,
+          value: valueAndUnit(VitalKind.breathing).$1,
+          unit: valueAndUnit(VitalKind.breathing).$2,
+          series: _waveValues(VitalKind.breathing),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => VitalDetailPage(
+                repository: repository,
+                dog: dog,
+                kind: VitalKind.breathing,
+                reading: reading,
+              ),
+            ),
           ),
-        ],
+        ),
       ],
     );
   }
 }
 
-/// One Home health-overview row: coloured icon chip · value + label · waveform.
-class _VitalWaveRow extends StatelessWidget {
-  const _VitalWaveRow({
+class _VitalBentoCard extends StatelessWidget {
+  const _VitalBentoCard({
     required this.color,
     required this.icon,
     required this.label,
@@ -365,6 +365,7 @@ class _VitalWaveRow extends StatelessWidget {
     required this.unit,
     required this.series,
     required this.onTap,
+    this.isWide = false,
   });
 
   final Color color;
@@ -374,6 +375,7 @@ class _VitalWaveRow extends StatelessWidget {
   final String unit;
   final List<double> series;
   final VoidCallback onTap;
+  final bool isWide;
 
   @override
   Widget build(BuildContext context) {
@@ -386,95 +388,177 @@ class _VitalWaveRow extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
           child: Container(
+            height: isWide ? 120 : 150,
             padding: const EdgeInsets.all(FurFeelTokens.space4),
-            // No hairline border — pure-white capsule with just a soft shadow,
-            // matching docs/22 v8 (the border read as grey/dark).
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-              boxShadow: FurFeelTokens.shadowCard,
+              boxShadow: FurFeelTokens.shadowCard, // Using the beautiful soft shadow
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-                  ),
-                  child: Icon(icon, size: 24, color: color),
-                ),
-                const SizedBox(width: FurFeelTokens.space3),
-                SizedBox(
-                  width: 104,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text.rich(
-                        TextSpan(
-                          text: value,
-                          style: TextStyle(
-                            fontSize: FurFeelTokens.typeH1Size,
-                            fontWeight: FontWeight.w800,
-                            color: p.ink,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                          children: [
-                            if (unit.isNotEmpty)
-                              TextSpan(
-                                text: ' $unit',
-                                style: TextStyle(
-                                  fontSize: FurFeelTokens.typeBodyMobileSize,
-                                  fontWeight: FontWeight.w300,
-                                  color: p.inkMuted,
-                                ),
-                              ),
-                          ],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: FurFeelTokens.typeBodyMobileSize,
-                          fontWeight: FontWeight.w300,
-                          color: p.inkMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Graph sits right of the label, a fixed tinted panel (not
-                // stretched full width, per docs/22 v8) with the chevron right.
-                const Spacer(),
-                Container(
-                  width: 120,
-                  height: 48,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-                  ),
-                  child: WaveSparkline(series: series, color: color, height: 48),
-                ),
-                const SizedBox(width: FurFeelTokens.space2),
-                Icon(Icons.chevron_right, size: 18, color: p.inkMuted),
-              ],
-            ),
+            child: isWide ? _buildWide(context) : _buildSquare(context),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildSquare(BuildContext context) {
+    final p = context.ff;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 16, color: color),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: p.inkMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const Spacer(),
+        Text.rich(
+          TextSpan(
+            text: value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: p.ink,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+            children: [
+              if (unit.isNotEmpty)
+                TextSpan(
+                  text: ' $unit',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: p.inkMuted,
+                  ),
+                ),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 36,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: series.isNotEmpty
+              ? WaveSparkline(series: series, color: color)
+              : Center(child: Text('—', style: TextStyle(color: p.inkMuted))),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWide(BuildContext context) {
+    final p = context.ff;
+    return Row(
+      children: [
+        Expanded(
+          flex: 4,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, size: 16, color: color),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: p.inkMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text.rich(
+                TextSpan(
+                  text: value,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: p.ink,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                  children: [
+                    if (unit.isNotEmpty)
+                      TextSpan(
+                        text: ' $unit',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: p.inkMuted,
+                        ),
+                      ),
+                  ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 5,
+          child: Container(
+            height: double.infinity,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: series.isNotEmpty
+                ? WaveSparkline(series: series, color: color)
+                : Center(child: Text('—', style: TextStyle(color: p.inkMuted))),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-/// "Today so far" card — QA: the calm share is a visual, not just a line of
-/// text. A ring fills with the calm share; the delta vs yesterday sits beside
-/// it with a trend icon (word + icon, never color alone).
 class _TodaySoFar extends StatelessWidget {
   const _TodaySoFar({required this.daily});
 
@@ -500,42 +584,44 @@ class _TodaySoFar extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.all(FurFeelTokens.space4),
+      padding: const EdgeInsets.all(FurFeelTokens.space5),
       decoration: BoxDecoration(
         color: context.ff.surface,
-        borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-        border: Border.all(color: context.ff.hairline),
+        borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+        boxShadow: FurFeelTokens.shadowCard,
       ),
       child: Row(
         children: [
-          // Calm-share ring: animates to the current share, instant under
-          // reduced motion.
           SizedBox(
-            width: 64,
-            height: 64,
+            width: 72,
+            height: 72,
             child: TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: todayShare),
               duration: context.reduceMotion
                   ? Duration.zero
-                  : const Duration(milliseconds: 600),
+                  : const Duration(milliseconds: 1000),
               curve: Curves.easeOutCubic,
               builder: (context, value, _) => Stack(
                 fit: StackFit.expand,
                 alignment: Alignment.center,
                 children: [
                   CircularProgressIndicator(
+                    value: 1.0,
+                    strokeWidth: 8,
+                    color: context.ff.surfaceAlt,
+                  ),
+                  CircularProgressIndicator(
                     value: value,
-                    strokeWidth: 6,
+                    strokeWidth: 8,
                     strokeCap: StrokeCap.round,
                     color: context.ff.statusCalmFg,
-                    backgroundColor: context.ff.surfaceAlt,
                   ),
                   Center(
                     child: Text(
                       '${(value * 100).round()}%',
                       style: TextStyle(
                         fontSize: FurFeelTokens.typeH3Size,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                         color: context.ff.ink,
                       ),
                     ),
@@ -550,23 +636,33 @@ class _TodaySoFar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Calm today so far',
+                  'Daily Calm Goal',
                   style: TextStyle(
                     fontSize: FurFeelTokens.typeBodyMobileSize,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: context.ff.ink,
                   ),
                 ),
                 if (trendWord != null) ...[
-                  const SizedBox(height: FurFeelTokens.space1),
+                  const SizedBox(height: FurFeelTokens.space2),
                   Row(
                     children: [
-                      Icon(trendIcon, size: 16, color: trendColor),
-                      const SizedBox(width: FurFeelTokens.space1),
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: trendColor.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(trendIcon, size: 14, color: trendColor),
+                      ),
+                      const SizedBox(width: FurFeelTokens.space2),
                       Flexible(
                         child: Text(
                           trendWord,
-                          style: textTheme.bodySmall?.copyWith(color: trendColor),
+                          style: textTheme.bodySmall?.copyWith(
+                            color: trendColor,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -581,11 +677,8 @@ class _TodaySoFar extends StatelessWidget {
   }
 }
 
-/// Birthday moment (owner-delight pass): a warm one-liner on the dog's day.
-/// Purely celebratory — no data claims.
 class _BirthdayBanner extends StatelessWidget {
   const _BirthdayBanner({required this.dog});
-
   final Dog dog;
 
   @override
@@ -594,14 +687,14 @@ class _BirthdayBanner extends StatelessWidget {
     final age = dog.ageYears;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(FurFeelTokens.space4),
+      padding: const EdgeInsets.all(FurFeelTokens.space5),
       decoration: BoxDecoration(
         color: context.ff.warmSoft,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
       ),
       child: Row(
         children: [
-          const Text('🎂', style: TextStyle(fontSize: 28)),
+          const Text('🎂', style: TextStyle(fontSize: 32)),
           const SizedBox(width: FurFeelTokens.space3),
           Expanded(
             child: Column(
@@ -609,8 +702,7 @@ class _BirthdayBanner extends StatelessWidget {
               children: [
                 Text(
                   'Happy birthday, ${dog.name}!',
-                  style:
-                      textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 Text(
                   age == null
@@ -627,8 +719,6 @@ class _BirthdayBanner extends StatelessWidget {
   }
 }
 
-/// Care Insights (docs/04 module 4): vet-authored plain-language guidance for
-/// the current stress level. Informational only — never diagnosis.
 class _CareInsightsCard extends StatelessWidget {
   const _CareInsightsCard({required this.guidance});
 
@@ -637,35 +727,76 @@ class _CareInsightsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(FurFeelTokens.space5),
-      decoration: BoxDecoration(
-        // Owner-app warmth layer (docs/19): warm tinted card, warm accent.
-        color: context.ff.warmSoft,
-        borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final p = context.ff;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(FurFeelTokens.space5),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                p.warmSoft.withValues(alpha: 0.8),
+                p.warmSoft.withValues(alpha: 0.3),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: p.warm.withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              )
+            ]
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.tips_and_updates_outlined,
-                  size: 18, color: context.ff.warm),
-              const SizedBox(width: FurFeelTokens.space2),
-              SectionHeader(title: 'Care insights'),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: p.warm.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.tips_and_updates_outlined, size: 16, color: p.warm),
+                  ),
+                  const SizedBox(width: FurFeelTokens.space3),
+                  SectionHeader(title: 'Care insights'),
+                ],
+              ),
+              const SizedBox(height: FurFeelTokens.space3),
+              Text(
+                guidance.title,
+                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: FurFeelTokens.space2),
+              Text(
+                guidance.body,
+                style: textTheme.bodyMedium?.copyWith(height: 1.4),
+              ),
+              const SizedBox(height: FurFeelTokens.space4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'General guidance from your care team — not a diagnosis.',
+                  style: textTheme.bodySmall?.copyWith(color: p.inkMuted),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: FurFeelTokens.space2),
-          Text(guidance.title, style: textTheme.titleMedium),
-          const SizedBox(height: FurFeelTokens.space2),
-          Text(guidance.body, style: textTheme.bodyMedium),
-          const SizedBox(height: FurFeelTokens.space3),
-          Text(
-            'General guidance from your care team — not a diagnosis.',
-            style: textTheme.bodySmall,
-          ),
-        ],
+        ),
       ),
     );
   }

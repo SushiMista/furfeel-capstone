@@ -20,14 +20,11 @@ import 'package:furfeel_mobile/data/furfeel_repository.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/screens/auth/consent_page.dart';
-import 'package:furfeel_mobile/screens/auth/guided_setup_page.dart';
-import 'package:furfeel_mobile/screens/auth/onboarding_page.dart';
 import 'package:furfeel_mobile/screens/auth/splash_page.dart';
 import 'package:furfeel_mobile/screens/auth/welcome_page.dart';
 import 'package:furfeel_mobile/screens/dogs/care_tips_page.dart';
-import 'package:furfeel_mobile/screens/dogs/device_pairing_page.dart';
 import 'package:furfeel_mobile/screens/dogs/dog_detail_page.dart';
-import 'package:furfeel_mobile/screens/dogs/dog_form_page.dart';
+import 'package:furfeel_mobile/screens/home/empty_account_page.dart';
 import 'package:furfeel_mobile/screens/home/root_shell.dart';
 import 'package:furfeel_mobile/screens/observations/media_thread_page.dart';
 import 'package:furfeel_mobile/screens/observations/observation_page.dart';
@@ -244,9 +241,7 @@ void main() {
         ('observation', ObservationPage(repository: repo, dog: dog)),
         ('vet_review', VetReviewPage(repository: repo, dog: dog)),
         ('media_thread', MediaThreadPage(repository: mediaRepo, dog: dog, submission: submission)),
-        ('device_pairing', DevicePairingPage(repository: repo, dog: dog)),
         ('care_tips', CareTipsPage(repository: repo)),
-        ('dog_form', DogFormPage(repository: repo)),
         ('settings', const SettingsPage()),
         ('account', AccountPage(repository: repo, onSignOut: () async {})),
         ('partner_clinics', PartnerClinicsPage(repository: repo)),
@@ -256,9 +251,8 @@ void main() {
         // Auth flow.
         ('splash', const SplashPage()),
         ('welcome', WelcomePage(client: client)),
-        ('onboarding', OnboardingPage(onDone: () {})),
         ('consent', ConsentPage(repository: repo, onAccepted: () {}, onSignOut: () async {})),
-        ('guided_setup', GuidedSetupPage(repository: repo, onFinished: () async {}, onSignOut: () async {})),
+        ('empty_account', EmptyAccountPage(onSignOut: () async {})),
       ];
 
       for (final (name, screen) in screens) {
