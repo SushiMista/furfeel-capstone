@@ -38,6 +38,7 @@ import {
   updateDevice,
 } from "../../lib/adminQueries.ts";
 import { uploadDogPhoto } from "../../lib/queries.ts";
+import { seedInitialBiotelemetry } from "../../lib/biotelemetrySeeder.ts";
 import type { Clinic, Device, DogSex, User } from "../../../../../packages/shared/types/index.ts";
 
 export function PatientIntake() {
@@ -191,6 +192,7 @@ export function PatientIntake() {
       }
 
       // 3. Device Binding / Creation
+      let boundDeviceId: string | null = null;
       if (deviceMode === "new" && newDeviceCode.trim()) {
         // Build & Register New Hardware Collar
         const newDevice = await registerDevice(
@@ -198,6 +200,7 @@ export function PatientIntake() {
           newDeviceCode.trim().toUpperCase(),
           newDeviceFirmware.trim() || "0.1.0",
         );
+        boundDeviceId = newDevice.id;
         // Bind to newly created dog
         await updateDevice(supabase, newDevice.id, {
           dog_id: dog.id,
@@ -205,12 +208,24 @@ export function PatientIntake() {
         });
         toast("success", `Built & paired Collar ${newDevice.device_code} with ${dog.name}`);
       } else if (deviceMode === "existing" && selectedDeviceId) {
+        boundDeviceId = selectedDeviceId;
         // Bind existing fleet device
         await updateDevice(supabase, selectedDeviceId, {
           dog_id: dog.id,
           status: "active",
         });
         toast("success", `Paired collar with ${dog.name}`);
+      }
+
+      // Seed initial biotelemetry & stress data if device is paired
+      if (boundDeviceId) {
+        await seedInitialBiotelemetry(supabase, {
+          dogId: dog.id,
+          deviceId: boundDeviceId,
+          baselineHr: restingHr ? parseInt(restingHr, 10) : 85,
+          baselineRr: restingRr ? parseInt(restingRr, 10) : 20,
+          count: 6,
+        });
       }
 
       // 4. Baseline Configuration if provided

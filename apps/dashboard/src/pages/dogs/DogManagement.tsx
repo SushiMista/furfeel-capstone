@@ -31,6 +31,7 @@ import {
   updateDog,
   updateDevice,
 } from "../../lib/adminQueries.ts";
+import { seedInitialBiotelemetry } from "../../lib/biotelemetrySeeder.ts";
 import type { User as AppUser, DogSex } from "../../../../../packages/shared/types/index.ts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
@@ -259,6 +260,14 @@ export function DogManagement() {
           dog_id: pairingDog.id,
           status: "active",
         });
+
+        // Seed initial placeholder vitals if pairing to a collar
+        await seedInitialBiotelemetry(supabase, {
+          dogId: pairingDog.id,
+          deviceId: selectedCollarId,
+          count: 6,
+        });
+
         toast("success", `Paired collar with ${pairingDog.name}`);
       }
       setPairingDog(null);
