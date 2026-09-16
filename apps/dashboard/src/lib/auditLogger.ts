@@ -103,3 +103,30 @@ export async function fetchAuditLogs(options?: {
 
   return (data ?? []) as AuditLogRecord[];
 }
+
+/**
+ * Fetches pending device deletion requests submitted by clinic staff/vets.
+ */
+export async function fetchPendingDeviceDeletionRequests(): Promise<
+  Map<string, { reason: string; requestedAt: string; requestedBy: string }>
+> {
+  const { data, error } = await supabase
+    .from("audit_logs")
+    .select("target_id, details, created_at, actor_email")
+    .eq("action", "device.deletion_requested")
+    .order("created_at", { ascending: false });
+
+  const map = new Map<string, { reason: string; requestedAt: string; requestedBy: string }>();
+  if (error || !data) return map;
+  for (const row of data) {
+    if (row.target_id && !map.has(row.target_id)) {
+      const details = (row.details ?? {}) as Record<string, unknown>;
+      map.set(row.target_id, {
+        reason: (details.reason as string) || "No reason specified",
+        requestedAt: (details.requested_at as string) || row.created_at,
+        requestedBy: (details.requested_by as string) || row.actor_email,
+      });
+    }
+  }
+  return map;
+}

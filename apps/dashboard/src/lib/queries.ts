@@ -71,6 +71,8 @@ export async function fetchDogBaselines(
     .from("dog_baselines")
     .select(DOG_BASELINES_COLUMNS)
     .eq("dog_id", dogId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as DogBaselines | null;
@@ -139,6 +141,8 @@ async function fetchDeviceForDog(client: SupabaseClient, dogId: string): Promise
     .from("devices")
     .select(DEVICE_COLUMNS)
     .eq("dog_id", dogId)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as Device | null;
