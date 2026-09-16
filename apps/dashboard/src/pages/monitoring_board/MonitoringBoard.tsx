@@ -329,175 +329,161 @@ export function MonitoringBoard() {
   );
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start w-full">
-      {/* Left Division Box: Board Controls & Filters (Sticky on scroll at top) */}
-      <Card className="w-full shrink-0 p-4 lg:w-64 xl:w-72 lg:sticky lg:top-6 z-10 self-start shadow-sm">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between border-b border-hairline pb-3">
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={18} className="text-brand" />
-              <h2 className="m-0 text-sm font-bold text-ink">Board Controls</h2>
+    <div className="flex flex-col gap-5 w-full">
+      {/* Top Header Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="m-0 text-2xl font-black text-ink tracking-tight">Monitoring Board</h1>
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-calm-fg opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-calm-fg"></span>
+            </span>
+            <Badge variant="neutral" className="text-xs font-semibold">
+              {visible.length} of {rows.length} live
+            </Badge>
+          </div>
+          <p className="text-xs text-ink-muted mt-1 m-0">
+            Real-time canine biometric telemetry & autonomic stress surveillance.
+          </p>
+        </div>
+
+        {/* View Switcher & Reset */}
+        <div className="flex items-center gap-2.5">
+          {(search.trim() !== "" || filter !== "all" || sortBy !== "stress" || groupBy !== "none") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearch("");
+                switchFilter("all");
+                switchSort("stress");
+                switchGroup("none");
+              }}
+              className="text-xs font-semibold text-ink-muted hover:text-brand flex items-center gap-1.5 h-9"
+            >
+              <RotateCcw size={13} />
+              <span>Reset Filters</span>
+            </Button>
+          )}
+
+          <div className="flex items-center rounded-xl bg-surface-alt p-1 border border-hairline shadow-xs">
+            <Button
+              variant={view === "grid" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-xs font-bold gap-1 px-3"
+              aria-pressed={view === "grid"}
+              onClick={() => switchView("grid")}
+            >
+              <LayoutGrid size={13} />
+              <span>Cards</span>
+            </Button>
+            <Button
+              variant={view === "table" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-xs font-bold gap-1 px-3"
+              aria-pressed={view === "table"}
+              onClick={() => switchView("table")}
+            >
+              <Rows3 size={13} />
+              <span>Table</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Search & Sorting Control Bar */}
+      <Card className="border-hairline shadow-xs p-3.5 bg-surface">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          {/* Top Search Bar (Left & Center) */}
+          <div className="relative flex-1">
+            <Search
+              size={15}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted"
+            />
+            <Input
+              id="board-search"
+              className="h-10 w-full pl-10 text-xs bg-surface-alt/40 border-hairline font-medium focus:bg-surface"
+              placeholder="Search patient dog, breed, owner, ward, clinic…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search dogs"
+            />
+          </div>
+
+          {/* Top Sorting & Grouping Section (Right) */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <span className="text-xs font-bold text-ink-muted shrink-0">Sort:</span>
+              <Select
+                id="board-sort"
+                aria-label="Sort board by"
+                className="h-10 text-xs font-bold bg-surface-alt/40 border-hairline min-w-[180px]"
+                value={sortBy}
+                onChange={(e) => switchSort(e.target.value as BoardSortKey)}
+              >
+                <option value="stress">Stress Level (Worst first)</option>
+                <option value="name">Patient Name (A-Z)</option>
+                <option value="owner">Owner Name (A-Z)</option>
+                <option value="clinic">Clinic Name (A-Z)</option>
+              </Select>
             </div>
-            {(search.trim() !== "" || filter !== "all" || sortBy !== "stress" || groupBy !== "none") && (
+
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <span className="text-xs font-bold text-ink-muted shrink-0">Group:</span>
+              <Select
+                id="board-group"
+                aria-label="Group board by"
+                className="h-10 text-xs font-bold bg-surface-alt/40 border-hairline min-w-[150px]"
+                value={groupBy}
+                onChange={(e) => switchGroup(e.target.value as BoardGroupKey)}
+              >
+                <option value="none">No Grouping</option>
+                <option value="ward">Hospital Ward / Cage</option>
+                <option value="admission">Admission Stage</option>
+                <option value="owner">Owner</option>
+                <option value="clinic">Clinic</option>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Status Chips Row */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-3 mt-3 border-t border-hairline/70">
+          <span className="text-[11px] font-bold text-ink-muted uppercase tracking-wider mr-1">Status:</span>
+          {BOARD_FILTERS.map((f) => {
+            const count = filterCounts[f.id];
+            const active = filter === f.id;
+            return (
               <button
+                key={f.id}
                 type="button"
-                onClick={() => {
-                  setSearch("");
-                  switchFilter("all");
-                  switchSort("stress");
-                  switchGroup("none");
-                }}
-                className="flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline"
+                aria-pressed={active}
+                onClick={() => switchFilter(f.id)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                  active
+                    ? "bg-brand text-white shadow-xs font-bold"
+                    : "bg-surface-alt/60 text-ink-muted hover:text-ink hover:bg-surface-alt border border-hairline",
+                )}
               >
-                <RotateCcw size={12} />
-                Reset
+                <span>{f.label}</span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.2 text-[10px] font-black",
+                    active ? "bg-white/20 text-white" : "bg-surface text-ink-muted",
+                  )}
+                >
+                  {count}
+                </span>
               </button>
-            )}
-          </div>
-
-          {/* Quick Search Input */}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="board-search" className="text-xs font-semibold text-ink-muted">
-              Search
-            </label>
-            <div className="relative">
-              <Search
-                size={14}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
-              />
-              <Input
-                id="board-search"
-                className="h-9 w-full pl-8 text-xs bg-surface"
-                placeholder="Search dogs, owners, clinics…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="Search dogs"
-              />
-            </div>
-          </div>
-
-          {/* Display View Switcher */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-semibold text-ink-muted">Display View</span>
-            <div
-              className="grid grid-cols-2 gap-1 rounded-md bg-surface-alt p-1 border border-hairline"
-              role="group"
-              aria-label="Board view"
-            >
-              <Button
-                variant={view === "grid" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 text-xs font-semibold"
-                aria-pressed={view === "grid"}
-                onClick={() => switchView("grid")}
-              >
-                <LayoutGrid size={14} aria-hidden="true" />
-                Cards
-              </Button>
-              <Button
-                variant={view === "table" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 text-xs font-semibold"
-                aria-pressed={view === "table"}
-                onClick={() => switchView("table")}
-              >
-                <Rows3 size={14} aria-hidden="true" />
-                Table
-              </Button>
-            </div>
-          </div>
-
-          {/* Sort Selector */}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="board-sort" className="text-xs font-semibold text-ink-muted">
-              Sort By
-            </label>
-            <Select
-              id="board-sort"
-              aria-label="Sort board by"
-              className="h-9 w-full text-xs font-medium bg-surface"
-              value={sortBy}
-              onChange={(e) => switchSort(e.target.value as BoardSortKey)}
-            >
-              <option value="stress">Stress Level (Worst first)</option>
-              <option value="name">Dog Name (A-Z)</option>
-              <option value="owner">Owner Name (A-Z)</option>
-              <option value="clinic">Clinic Name (A-Z)</option>
-            </Select>
-          </div>
-
-          {/* Group Selector */}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="board-group" className="text-xs font-semibold text-ink-muted">
-              Group By
-            </label>
-            <Select
-              id="board-group"
-              aria-label="Group board by"
-              className="h-9 w-full text-xs font-medium bg-surface"
-              value={groupBy}
-              onChange={(e) => switchGroup(e.target.value as BoardGroupKey)}
-            >
-              <option value="none">No Grouping</option>
-              <option value="ward">Hospital Ward / Cage</option>
-              <option value="admission">Admission Stage</option>
-              <option value="owner">Owner</option>
-              <option value="clinic">Clinic</option>
-            </Select>
-          </div>
-
-          {/* Quick Filter Status Badges */}
-          <div className="flex flex-col gap-1.5 pt-1">
-            <div className="flex items-center justify-between text-xs font-semibold text-ink-muted">
-              <span>Filter Status</span>
-              <Filter size={12} />
-            </div>
-            <div className="flex flex-col gap-1">
-              {BOARD_FILTERS.map((f) => {
-                const count = filterCounts[f.id];
-                const active = filter === f.id;
-                return (
-                  <button
-                    key={f.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => switchFilter(f.id)}
-                    className={cn(
-                      "flex items-center justify-between rounded-md px-3 py-2 text-xs font-medium transition-colors duration-fast text-left",
-                      active
-                        ? "bg-brand-soft text-brand-strong font-semibold border border-brand/30"
-                        : "bg-surface text-ink-muted hover:bg-surface-alt border border-hairline",
-                    )}
-                  >
-                    <span>{f.label}</span>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                        active ? "bg-brand text-white" : "bg-surface-alt text-ink-muted",
-                      )}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+            );
+          })}
         </div>
       </Card>
 
-      {/* Right Main Board Content Division */}
-      <div className="flex-1 w-full min-w-0 flex flex-col gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-3">
-          <div>
-            <h1 className="m-0 text-2xl font-bold text-ink">Monitoring board</h1>
-            <p className="m-0 mt-0.5 text-xs text-ink-muted">
-              Showing {visible.length} of {rows.length} dogs live
-            </p>
-          </div>
-        </div>
-
-        {/* Board Cards or Table Rendering */}
+      {/* Main Board Content (Full Width) */}
+      <div className="w-full min-w-0 flex flex-col gap-4">
         {rows.length === 0 ? (
           <Card>
             <EmptyState>
@@ -509,7 +495,7 @@ export function MonitoringBoard() {
             <EmptyState>No dogs match — try clearing the search or filter 🐾</EmptyState>
           </Card>
         ) : groupedSections ? (
-          /* Grouped View (by Owner or Clinic) */
+          /* Grouped View */
           <div className="flex flex-col gap-6">
             {groupedSections.map(([groupName, sectionRows]) => (
               <div key={groupName} className="flex flex-col gap-3">
@@ -523,7 +509,7 @@ export function MonitoringBoard() {
                 </div>
 
                 {view === "grid" ? (
-                  <div className="ff-enter-list grid gap-4 grid-cols-1 xl:grid-cols-2">
+                  <div className="ff-enter-list grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                     {sectionRows.map((row) => (
                       <DogCard key={row.dog.id} row={row} onPhotoChanged={refreshDog} />
                     ))}
@@ -535,8 +521,8 @@ export function MonitoringBoard() {
             ))}
           </div>
         ) : view === "grid" ? (
-          /* Ungrouped Cards View */
-          <div className="ff-enter-list grid gap-4 grid-cols-1 xl:grid-cols-2">
+          /* Ungrouped Cards View: Full Width 1 / 2 / 3 Column Grid */
+          <div className="ff-enter-list grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
             {visible.map((row) => (
               <DogCard key={row.dog.id} row={row} onPhotoChanged={refreshDog} />
             ))}
