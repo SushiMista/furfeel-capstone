@@ -38,24 +38,25 @@ const ROW_TINT: Record<StressLevel, string> = {
 };
 
 /** Device connectivity dot (docs/05 board: "device status (online dot)"). */
-function DeviceStatus({ status }: { status: string | undefined }) {
-  const online = status === "active";
-  const offline = status === "offline";
+function DeviceStatus({ status, hasReading }: { status: string | undefined; hasReading: boolean }) {
+  const isMaintenance = status === "maintenance";
+  const online = (hasReading || status === "active") && !isMaintenance;
+  const offline = !hasReading && status === "offline";
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 text-xs font-medium",
-        online ? "text-calm-fg" : offline ? "text-high-fg" : "text-ink-muted",
+        online ? "text-calm-fg" : isMaintenance ? "text-amber-600" : offline ? "text-high-fg" : "text-ink-muted",
       )}
     >
       <span
         className={cn(
-          "h-2 w-2 rounded-pill",
-          online ? "bg-calm-fg" : offline ? "bg-high-fg" : "bg-hairline",
+          "h-2 w-2 rounded-full shrink-0",
+          online ? "bg-calm-fg animate-pulse" : isMaintenance ? "bg-amber-500" : offline ? "bg-high-fg" : "bg-hairline",
         )}
         aria-hidden="true"
       />
-      {status ?? "unassigned"}
+      {online ? "active" : isMaintenance ? "maintenance" : (status ?? "unassigned")}
     </span>
   );
 }
@@ -161,11 +162,11 @@ export function MonitoringBoard() {
       filtered = filtered.filter(
         (r) =>
           (r.latestClassification && r.latestClassification.stress_level !== "calm") ||
-          r.device?.status === "offline" ||
+          (r.device?.status === "offline" && !r.latestReading) ||
           r.openAlertCount > 0,
       );
     } else if (filter === "offline") {
-      filtered = filtered.filter((r) => r.device?.status === "offline");
+      filtered = filtered.filter((r) => r.device?.status === "offline" && !r.latestReading);
     } else if (filter === "moderate" || filter === "high") {
       filtered = filtered.filter(
         (r) => r.latestClassification?.stress_level === filter,
@@ -211,10 +212,10 @@ export function MonitoringBoard() {
       attention: rows.filter(
         (r) =>
           (r.latestClassification && r.latestClassification.stress_level !== "calm") ||
-          r.device?.status === "offline" ||
+          (r.device?.status === "offline" && !r.latestReading) ||
           r.openAlertCount > 0,
       ).length,
-      offline: rows.filter((r) => r.device?.status === "offline").length,
+      offline: rows.filter((r) => r.device?.status === "offline" && !r.latestReading).length,
       moderate: rows.filter((r) => r.latestClassification?.stress_level === "moderate").length,
       high: rows.filter((r) => r.latestClassification?.stress_level === "high").length,
     };
@@ -281,7 +282,7 @@ export function MonitoringBoard() {
                   <div className="text-[10px] text-ink-muted/80">{row.clinicName ?? "—"}</div>
                 </Td>
                 <Td>
-                  <DeviceStatus status={row.device?.status} />
+                  <DeviceStatus status={row.device?.status} hasReading={Boolean(row.latestReading)} />
                 </Td>
                 <Td>
                   {level ? (

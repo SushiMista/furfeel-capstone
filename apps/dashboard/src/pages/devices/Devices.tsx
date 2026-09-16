@@ -144,6 +144,26 @@ export function Devices() {
     setEditDogId(dev.dog_id || "");
   }
 
+  // Auto-open modal if device_code, dog_id, or id is passed in URL query params
+  useEffect(() => {
+    if (devices.length === 0) return;
+    const targetCode = searchParams.get("device_code")?.toLowerCase();
+    const targetDogId = searchParams.get("dog_id");
+    const targetId = searchParams.get("id");
+
+    if (targetCode || targetDogId || targetId) {
+      const matched = devices.find(
+        (d) =>
+          (targetId && d.id === targetId) ||
+          (targetCode && d.device_code.toLowerCase() === targetCode) ||
+          (targetDogId && d.dog_id === targetDogId),
+      );
+      if (matched) {
+        handleOpenEdit(matched);
+      }
+    }
+  }, [devices, searchParams]);
+
   // Save Edit Device
   async function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
