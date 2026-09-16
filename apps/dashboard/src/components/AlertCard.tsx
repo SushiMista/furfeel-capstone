@@ -102,10 +102,10 @@ export function AlertCard({
   const deviceCode = matchCode ? matchCode[1] : null;
 
   const targetDeviceUrl = deviceCode
-    ? `/admin/devices?device_code=${encodeURIComponent(deviceCode)}`
+    ? `/devices?device_code=${encodeURIComponent(deviceCode)}`
     : alert.dog_id
-      ? `/admin/devices?dog_id=${encodeURIComponent(alert.dog_id)}`
-      : `/admin/devices?status=offline`;
+      ? `/devices?dog_id=${encodeURIComponent(alert.dog_id)}`
+      : `/devices?status=offline`;
 
   return (
     <div

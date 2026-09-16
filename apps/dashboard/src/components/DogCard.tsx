@@ -84,8 +84,10 @@ export function DogCard({
     };
   }, [dog.photo_path]);
 
-  const online = device?.status === "active";
-  const offline = device?.status === "offline";
+  const hasReading = Boolean(latestReading);
+  const isMaintenance = device?.status === "maintenance";
+  const online = (hasReading || device?.status === "active") && !isMaintenance;
+  const offline = !hasReading && device?.status === "offline";
 
   return (
     <div
@@ -269,12 +271,18 @@ export function DogCard({
             <span
               className={cn(
                 "h-2 w-2 rounded-full shrink-0",
-                online ? "bg-calm-fg animate-pulse" : offline ? "bg-high-fg" : "bg-hairline",
+                online ? "bg-calm-fg animate-pulse" : isMaintenance ? "bg-amber-500" : offline ? "bg-high-fg" : "bg-hairline",
               )}
               aria-hidden="true"
             />
-            <span className={cn(online ? "text-calm-fg" : offline ? "text-high-fg" : "text-ink-muted")}>
-              {online ? `Collar Active ${device?.device_code ? `(${device.device_code})` : ""}` : offline ? `Offline (${device?.device_code ?? ""})` : "Unassigned"}
+            <span className={cn(online ? "text-calm-fg" : isMaintenance ? "text-amber-600" : offline ? "text-high-fg" : "text-ink-muted")}>
+              {online
+                ? `Collar Active ${device?.device_code ? `(${device.device_code})` : ""}`
+                : isMaintenance
+                  ? `Maintenance (${device?.device_code ?? ""})`
+                  : offline
+                    ? `Offline (${device?.device_code ?? ""})`
+                    : "Unassigned"}
             </span>
           </div>
 
