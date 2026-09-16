@@ -42,6 +42,14 @@ function ReviewRedirect() {
   return <Navigate to={`/dogs/${dogId}?tab=review`} replace />;
 }
 
+function RoleBasedRoot() {
+  const { role } = useCurrentRole();
+  if (role === "admin") {
+    return <Navigate to="/admin/overview" replace />;
+  }
+  return <Overview />;
+}
+
 export function App() {
   const { session, loading } = useAuth();
 
@@ -67,7 +75,7 @@ export function App() {
             path="/"
             element={
               <RequireAuth>
-                <Overview />
+                <RoleBasedRoot />
               </RequireAuth>
             }
           />
@@ -111,7 +119,7 @@ export function App() {
               </RequireAuth>
             }
           />
-          <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
           <Route
             path="/admin/:tab"
             element={

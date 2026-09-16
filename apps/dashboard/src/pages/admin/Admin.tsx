@@ -79,6 +79,7 @@ import { DeviceAdoptionChart } from "../../components/DeviceAdoptionChart.tsx";
 import { formatPhilippineTime } from "../../lib/time.ts";
 import { dogTint } from "../../lib/dogTint.ts";
 import { BugReportsTab } from "./BugReportsTab.tsx";
+import { AdminOverviewTab } from "./AdminOverviewTab.tsx";
 import { fetchBugReports } from "../../lib/bugReportQueries.ts";
 import type {
   Alert,
@@ -93,8 +94,8 @@ import type {
 } from "../../../../../packages/shared/types/index.ts";
 
 const DEVICE_STATUSES: DeviceStatus[] = ["active", "inactive", "offline", "maintenance"];
-type Tab = "users" | "clinics" | "devices" | "dogs" | "dog-clinic" | "bugs" | "audit" | "health";
-const TABS: Tab[] = ["users", "clinics", "devices", "dogs", "dog-clinic", "bugs", "audit", "health"];
+type Tab = "overview" | "users" | "clinics" | "devices" | "dogs" | "dog-clinic" | "bugs" | "audit" | "health";
+const TABS: Tab[] = ["overview", "users", "clinics", "devices", "dogs", "dog-clinic", "bugs", "audit", "health"];
 
 /** Shared destructive-action confirmation (docs/19 dialog primitive). */
 function ConfirmDeleteDialog({
@@ -190,29 +191,28 @@ export function Admin() {
       </p>
     );
 
-  if (!tabParam || !TABS.includes(tabParam as Tab)) return <Navigate to="/admin/users" replace />;
+  if (!tabParam || !TABS.includes(tabParam as Tab)) return <Navigate to="/admin/overview" replace />;
   const tab = tabParam as Tab;
 
   const displayTabTitle =
-    tab === "bugs"
-      ? "Bug Reports"
-      : tab === "dogs" || tab === "dog-clinic"
-        ? "Dog Management"
-        : tab === "users"
-          ? "User Accounts"
-          : tab === "clinics"
-            ? "Partner Clinics"
-            : tab === "devices"
-              ? "Device Management"
-              : tab === "audit"
-                ? "Audit Logs"
-                : "System Health";
+    tab === "overview"
+      ? "System Overview"
+      : tab === "bugs"
+        ? "Bug Reports"
+        : tab === "dogs" || tab === "dog-clinic"
+          ? "Dog Management"
+          : tab === "users"
+            ? "User Accounts"
+            : tab === "clinics"
+              ? "Partner Clinics"
+              : tab === "devices"
+                ? "Device Management"
+                : tab === "audit"
+                  ? "Audit Logs"
+                  : "System Health";
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Top Banner: Inefficiencies & Operational Alerts */}
-      <AdminInefficienciesBanner inefficiencies={inefficiencies} />
-
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-4">
         <div>
           <h1 className="m-0 text-2xl font-extrabold capitalize text-ink tracking-tight">
@@ -223,6 +223,17 @@ export function Admin() {
           </p>
         </div>
       </div>
+
+      {tab === "overview" && (
+        <AdminOverviewTab
+          users={users}
+          clinics={clinics}
+          devices={devices}
+          dogs={dogs}
+          bugReports={bugReports}
+          inefficiencies={inefficiencies}
+        />
+      )}
 
       {tab === "users" && (
         <UsersTab

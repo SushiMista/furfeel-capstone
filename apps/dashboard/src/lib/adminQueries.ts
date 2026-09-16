@@ -240,6 +240,15 @@ export async function updateDevice(
   deviceId: string,
   patch: { dog_id?: string | null; status?: DeviceStatus },
 ): Promise<Device> {
+  // Enforce 1 dog = 1 device protocol: if binding to a dog, unassign any existing device for that dog first
+  if (patch.dog_id) {
+    await client
+      .from("devices")
+      .update({ dog_id: null })
+      .eq("dog_id", patch.dog_id)
+      .neq("id", deviceId);
+  }
+
   const { data, error } = await client
     .from("devices")
     .update(patch)

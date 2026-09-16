@@ -157,9 +157,24 @@ export function Devices() {
         dog_id: editDogId || null,
       });
 
+      const assignedDog = dogs.find((d) => d.id === editDogId);
+      setDevices((prev) =>
+        prev.map((d) =>
+          d.id === editingDevice.id
+            ? {
+                ...d,
+                status: editStatus,
+                firmware_version: editFirmware.trim() || null,
+                dog_id: editDogId || null,
+                dog: assignedDog ? { id: assignedDog.id, name: assignedDog.name } : null,
+              }
+            : d,
+        ),
+      );
+
       toast("success", `Updated device ${editingDevice.device_code}`);
       setEditingDevice(null);
-      await load();
+      load().catch(() => {});
     } catch (err) {
       toast("error", friendlyError(err, "update device"));
     } finally {
@@ -182,11 +197,20 @@ export function Devices() {
         newDeviceCode.trim().toUpperCase(),
         newFirmware.trim() || "0.1.0",
       );
+      setDevices((prev) => [
+        {
+          ...newDev,
+          dog: null,
+          last_seen_at: null,
+          battery_percent: null,
+        } as DeviceWithDog,
+        ...prev,
+      ]);
       toast("success", `Registered new collar: ${newDev.device_code}`);
       setRegisterOpen(false);
       setNewDeviceCode("");
       setNewFirmware("0.1.0");
-      await load();
+      load().catch(() => {});
     } catch (err) {
       toast("error", friendlyError(err, "register device"));
     } finally {
@@ -198,41 +222,69 @@ export function Devices() {
   async function handleRequestDeletion(e: FormEvent) {
     e.preventDefault();
     if (!requestingDeleteDevice) return;
-    if (!deletionReason.trim()) {
+    const target = requestingDeleteDevice;
+    const reasonText = deletionReason.trim();
+
+    if (!reasonText) {
       toast("error", "Please explain why this device needs to be deleted or decommissioned.");
       return;
     }
 
     setSaving(true);
     try {
-      // 1. Set device status to maintenance
-      await updateDevice(supabase, requestingDeleteDevice.id, {
+      // 1. Optimistic UI update immediately (no refresh needed)
+      setDevices((prev) =>
+        prev.map((d) =>
+          d.id === target.id
+            ? {
+                ...d,
+                status: "maintenance" as DeviceStatus,
+                dog_id: null,
+                dog: null,
+              }
+            : d,
+        ),
+      );
+      setDeletionRequests((prev) => {
+        const next = new Map(prev);
+        next.set(target.id, {
+          reason: reasonText,
+          requestedAt: new Date().toISOString(),
+          requestedBy: profile?.name || profile?.email || "Clinic Staff",
+        });
+        return next;
+      });
+
+      // Close modal immediately
+      setRequestingDeleteDevice(null);
+      setDeletionReason("");
+
+      // 2. Set device status to maintenance in backend
+      await updateDevice(supabase, target.id, {
         status: "maintenance",
         dog_id: null, // unassign from dog
       });
 
-      // 2. Record audit log request for Admin
+      // 3. Record audit log request for Admin
       await recordAuditLog({
         actor_role: (role as any) || "veterinarian",
         surface: "dashboard",
         action: "device.deletion_requested",
         target_resource: "devices",
-        target_id: requestingDeleteDevice.id,
+        target_id: target.id,
         clinic_id: profile?.clinic_id ?? null,
         details: {
-          device_code: requestingDeleteDevice.device_code,
-          dog_name: requestingDeleteDevice.dog?.name ?? null,
-          reason: deletionReason.trim(),
+          device_code: target.device_code,
+          dog_name: target.dog?.name ?? null,
+          reason: reasonText,
           requested_at: new Date().toISOString(),
           requested_by: profile?.name || profile?.email || "Clinic Staff",
         },
         severity: "warning",
       });
 
-      toast("success", `Deletion request for ${requestingDeleteDevice.device_code} submitted to Admin.`);
-      setRequestingDeleteDevice(null);
-      setDeletionReason("");
-      await load();
+      toast("success", `Deletion request for ${target.device_code} submitted to Admin.`);
+      load().catch(() => {});
     } catch (err) {
       toast("error", friendlyError(err, "submit deletion request"));
     } finally {
@@ -243,13 +295,23 @@ export function Devices() {
   // Handle Admin Immediate Purge / Approval
   async function handleAdminApproveDelete() {
     if (!adminDeleteDevice) return;
+    const targetId = adminDeleteDevice.id;
+    const targetCode = adminDeleteDevice.device_code;
 
     setSaving(true);
     try {
-      await deleteDevice(supabase, adminDeleteDevice.id);
-      toast("success", `Device ${adminDeleteDevice.device_code} permanently purged.`);
+      // Optimistic delete
+      setDevices((prev) => prev.filter((d) => d.id !== targetId));
+      setDeletionRequests((prev) => {
+        const next = new Map(prev);
+        next.delete(targetId);
+        return next;
+      });
       setAdminDeleteDevice(null);
-      await load();
+
+      await deleteDevice(supabase, targetId);
+      toast("success", `Device ${targetCode} permanently purged.`);
+      load().catch(() => {});
     } catch (err) {
       toast("error", friendlyError(err, "delete device"));
     } finally {
@@ -402,12 +464,12 @@ export function Devices() {
                           <Badge variant={STATUS_BADGE[d.status] ?? "neutral"} className="capitalize text-[11px]">
                             {d.status}
                           </Badge>
-                          {delRequest && (
+                          {(delRequest || d.status === "maintenance") && (
                             <span
                               className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded"
-                              title={`Requested by ${delRequest.requestedBy}: ${delRequest.reason}`}
+                              title={delRequest ? `Requested by ${delRequest.requestedBy}: ${delRequest.reason}` : "Awaiting Admin Review"}
                             >
-                              <AlertTriangle size={10} /> Pending Deletion
+                              <AlertTriangle size={10} /> Pending Admin Deletion
                             </span>
                           )}
                         </div>
@@ -470,18 +532,20 @@ export function Devices() {
                               type="button"
                               variant="secondary"
                               size="sm"
-                              disabled={Boolean(delRequest)}
+                              disabled={Boolean(delRequest || d.status === "maintenance")}
                               onClick={() => {
                                 setRequestingDeleteDevice(d);
                                 setDeletionReason("");
                               }}
                               className={`h-8 px-2 text-[11px] font-semibold flex items-center gap-1 ${
-                                delRequest ? "opacity-50 cursor-not-allowed" : "text-high-fg hover:bg-high-soft"
+                                delRequest || d.status === "maintenance"
+                                  ? "opacity-60 cursor-not-allowed bg-amber-500/10 text-amber-700 border-amber-300"
+                                  : "text-high-fg hover:bg-high-soft"
                               }`}
-                              title="Request Deletion from Admin"
+                              title={delRequest || d.status === "maintenance" ? "Deletion request already queued for Administrator" : "Request Deletion from Admin"}
                             >
                               <Trash2 size={12} />
-                              <span>{delRequest ? "Requested" : "Request Delete"}</span>
+                              <span>{delRequest || d.status === "maintenance" ? "Pending Admin" : "Request Delete"}</span>
                             </Button>
                           )}
                         </div>
