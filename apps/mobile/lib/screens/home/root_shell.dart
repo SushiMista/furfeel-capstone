@@ -18,9 +18,7 @@ import 'package:furfeel_mobile/widgets/alert_card.dart';
 import 'package:furfeel_mobile/screens/home/alerts_tab.dart';
 import 'package:furfeel_mobile/screens/home/chat_tab.dart';
 import 'package:furfeel_mobile/screens/auth/consent_page.dart';
-import 'package:furfeel_mobile/screens/dogs/dog_form_page.dart';
-import 'package:furfeel_mobile/screens/auth/guided_setup_page.dart';
-import 'package:furfeel_mobile/screens/home/home_tab.dart';
+import 'package:furfeel_mobile/screens/home/empty_account_page.dart';
 import 'package:furfeel_mobile/screens/home/multi_dog_home.dart';
 import 'package:furfeel_mobile/screens/home/profile_tab.dart';
 import 'package:furfeel_mobile/screens/home/trends_tab.dart';
@@ -62,8 +60,6 @@ class _RootShellState extends State<RootShell> {
   TelemetryReading? _latestReading;
   StressClassification? _latestClassification;
   List<Alert> _alerts = [];
-  Device? _device;
-  List<CareGuidance> _guidance = [];
   List<DailyStressSummary> _dailySummaries = [];
   List<HourlyStressBucket> _hourlyPattern = [];
   bool _loading = true;
@@ -173,7 +169,6 @@ class _RootShellState extends State<RootShell> {
         _latestReading = null;
         _latestClassification = null;
         _alerts = [];
-        _device = null;
         _dailySummaries = [];
         _hourlyPattern = [];
       });
@@ -199,8 +194,6 @@ class _RootShellState extends State<RootShell> {
         _latestReading = results[0] as TelemetryReading?;
         _latestClassification = results[1] as StressClassification?;
         _alerts = results[2] as List<Alert>;
-        _device = results[3] as Device?;
-        _guidance = results[4] as List<CareGuidance>;
         _dailySummaries = results[5] as List<DailyStressSummary>;
         _hourlyPattern = results[6] as List<HourlyStressBucket>;
         _loading = false;
@@ -315,13 +308,6 @@ class _RootShellState extends State<RootShell> {
     }
   }
 
-  Future<void> _addFirstDog() async {
-    final result = await Navigator.of(context).push<Object?>(
-      MaterialPageRoute(builder: (_) => DogFormPage(repository: widget.repository)),
-    );
-    if (result != null) await _loadDogs();
-  }
-
   @override
   Widget build(BuildContext context) {
     final dogs = _dogs;
@@ -361,7 +347,6 @@ class _RootShellState extends State<RootShell> {
                       dogs: dogs,
                       selected: dog,
                       onSelected: _selectDog,
-                      onAddDog: _addFirstDog,
                     ),
                   ),
               ],
@@ -430,24 +415,7 @@ class _RootShellState extends State<RootShell> {
     }
 
     return switch (_tab) {
-      // QA item 9: multi-dog accounts get a glanceable card per dog; a
-      // single-dog owner still lands straight on the rich detail.
-      0 when (_dogs?.length ?? 0) > 1 =>
-        MultiDogHomeTab(repository: widget.repository, dogs: _dogs!),
-      0 => _error != null
-          ? RetryMessage(message: _error!, onRefresh: _refresh)
-          : HomeTab(
-              repository: widget.repository,
-              dog: dog,
-              reading: _latestReading,
-              classification: _latestClassification,
-              daily: _dailySummaries,
-              device: _device,
-              guidance: _guidance,
-              onRefresh: _refresh,
-              dogsCount: _dogs?.length ?? 1,
-              alerts: _alerts,
-            ),
+      0 => MultiDogHomeTab(repository: widget.repository, dogs: _dogs!),
       1 => AlertsTab(
           dog: dog,
           alerts: _alerts,
@@ -475,12 +443,9 @@ class _RootShellState extends State<RootShell> {
     };
   }
 
-  /// First-run onboarding (ADDED): the guided setup flow (docs/04 Onboarding —
-  /// add your dog → pair the harness → done) instead of an empty dashboard.
+  /// First-run onboarding (ADDED): Show empty account state when owner has no dogs.
   Widget _buildOnboarding(BuildContext context) {
-    return GuidedSetupPage(
-      repository: widget.repository,
-      onFinished: _loadDogs,
+    return EmptyAccountPage(
       onSignOut: widget.onSignOut,
     );
   }
@@ -493,13 +458,11 @@ class _DogSwitcher extends StatelessWidget {
     required this.dogs,
     required this.selected,
     required this.onSelected,
-    required this.onAddDog,
   });
 
   final List<Dog> dogs;
   final Dog selected;
   final void Function(String dogId) onSelected;
-  final VoidCallback onAddDog;
 
   void _openSheet(BuildContext context) {
     showModalBottomSheet<void>(
@@ -513,10 +476,6 @@ class _DogSwitcher extends StatelessWidget {
         onSelected: (id) {
           Navigator.of(context, rootNavigator: true).pop();
           onSelected(id);
-        },
-        onAddDog: () {
-          Navigator.of(context, rootNavigator: true).pop();
-          onAddDog();
         },
       ),
     );
@@ -599,13 +558,11 @@ class _DogSwitcherSheet extends StatelessWidget {
     required this.dogs,
     required this.selected,
     required this.onSelected,
-    required this.onAddDog,
   });
 
   final List<Dog> dogs;
   final Dog selected;
   final void Function(String dogId) onSelected;
-  final VoidCallback onAddDog;
 
   @override
   Widget build(BuildContext context) {
@@ -660,45 +617,7 @@ class _DogSwitcherSheet extends StatelessWidget {
             // ── Dog list ─────────────────────────────────────────────────
             for (final dog in dogs) _DogRow(dog: dog, selected: selected, onTap: onSelected),
 
-            Divider(color: context.ff.hairline, height: 1),
-
-            // ── Add a dog ─────────────────────────────────────────────────
-            InkWell(
-              onTap: onAddDog,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: FurFeelTokens.space5,
-                  vertical: FurFeelTokens.space4,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: context.ff.surfaceAlt,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: context.ff.hairline,
-                          width: 1.5,
-                          strokeAlign: BorderSide.strokeAlignOutside,
-                        ),
-                      ),
-                      child: Icon(Icons.add, color: context.ff.inkMuted, size: 22),
-                    ),
-                    const SizedBox(width: FurFeelTokens.space4),
-                    Text(
-                      'Add another dog',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: context.ff.inkMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: FurFeelTokens.space2),
+            const SizedBox(height: FurFeelTokens.space4),
           ],
         ),
       ),
