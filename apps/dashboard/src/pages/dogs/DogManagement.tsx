@@ -261,12 +261,19 @@ export function DogManagement() {
           status: "active",
         });
 
-        // Seed initial placeholder vitals if pairing to a collar
-        await seedInitialBiotelemetry(supabase, {
-          dogId: pairingDog.id,
-          deviceId: selectedCollarId,
-          count: 6,
-        });
+        // Check if selected collar is real ESP32 hardware FURFEEL-DEV-0002
+        const selectedDev = availableDevices.find((d) => d.id === selectedCollarId);
+        if (selectedDev?.device_code === "FURFEEL-DEV-0002") {
+          await supabase.from("stress_classifications").delete().eq("dog_id", pairingDog.id);
+          await supabase.from("telemetry_readings").delete().eq("dog_id", pairingDog.id);
+        } else {
+          // Seed initial placeholder vitals if pairing to a simulated collar
+          await seedInitialBiotelemetry(supabase, {
+            dogId: pairingDog.id,
+            deviceId: selectedCollarId,
+            count: 6,
+          });
+        }
 
         toast("success", `Paired collar with ${pairingDog.name}`);
       }
