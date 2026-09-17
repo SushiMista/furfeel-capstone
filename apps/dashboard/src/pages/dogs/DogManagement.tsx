@@ -43,6 +43,7 @@ import { Input, Label, Select } from "../../components/ui/input.tsx";
 import { Dialog } from "../../components/ui/dialog.tsx";
 import { useToast } from "../../components/ui/toast.tsx";
 import { friendlyError } from "../../lib/errors.ts";
+import { cn } from "../../lib/cn.ts";
 
 export function DogManagement() {
   const navigate = useNavigate();
@@ -60,9 +61,11 @@ export function DogManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [breedFilter, setBreedFilter] = useState("all");
 
-  // Modals state
+  // Modals & UI Highlight state
   const [editingDog, setEditingDog] = useState<Dog | null>(null);
   const [pairingDog, setPairingDog] = useState<Dog | null>(null);
+  const [unpairingTarget, setUnpairingTarget] = useState<{ device: DeviceWithDog; dog: Dog } | null>(null);
+  const [recentlyUpdatedDogId, setRecentlyUpdatedDogId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Edit form state
@@ -120,6 +123,25 @@ export function DogManagement() {
 
   useEffect(() => {
     loadData();
+
+    // Supabase Realtime synchronization for live patient directory updates
+    const channel = supabase
+      .channel("dog-management-realtime-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dogs" },
+        () => loadData().catch(() => {}),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "devices" },
+        () => loadData().catch(() => {}),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadData]);
 
   // Map users for fast owner name lookup
@@ -203,7 +225,9 @@ export function DogManagement() {
     e.preventDefault();
     if (!editingDog) return;
 
-    if (!editName.trim()) {
+    const targetId = editingDog.id;
+    const updatedName = editName.trim();
+    if (!updatedName) {
       toast("error", "Dog name cannot be empty.");
       return;
     }
@@ -212,22 +236,35 @@ export function DogManagement() {
     try {
       let photoPath = editingDog.photo_path;
       if (editPhotoFile) {
-        photoPath = await uploadDogPhoto(supabase, editingDog.id, editPhotoFile);
+        photoPath = await uploadDogPhoto(supabase, targetId, editPhotoFile);
       }
 
-      await updateDog(supabase, editingDog.id, {
-        name: editName.trim(),
+      const payload = {
+        name: updatedName,
         breed: editBreed.trim() || null,
         sex: editSex || null,
         birthdate: editBirthdate || null,
         weight_kg: editWeightKg ? parseFloat(editWeightKg) : null,
         notes: editNotes.trim() || null,
         photo_path: photoPath,
-      });
+      };
 
-      toast("success", `Updated profile for ${editName.trim()}`);
+      await updateDog(supabase, targetId, payload);
+
+      // Optimistic UI updates
+      setDogs((prev) =>
+        prev.map((d) => (d.id === targetId ? { ...d, ...payload } : d)),
+      );
+      if (editPhotoPreview) {
+        setSignedPhotoUrls((prev) => ({ ...prev, [targetId]: editPhotoPreview }));
+      }
+
+      setRecentlyUpdatedDogId(targetId);
+      setTimeout(() => setRecentlyUpdatedDogId(null), 3500);
+
+      toast("success", `✨ Updated patient profile for ${updatedName}`);
       setEditingDog(null);
-      await loadData();
+      loadData().catch(() => {});
     } catch (err) {
       toast("error", friendlyError(err, "update dog profile"));
     } finally {
@@ -246,39 +283,52 @@ export function DogManagement() {
     e.preventDefault();
     if (!pairingDog) return;
 
+    const targetDogId = pairingDog.id;
+    const targetDogName = pairingDog.name;
+
     setSaving(true);
     try {
       if (selectedCollarId) {
-        // If dog already has a collar, unpair old collar first
-        const currentDev = dogDeviceMap.get(pairingDog.id);
+        const currentDev = dogDeviceMap.get(targetDogId);
         if (currentDev && currentDev.id !== selectedCollarId) {
           await updateDevice(supabase, currentDev.id, { dog_id: null, status: "inactive" });
         }
 
-        // Pair new collar
         await updateDevice(supabase, selectedCollarId, {
-          dog_id: pairingDog.id,
+          dog_id: targetDogId,
           status: "active",
         });
 
-        // Check if selected collar is real ESP32 hardware FURFEEL-DEV-0002
         const selectedDev = availableDevices.find((d) => d.id === selectedCollarId);
         if (selectedDev?.device_code === "FURFEEL-DEV-0002") {
-          await supabase.from("stress_classifications").delete().eq("dog_id", pairingDog.id);
-          await supabase.from("telemetry_readings").delete().eq("dog_id", pairingDog.id);
+          await supabase.from("stress_classifications").delete().eq("dog_id", targetDogId);
+          await supabase.from("telemetry_readings").delete().eq("dog_id", targetDogId);
         } else {
-          // Seed initial placeholder vitals if pairing to a simulated collar
           await seedInitialBiotelemetry(supabase, {
-            dogId: pairingDog.id,
+            dogId: targetDogId,
             deviceId: selectedCollarId,
             count: 6,
           });
         }
 
-        toast("success", `Paired collar with ${pairingDog.name}`);
+        // Optimistic device list update
+        setDevices((prev) =>
+          prev.map((dev) =>
+            dev.id === selectedCollarId
+              ? { ...dev, dog_id: targetDogId, status: "active", dog: { id: targetDogId, name: targetDogName } }
+              : dev.dog_id === targetDogId
+                ? { ...dev, dog_id: null, status: "inactive", dog: null }
+                : dev,
+          ),
+        );
+
+        setRecentlyUpdatedDogId(targetDogId);
+        setTimeout(() => setRecentlyUpdatedDogId(null), 3500);
+
+        toast("success", `✨ Paired telemetry collar with ${targetDogName}`);
       }
       setPairingDog(null);
-      await loadData();
+      loadData().catch(() => {});
     } catch (err) {
       toast("error", friendlyError(err, "pair collar"));
     } finally {
@@ -286,16 +336,34 @@ export function DogManagement() {
     }
   }
 
-  // Unpair Collar
-  async function handleUnpairCollar(device: DeviceWithDog, dog: Dog) {
-    if (!confirm(`Unpair collar ${device.device_code} from ${dog.name}?`)) return;
+  // Initiate Unpair Collar Modal
+  function handleOpenUnpairModal(device: DeviceWithDog, dog: Dog) {
+    setUnpairingTarget({ device, dog });
+  }
 
+  // Execute Unpair Collar
+  async function handleExecuteUnpair() {
+    if (!unpairingTarget) return;
+    const { device, dog } = unpairingTarget;
+
+    setSaving(true);
     try {
       await updateDevice(supabase, device.id, { dog_id: null, status: "inactive" });
-      toast("success", `Unpaired collar ${device.device_code} from ${dog.name}`);
-      await loadData();
+
+      // Optimistic update
+      setDevices((prev) =>
+        prev.map((d) => (d.id === device.id ? { ...d, dog_id: null, status: "inactive", dog: null } : d)),
+      );
+      setRecentlyUpdatedDogId(dog.id);
+      setTimeout(() => setRecentlyUpdatedDogId(null), 3500);
+
+      toast("success", `✨ Unpaired collar ${device.device_code} from ${dog.name}`);
+      setUnpairingTarget(null);
+      loadData().catch(() => {});
     } catch (err) {
       toast("error", friendlyError(err, "unpair collar"));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -399,9 +467,18 @@ export function DogManagement() {
                   const owner = userMap.get(d.owner_user_id);
                   const assignedDevice = dogDeviceMap.get(d.id);
                   const photoUrl = signedPhotoUrls[d.id];
+                  const isRecentlyUpdated = d.id === recentlyUpdatedDogId;
 
                   return (
-                    <Tr key={d.id} className="hover:bg-surface-alt/30 transition-colors">
+                    <Tr
+                      key={d.id}
+                      className={cn(
+                        "transition-all duration-300",
+                        isRecentlyUpdated
+                          ? "bg-brand-soft/50 dark:bg-brand-soft/20 border-l-4 border-brand font-semibold shadow-xs"
+                          : "hover:bg-surface-alt/30",
+                      )}
+                    >
                       {/* Photo Thumbnail */}
                       <Td className="py-2.5 pl-4">
                         <div className="h-10 w-10 rounded-xl overflow-hidden bg-brand-soft/60 border border-brand/20 flex items-center justify-center shrink-0">
@@ -415,14 +492,21 @@ export function DogManagement() {
 
                       {/* Patient Name */}
                       <Td>
-                        <div className="flex flex-col">
-                          <Link
-                            to={`/dogs/${d.id}`}
-                            className="font-black text-sm text-ink hover:text-brand hover:underline flex items-center gap-1.5"
-                          >
-                            <span>{d.name}</span>
-                            <ExternalLink size={12} className="opacity-50" />
-                          </Link>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <Link
+                              to={`/dogs/${d.id}`}
+                              className="font-black text-sm text-ink hover:text-brand hover:underline flex items-center gap-1.5"
+                            >
+                              <span>{d.name}</span>
+                              <ExternalLink size={12} className="opacity-50" />
+                            </Link>
+                            {isRecentlyUpdated && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-brand bg-brand-soft px-2 py-0.5 rounded-full border border-brand/30 animate-pulse">
+                                <Sparkles size={10} /> Updated
+                              </span>
+                            )}
+                          </div>
                           {d.notes && (
                             <span className="text-[11px] text-ink-muted line-clamp-1 max-w-[200px]" title={d.notes}>
                               {d.notes}
@@ -476,9 +560,9 @@ export function DogManagement() {
                             </Link>
                             <button
                               type="button"
-                              onClick={() => handleUnpairCollar(assignedDevice, d)}
+                              onClick={() => handleOpenUnpairModal(assignedDevice, d)}
                               title="Unpair Collar"
-                              className="ml-1 text-ink-muted hover:text-high-fg p-0.5"
+                              className="ml-1 text-ink-muted hover:text-high-fg p-0.5 transition-colors"
                             >
                               <Unlink size={12} />
                             </button>
@@ -489,7 +573,7 @@ export function DogManagement() {
                             variant="secondary"
                             size="sm"
                             onClick={() => handleOpenPairing(d)}
-                            className="text-[11px] h-7 px-2 flex items-center gap-1 text-brand border-dashed border-brand/40"
+                            className="text-[11px] h-7 px-2 flex items-center gap-1 text-brand border-dashed border-brand/40 hover:bg-brand-soft"
                           >
                             <Radio size={12} />
                             <span>+ Assign Collar</span>
@@ -566,7 +650,7 @@ export function DogManagement() {
                       }}
                       className="text-xs text-high-fg hover:underline font-semibold"
                     >
-                      Remove
+                        Remove
                     </button>
                   )}
                 </div>
@@ -715,6 +799,46 @@ export function DogManagement() {
               </Button>
             </div>
           </form>
+        </Dialog>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: UNPAIR COLLAR CONFIRMATION                                       */}
+      {/* ========================================================================= */}
+      {unpairingTarget && (
+        <Dialog
+          title="Unpair Telemetry Collar"
+          open={Boolean(unpairingTarget)}
+          onClose={() => setUnpairingTarget(null)}
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-xs text-ink m-0">
+              Are you sure you want to unpair collar <strong>{unpairingTarget.device.device_code}</strong> from{" "}
+              <strong>{unpairingTarget.dog.name}</strong>?
+            </p>
+            <p className="text-xs text-ink-muted m-0">
+              The collar will be returned to the clinic fleet as unassigned and available for another patient.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-hairline">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setUnpairingTarget(null)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleExecuteUnpair}
+                disabled={saving}
+                className="font-bold bg-high-fg hover:bg-high-fg/90 text-white"
+              >
+                {saving ? "Unpairing..." : "Confirm Unpair"}
+              </Button>
+            </div>
+          </div>
         </Dialog>
       )}
     </div>
