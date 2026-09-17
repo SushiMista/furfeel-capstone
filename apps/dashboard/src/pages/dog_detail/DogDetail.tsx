@@ -192,10 +192,11 @@ export function DogDetail() {
     if (!dogId) return;
     setSavingWard(true);
     try {
-      await updateDogWardAndAdmission(supabase, dogId, wardDraft.trim() || null, admissionDraft);
-      setDog((prev) => (prev ? { ...prev, ward_location: wardDraft.trim() || null, admission_status: admissionDraft as any } : null));
+      const updatedWard = wardDraft.trim() || null;
+      await updateDogWardAndAdmission(supabase, dogId, updatedWard, admissionDraft);
+      setDog((prev) => (prev ? { ...prev, ward_location: updatedWard, admission_status: admissionDraft as any } : null));
       setEditingWard(false);
-      toast("success", "Hospital ward & admission status updated");
+      toast("success", `✨ Updated ward location & admission status for ${dog?.name || "patient"}`);
     } catch (err) {
       toast("error", friendlyError(err, "update ward"));
     } finally {
