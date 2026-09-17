@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
@@ -37,10 +38,11 @@ Color stressLevelChartFill(BuildContext context, StressLevel level) => switch (l
 /// changes cross-fade rather than snapping, with a single soft scale pulse
 /// only when the *level* changes (docs/19 §5a) — never on every reading.
 class StressPill extends StatefulWidget {
-  const StressPill({super.key, required this.level, this.large = false});
+  const StressPill({super.key, required this.level, this.large = false, this.onDark = false});
 
   final StressLevel level;
   final bool large;
+  final bool onDark;
 
   @override
   State<StressPill> createState() => _StressPillState();
@@ -73,13 +75,8 @@ class _StressPillState extends State<StressPill> with SingleTickerProviderStateM
     final large = widget.large;
     final fg = stressLevelColor(context, level);
     final bg = stressLevelSoftBg(context, level);
-    return ScaleTransition(
-      // 1 → 1.06 → 1: one gentle heartbeat, then still.
-      scale: TweenSequence<double>([
-        TweenSequenceItem(tween: Tween(begin: 1, end: 1.06), weight: 1),
-        TweenSequenceItem(tween: Tween(begin: 1.06, end: 1), weight: 1),
-      ]).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
-      child: AnimatedContainer(
+    
+    final child = AnimatedContainer(
       duration: FurFeelTokens.motionSlow,
       curve: Curves.easeOut,
       padding: EdgeInsets.symmetric(
@@ -87,7 +84,7 @@ class _StressPillState extends State<StressPill> with SingleTickerProviderStateM
         vertical: large ? FurFeelTokens.space2 : FurFeelTokens.space1,
       ),
       decoration: BoxDecoration(
-        color: bg,
+        color: widget.onDark ? Colors.white.withValues(alpha: 0.15) : bg,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
       ),
       child: Row(
@@ -96,21 +93,40 @@ class _StressPillState extends State<StressPill> with SingleTickerProviderStateM
           Container(
             width: large ? 10 : 8,
             height: large ? 10 : 8,
-            decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: widget.onDark ? Colors.white : fg, 
+              shape: BoxShape.circle
+            ),
           ),
           SizedBox(width: large ? FurFeelTokens.space2 : FurFeelTokens.space1),
           Text(
             // Capitalized word (Calm / Mild / Moderate / High) for accessibility.
             level.name[0].toUpperCase() + level.name.substring(1),
             style: TextStyle(
-              color: fg,
+              color: widget.onDark ? Colors.white : fg,
               fontWeight: FontWeight.w700,
               fontSize: large ? FurFeelTokens.typeH2Size : FurFeelTokens.typeLabelSize,
             ),
           ),
         ],
       ),
-      ),
+    );
+
+    return ScaleTransition(
+      // 1 → 1.06 → 1: one gentle heartbeat, then still.
+      scale: TweenSequence<double>([
+        TweenSequenceItem(tween: Tween(begin: 1, end: 1.06), weight: 1),
+        TweenSequenceItem(tween: Tween(begin: 1.06, end: 1), weight: 1),
+      ]).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
+      child: widget.onDark 
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: child,
+              ),
+            )
+          : child,
     );
   }
 }
