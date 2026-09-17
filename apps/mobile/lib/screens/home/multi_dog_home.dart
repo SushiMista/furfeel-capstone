@@ -28,7 +28,22 @@ class MultiDogHomeTab extends StatefulWidget {
 
 class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
   List<DogOverview>? _overviews;
+  String _sort = 'name';
   String? _error;
+  final List<void Function()> _subscriptions = [];
+
+  void _clearSubscriptions() {
+    for (final unsub in _subscriptions) {
+      unsub();
+    }
+    _subscriptions.clear();
+  }
+
+  @override
+  void dispose() {
+    _clearSubscriptions();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -39,7 +54,53 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
   @override
   void didUpdateWidget(MultiDogHomeTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.dogs.length != widget.dogs.length) _load();
+    if (oldWidget.dogs.length != widget.dogs.length) {
+      _load();
+    }
+  }
+
+  void _setupSubscriptions() {
+    _clearSubscriptions();
+    for (final dog in widget.dogs) {
+      final unsub = widget.repository.subscribeToDog(
+        dog.id,
+        onReading: (reading) {
+          if (!mounted || _overviews == null) return;
+          setState(() {
+            final idx = _overviews!.indexWhere((o) => o.dog.id == dog.id);
+            if (idx != -1) {
+              final old = _overviews![idx];
+              _overviews![idx] = DogOverview(
+                dog: old.dog,
+                reading: reading,
+                classification: old.classification,
+                device: old.device,
+                wellness: old.wellness,
+                openAlertsCount: old.openAlertsCount,
+              );
+            }
+          });
+        },
+        onClassification: (classification) {
+          if (!mounted || _overviews == null) return;
+          setState(() {
+            final idx = _overviews!.indexWhere((o) => o.dog.id == dog.id);
+            if (idx != -1) {
+              final old = _overviews![idx];
+              _overviews![idx] = DogOverview(
+                dog: old.dog,
+                reading: old.reading,
+                classification: classification,
+                device: old.device,
+                wellness: old.wellness,
+                openAlertsCount: old.openAlertsCount,
+              );
+            }
+          });
+        },
+      );
+      _subscriptions.add(unsub);
+    }
   }
 
   Future<void> _load() async {
@@ -51,6 +112,7 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
         _overviews = overviews;
         _error = null;
       });
+      _setupSubscriptions();
     } catch (_) {
       if (!mounted) return;
       setState(() =>
@@ -106,7 +168,11 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
           // row) — built from the same per-dog overviews already fetched
           // above; no extra query.
           if (overviews != null) ...[
-            OverviewStatsCard(stats: _overviewStats(overviews)).entrance(context),
+            OverviewStatsCard(
+              stats: _overviewStats(overviews),
+              sortValue: _sort,
+              onSortChanged: (v) => setState(() => _sort = v),
+            ).entrance(context),
             const SizedBox(height: FurFeelTokens.space3),
           ],
           if (overviews == null)
@@ -115,15 +181,72 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
               child: Text(_error!, style: textTheme.bodyMedium),
             )
           else
-            for (final (i, overview) in overviews.indexed)
-              Padding(
-                padding: EdgeInsets.only(top: i > 0 ? FurFeelTokens.space3 : 0),
-                child: DogOverviewCard(
-                  overview: overview,
-                  repository: widget.repository,
-                  onTap: () => _openDog(overview.dog),
-                ).entrance(context, index: 1 + i),
+            Padding(
+              padding: const EdgeInsets.only(top: FurFeelTokens.space3),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Rebuild a custom animated grid
+                  const crossAxisCount = 2;
+                  const crossAxisSpacing = FurFeelTokens.space3;
+                  const mainAxisSpacing = FurFeelTokens.space3;
+                  const childAspectRatio = 0.75;
+
+                  final width = constraints.maxWidth;
+                  final itemWidth = (width - (crossAxisCount - 1) * crossAxisSpacing) / crossAxisCount;
+                  final itemHeight = itemWidth / childAspectRatio;
+
+                  final sorted = List<DogOverview>.of(overviews);
+                  sorted.sort((a, b) {
+                    if (_sort == 'stress') {
+                      final levelA = a.classification?.stressLevel.index ?? 0;
+                      final levelB = b.classification?.stressLevel.index ?? 0;
+                      if (levelA != levelB) return levelB.compareTo(levelA);
+                    } else if (_sort == 'alerts') {
+                      if (a.openAlertsCount != b.openAlertsCount) {
+                        return b.openAlertsCount.compareTo(a.openAlertsCount);
+                      }
+                    }
+                    return a.dog.name.compareTo(b.dog.name);
+                  });
+
+                  final rowCount = (sorted.length / crossAxisCount).ceil();
+                  final totalHeight = rowCount * itemHeight + (rowCount > 0 ? rowCount - 1 : 0) * mainAxisSpacing;
+
+                  return SizedBox(
+                    height: totalHeight,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        for (var i = 0; i < sorted.length; i++) ...[
+                          (() {
+                            final item = sorted[i];
+                            final col = i % crossAxisCount;
+                            final row = i ~/ crossAxisCount;
+                            final left = col * (itemWidth + crossAxisSpacing);
+                            final top = row * (itemHeight + mainAxisSpacing);
+
+                            return AnimatedPositioned(
+                              key: ValueKey(item.dog.id),
+                              duration: FurFeelTokens.motionFast,
+                              curve: Curves.easeInOutCubic,
+                              left: left,
+                              top: top,
+                              width: itemWidth,
+                              height: itemHeight,
+                              child: DogOverviewCard(
+                                overview: item,
+                                repository: widget.repository,
+                                onTap: () => _openDog(item.dog),
+                              ),
+                            );
+                          })(),
+                        ],
+                      ],
+                    ),
+                  );
+                },
               ),
+            ),
         ],
       ),
     );
@@ -133,19 +256,14 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
 /// Pack-wide stats (mirrors the dashboard's clinic KPI row), all derived
 /// from the per-dog [DogOverview]s already fetched by [_MultiDogHomeTabState._load].
 List<OverviewStat> _overviewStats(List<DogOverview> overviews) {
-  final needsAttention = overviews
-      .where((o) => o.classification != null && o.classification!.stressLevel != StressLevel.calm)
-      .length;
+  final openAlerts = overviews.fold<int>(0, (sum, o) => sum + o.openAlertsCount);
+  final needsAttention = overviews.where((o) => o.openAlertsCount > 0).length;
   final devicesOffline = overviews.where((o) => o.device?.status == 'offline').length;
   final withWellness = overviews.where((o) => o.wellness != null).toList();
   final calmToday = withWellness.isEmpty
       ? null
       : withWellness.map((o) => o.wellness!.calmPercent).reduce((a, b) => a + b) /
           withWellness.length;
-  // "Today" not "open": dog_wellness_score counts alerts raised today, not
-  // current open/ack status (that needs a per-dog alerts query we don't have
-  // here) — label it honestly rather than borrowing the dashboard's wording.
-  final alertsToday = overviews.fold<int>(0, (sum, o) => sum + (o.wellness?.alertCount ?? 0));
 
   return [
     if (overviews.length > 1)
@@ -163,17 +281,18 @@ List<OverviewStat> _overviewStats(List<DogOverview> overviews) {
       attention: needsAttention > 0,
     ),
     OverviewStat(
-      label: 'Alerts today',
-      value: '$alertsToday',
+      label: 'Open alerts',
+      value: '$openAlerts',
       icon: Icons.notifications_outlined,
-      attention: alertsToday > 0,
+      attention: openAlerts > 0,
     ),
-    OverviewStat(
-      label: 'Devices offline',
-      value: '$devicesOffline',
-      icon: Icons.wifi_off,
-      attention: devicesOffline > 0,
-    ),
+    if (devicesOffline > 0)
+      OverviewStat(
+        label: 'Sensors offline',
+        value: '$devicesOffline',
+        icon: Icons.wifi_off,
+        attention: true,
+      ),
   ];
 }
 
@@ -253,6 +372,16 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
     final level = widget.overview.classification?.stressLevel;
     final tint = dogTint(context, dog);
 
+    final p = context.ff;
+    final baseColor = switch (level) {
+      StressLevel.calm => p.statusCalmFg,
+      StressLevel.mild => p.statusMildFg,
+      StressLevel.moderate => p.statusModerateFg,
+      StressLevel.high => p.statusHighFg,
+      null => p.brandInk,
+    };
+    final darkColor = Color.lerp(baseColor, Colors.black, 0.4) ?? baseColor;
+
     return PressScale(
       child: Material(
         color: Colors.transparent,
@@ -266,7 +395,6 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
               final imageUrl = snapshot.data;
 
               return Container(
-                height: 260,
                 decoration: BoxDecoration(
                   color: imageUrl == null ? tint : null,
                   borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
@@ -287,13 +415,13 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                       colors: [
                         Colors.black.withValues(alpha: 0.05),
                         Colors.transparent,
-                        context.ff.brandInk.withValues(alpha: 0.5),
-                        context.ff.brandInk.withValues(alpha: 0.9),
+                        darkColor.withValues(alpha: 0.6),
+                        darkColor.withValues(alpha: 0.95),
                       ],
                       stops: const [0.0, 0.3, 0.6, 1.0],
                     ),
                   ),
-                  padding: const EdgeInsets.all(FurFeelTokens.space5),
+                  padding: const EdgeInsets.all(FurFeelTokens.space4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -301,7 +429,12 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           if (level != null)
-                            StressPill(level: level)
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.topRight,
+                                child: StressPill(level: level, onDark: true),
+                              ),
+                            )
                           else
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -310,7 +443,7 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                'No data yet',
+                                'No data',
                                 style: textTheme.labelSmall?.copyWith(color: Colors.white),
                               ),
                             ),
@@ -319,7 +452,9 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                       const Spacer(),
                       Text(
                         dog.name,
-                        style: textTheme.headlineMedium?.copyWith(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.titleLarge?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                         ),
@@ -330,12 +465,16 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                           if (dog.breed != null) dog.breed!,
                           if (dog.ageYears != null) '${dog.ageYears}y',
                         ].join(' · '),
-                        style: textTheme.bodyMedium?.copyWith(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(
                           color: Colors.white.withValues(alpha: 0.8),
                         ),
                       ),
-                      const SizedBox(height: FurFeelTokens.space4),
-                      Row(
+                      const SizedBox(height: FurFeelTokens.space3),
+                      Wrap(
+                        spacing: FurFeelTokens.space2,
+                        runSpacing: FurFeelTokens.space2,
                         children: [
                           _MiniStat(
                             icon: Icons.favorite_border,
@@ -345,21 +484,11 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                             color: Colors.white,
                             bgColor: Colors.white.withValues(alpha: 0.2),
                           ),
-                          const SizedBox(width: FurFeelTokens.space3),
                           _MiniStat(
                             icon: Icons.notifications_none,
-                            label: '${widget.overview.wellness?.alertCount ?? 0} alerts',
+                            label: '${widget.overview.openAlertsCount}',
                             color: Colors.white,
                             bgColor: Colors.white.withValues(alpha: 0.2),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
                           ),
                         ],
                       ),

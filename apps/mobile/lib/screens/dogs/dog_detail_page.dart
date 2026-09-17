@@ -31,6 +31,7 @@ class DogDetailPage extends StatefulWidget {
 }
 
 class _DogDetailPageState extends State<DogDetailPage> {
+  int _refreshCount = 0;
   TelemetryReading? _reading;
   StressClassification? _classification;
   List<DailyStressSummary> _daily = const [];
@@ -76,6 +77,7 @@ class _DogDetailPageState extends State<DogDetailPage> {
       ]);
       if (!mounted) return;
       setState(() {
+        _refreshCount++;
         _reading = results[0] as TelemetryReading?;
         _classification = results[1] as StressClassification?;
         _daily = results[2] as List<DailyStressSummary>;
@@ -113,6 +115,7 @@ class _DogDetailPageState extends State<DogDetailPage> {
           device: _device,
           guidance: _guidance,
           onRefresh: _load,
+          refreshTrigger: _refreshCount,
           dogsCount: widget.dogsCount,
           alerts: _alerts,
           onBack: () => Navigator.of(context).maybePop(),

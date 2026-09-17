@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:furfeel_mobile/data/furfeel_repository.dart';
+import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/insights/biometrics.dart';
 import 'package:furfeel_mobile/models/activity_state.dart';
 import 'package:furfeel_mobile/models/models.dart';
@@ -10,7 +11,7 @@ import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/day_timeline.dart';
 import 'package:furfeel_mobile/widgets/curved_status_header.dart';
 import 'package:furfeel_mobile/widgets/section_header.dart';
-import 'package:furfeel_mobile/widgets/wave_sparkline.dart';
+import 'package:furfeel_mobile/widgets/candle_sparkline.dart';
 import 'package:furfeel_mobile/screens/vitals/vital_detail_page.dart';
 
 /// Finds the daily summary for one calendar day, or null when there's none.
@@ -38,9 +39,11 @@ class HomeTab extends StatefulWidget {
     required this.device,
     required this.guidance,
     required this.onRefresh,
+    this.refreshTrigger = 0,
     required this.dogsCount,
     required this.alerts,
     this.onBack,
+    this.scroll,
   });
 
   final FurFeelRepository repository;
@@ -51,6 +54,7 @@ class HomeTab extends StatefulWidget {
   final Device? device;
   final List<CareGuidance> guidance;
   final Future<void> Function() onRefresh;
+  final int refreshTrigger;
 
   /// Total dogs on this account and this dog's own alerts — both already
   /// loaded by RootShell, just plumbed through for the overview card below.
@@ -60,12 +64,21 @@ class HomeTab extends StatefulWidget {
   /// When set, the hero's top-left button is a back arrow (this Home is pushed,
   /// e.g. a dog-detail screen). When null it shows the decorative paw.
   final VoidCallback? onBack;
+  final ScrollController? scroll;
 
   @override
   State<HomeTab> createState() => _HomeTabState();
 }
 
 class _HomeTabState extends State<HomeTab> {
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final level = widget.classification?.stressLevel;
@@ -83,17 +96,20 @@ class _HomeTabState extends State<HomeTab> {
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
       child: ListView(
+        controller: _scroll,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.zero,
         children: [
           // Immersive full-bleed status hero (docs/22 v7): the classification
           // as the hero, on a status-coloured top with a curved divider.
           _ImmersiveHero(
+            repository: widget.repository,
             dog: widget.dog,
             level: level,
             openAlerts: widget.alerts.where((a) => a.status == 'open').length,
             hasCareTip: careGuidance != null,
             onBack: widget.onBack,
+            scroll: _scroll,
           ),
           Padding(
             padding: EdgeInsets.fromLTRB(FurFeelTokens.space4,
@@ -113,6 +129,7 @@ class _HomeTabState extends State<HomeTab> {
                   repository: widget.repository,
                   dog: widget.dog,
                   reading: widget.reading,
+                  refreshTrigger: widget.refreshTrigger,
                 ).entrance(context, index: 1),
                 if (careGuidance != null) ...[
                   const SizedBox(height: FurFeelTokens.space5),
@@ -125,7 +142,7 @@ class _HomeTabState extends State<HomeTab> {
                 const SizedBox(height: FurFeelTokens.space3),
                 _TodaySoFar(daily: widget.daily).entrance(context, index: 3),
                 const SizedBox(height: FurFeelTokens.space3),
-                DayTimeline(repository: widget.repository, dog: widget.dog)
+                DayTimeline(repository: widget.repository, dog: widget.dog, refreshTrigger: widget.refreshTrigger)
                     .entrance(context, index: 4),
               ],
             ),
@@ -138,36 +155,77 @@ class _HomeTabState extends State<HomeTab> {
 
 /// The immersive status hero: FurFeel-score classification on a status-coloured
 /// full-bleed top with the curved divider (docs/22 v7).
-class _ImmersiveHero extends StatelessWidget {
+
+/// QA: the four vitals as tappable squares. Each opens a detail screen with
+class _ImmersiveHero extends StatefulWidget {
   const _ImmersiveHero({
+    required this.repository,
     required this.dog,
     required this.level,
     required this.openAlerts,
     required this.hasCareTip,
     this.onBack,
+    this.scroll,
   });
 
+  final FurFeelRepository repository;
   final Dog dog;
   final StressLevel? level;
   final int openAlerts;
   final bool hasCareTip;
   final VoidCallback? onBack;
+  final ScrollController? scroll;
+
+  @override
+  State<_ImmersiveHero> createState() => _ImmersiveHeroState();
+}
+
+class _ImmersiveHeroState extends State<_ImmersiveHero> {
+  String? _photoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoto();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ImmersiveHero oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dog.photoPath != widget.dog.photoPath) {
+      _loadPhoto();
+    }
+  }
+
+  Future<void> _loadPhoto() async {
+    if (widget.dog.photoPath == null) {
+      if (mounted) setState(() => _photoUrl = null);
+      return;
+    }
+    try {
+      final url = await widget.repository.getSignedMediaUrl(widget.dog.photoPath!);
+      if (mounted) setState(() => _photoUrl = url);
+    } catch (_) {
+      if (mounted) setState(() => _photoUrl = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = context.ff;
-    final color = switch (level) {
+    final color = switch (widget.level) {
       StressLevel.calm => p.statusCalmFg,
       StressLevel.mild => p.statusMildFg,
       StressLevel.moderate => p.statusModerateFg,
       StressLevel.high => p.statusHighFg,
       null => p.brand,
     };
-    final word = level == null
+    final word = widget.level == null
         ? 'No data'
-        : level!.name[0].toUpperCase() + level!.name.substring(1);
-    final description =
-        level == null ? 'Waiting for the first reading…' : level!.phrase(dog.name);
+        : widget.level!.name[0].toUpperCase() + widget.level!.name.substring(1);
+    final description = widget.level == null
+        ? 'Waiting for the first reading…'
+        : widget.level!.phrase(widget.dog.name);
 
     return CurvedStatusHeader(
       color: color,
@@ -175,32 +233,39 @@ class _ImmersiveHero extends StatelessWidget {
       mark: Icons.pets,
       value: word,
       description: description,
-      leading: onBack == null
+      backgroundImage: _photoUrl,
+      scroll: widget.scroll,
+      leading: widget.onBack == null
           ? const HeaderCircleButton(icon: Icons.pets)
           : HeaderCircleButton(
-              icon: Icons.arrow_back_ios_new, tooltip: 'Back', onTap: onBack),
+              icon: Icons.arrow_back_ios_new, tooltip: 'Back', onTap: widget.onBack),
       chips: [
         HeaderChip(
-          icon: openAlerts == 0 ? Icons.check : Icons.notifications_active_outlined,
-          label: openAlerts == 0 ? 'No alerts' : '$openAlerts alerts',
+          icon: widget.openAlerts == 0 ? Icons.check : Icons.notifications_active_outlined,
+          label: widget.openAlerts == 0 ? 'No alerts' : '${widget.openAlerts} alerts',
         ),
-        if (hasCareTip)
+        if (widget.hasCareTip)
           const HeaderChip(icon: Icons.auto_awesome, label: '1 care tip'),
       ],
     );
   }
 }
 
-/// QA: the four vitals as tappable squares. Each opens a detail screen with
 /// the current value, the dog's typical range, and owner-friendly info.
 /// Stateful only to fetch the dog's baseline once so each number carries a
 /// plain-language status (Low/Normal/Elevated/High) relative to *this* dog.
 class _VitalGrid extends StatefulWidget {
-  const _VitalGrid({required this.repository, required this.dog, this.reading});
+  const _VitalGrid({
+    required this.repository,
+    required this.dog,
+    required this.reading,
+    this.refreshTrigger = 0,
+  });
 
   final FurFeelRepository repository;
   final Dog dog;
   final TelemetryReading? reading;
+  final int refreshTrigger;
 
   @override
   State<_VitalGrid> createState() => _VitalGridState();
@@ -220,9 +285,15 @@ class _VitalGridState extends State<_VitalGrid> {
   void didUpdateWidget(_VitalGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Switching dogs must not leave the previous dog's trend on screen.
-    if (oldWidget.dog.id != widget.dog.id) {
-      setState(() => _recent = const []);
+    if (oldWidget.dog.id != widget.dog.id || oldWidget.refreshTrigger != widget.refreshTrigger) {
+      if (oldWidget.dog.id != widget.dog.id) {
+        setState(() => _recent = const []);
+      }
       _loadTrend();
+    } else if (oldWidget.reading != widget.reading && widget.reading != null) {
+      setState(() {
+        _recent = [..._recent, widget.reading!];
+      });
     }
   }
 
@@ -250,6 +321,7 @@ class _VitalGridState extends State<_VitalGrid> {
           VitalKind.heartRate => r.heartRateBpm?.toDouble(),
           VitalKind.breathing => r.respiratoryRateBpm?.toDouble(),
           VitalKind.activity => r.motionActivity,
+          VitalKind.ambientTemperature => r.ambientTemperatureC,
         };
 
     final values = <double>[];
@@ -277,11 +349,13 @@ class _VitalGridState extends State<_VitalGrid> {
             motionActivity: reading!.motionActivity,
           );
 
+    final settings = SettingsScope.of(context);
     (String, String) valueAndUnit(VitalKind kind) => switch (kind) {
           VitalKind.heartRate => (reading?.heartRateBpm?.toString() ?? '—', 'bpm'),
           VitalKind.breathing =>
             (reading?.respiratoryRateBpm?.toString() ?? '—', 'bpm'),
           VitalKind.activity => (activityState.label, ''),
+          VitalKind.ambientTemperature => (reading?.ambientTemperatureC == null ? '—' : settings.formatTemperature(reading!.ambientTemperatureC!), settings.temperatureUnitLabel),
         };
 
     return Column(
@@ -332,24 +406,50 @@ class _VitalGridState extends State<_VitalGrid> {
           ],
         ),
         const SizedBox(height: FurFeelTokens.space3),
-        _VitalBentoCard(
-          isWide: true,
-          color: VitalKind.breathing.color(context),
-          icon: VitalKind.breathing.icon,
-          label: VitalKind.breathing.label,
-          value: valueAndUnit(VitalKind.breathing).$1,
-          unit: valueAndUnit(VitalKind.breathing).$2,
-          series: _waveValues(VitalKind.breathing),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => VitalDetailPage(
-                repository: repository,
-                dog: dog,
-                kind: VitalKind.breathing,
-                reading: reading,
+        Row(
+          children: [
+            Expanded(
+              child: _VitalBentoCard(
+                color: VitalKind.breathing.color(context),
+                icon: VitalKind.breathing.icon,
+                label: VitalKind.breathing.label,
+                value: valueAndUnit(VitalKind.breathing).$1,
+                unit: valueAndUnit(VitalKind.breathing).$2,
+                series: _waveValues(VitalKind.breathing),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => VitalDetailPage(
+                      repository: repository,
+                      dog: dog,
+                      kind: VitalKind.breathing,
+                      reading: reading,
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: FurFeelTokens.space3),
+            Expanded(
+              child: _VitalBentoCard(
+                color: VitalKind.ambientTemperature.color(context),
+                icon: VitalKind.ambientTemperature.icon,
+                label: VitalKind.ambientTemperature.label,
+                value: valueAndUnit(VitalKind.ambientTemperature).$1,
+                unit: valueAndUnit(VitalKind.ambientTemperature).$2,
+                series: _waveValues(VitalKind.ambientTemperature),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => VitalDetailPage(
+                      repository: repository,
+                      dog: dog,
+                      kind: VitalKind.ambientTemperature,
+                      reading: reading,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -365,7 +465,6 @@ class _VitalBentoCard extends StatelessWidget {
     required this.unit,
     required this.series,
     required this.onTap,
-    this.isWide = false,
   });
 
   final Color color;
@@ -375,186 +474,119 @@ class _VitalBentoCard extends StatelessWidget {
   final String unit;
   final List<double> series;
   final VoidCallback onTap;
-  final bool isWide;
 
   @override
   Widget build(BuildContext context) {
-    final p = context.ff;
+    final darkColor = Color.lerp(color, Colors.black, 0.4) ?? color;
+    
     return PressScale(
-      child: Material(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-        child: InkWell(
-          onTap: onTap,
+      child: Container(
+        height: 160,
+        decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-          child: Container(
-            height: isWide ? 120 : 150,
-            padding: const EdgeInsets.all(FurFeelTokens.space4),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-              boxShadow: FurFeelTokens.shadowCard, // Using the beautiful soft shadow
-            ),
-            child: isWide ? _buildWide(context) : _buildSquare(context),
+          boxShadow: FurFeelTokens.shadowCard,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color, darkColor],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSquare(BuildContext context) {
-    final p = context.ff;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, size: 16, color: color),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: p.inkMuted,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const Spacer(),
-        Text.rich(
-          TextSpan(
-            text: value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: p.ink,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-            children: [
-              if (unit.isNotEmpty)
-                TextSpan(
-                  text: ' $unit',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: p.inkMuted,
-                  ),
-                ),
-            ],
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 36,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: series.isNotEmpty
-              ? WaveSparkline(series: series, color: color)
-              : Center(child: Text('—', style: TextStyle(color: p.inkMuted))),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWide(BuildContext context) {
-    final p = context.ff;
-    return Row(
-      children: [
-        Expanded(
-          flex: 4,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+            child: Padding(
+              padding: const EdgeInsets.all(FurFeelTokens.space4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(icon, size: 16, color: color),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: p.inkMuted,
+                  Row(
+                    children: [
+                      Icon(icon, size: 16, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
                       ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text.rich(
+                    TextSpan(
+                      text: value,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                      children: [
+                        if (unit.isNotEmpty)
+                          TextSpan(
+                            text: ' $unit',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                          ),
+                      ],
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 42,
+                    child: series.isNotEmpty
+                        ? Stack(
+                            children: [
+                              Positioned.fill(
+                                bottom: 16, // leave room for labels
+                                child: CandleSparkline(series: series, color: Colors.white),
+                              ),
+                              Positioned(
+                                left: 0,
+                                bottom: 0,
+                                child: Text(
+                                  '7D AGO',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Text(
+                                  'TODAY',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Center(child: Text('—', style: TextStyle(color: Colors.white.withValues(alpha: 0.5)))),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text.rich(
-                TextSpan(
-                  text: value,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: p.ink,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                  children: [
-                    if (unit.isNotEmpty)
-                      TextSpan(
-                        text: ' $unit',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: p.inkMuted,
-                        ),
-                      ),
-                  ],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          flex: 5,
-          child: Container(
-            height: double.infinity,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
             ),
-            child: series.isNotEmpty
-                ? WaveSparkline(series: series, color: color)
-                : Center(child: Text('—', style: TextStyle(color: p.inkMuted))),
           ),
         ),
-      ],
+      ),
     );
   }
 }

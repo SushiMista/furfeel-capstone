@@ -26,9 +26,16 @@ class OverviewStat {
 /// Replaces bulky multi-tile cards with a clean, minimal status strip:
 /// e.g. "🐾 2 Dogs Monitored • All systems normal" or "⚠️ 1 Needs attention".
 class OverviewStatsCard extends StatelessWidget {
-  const OverviewStatsCard({super.key, required this.stats});
+  const OverviewStatsCard({
+    super.key,
+    required this.stats,
+    this.sortValue = 'name',
+    this.onSortChanged,
+  });
 
   final List<OverviewStat> stats;
+  final String sortValue;
+  final ValueChanged<String>? onSortChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -40,59 +47,15 @@ class OverviewStatsCard extends StatelessWidget {
           : const OverviewStat(label: 'Dogs monitored', value: '1', icon: Icons.pets),
     );
 
-    final needsAttentionStat = stats.firstWhere(
-      (s) => s.label.toLowerCase().contains('needs attention'),
-      orElse: () => const OverviewStat(label: 'Needs attention', value: '0', icon: Icons.monitor_heart),
-    );
-
-    final alertsStat = stats.firstWhere(
-      (s) => s.label.toLowerCase().contains('alert'),
-      orElse: () => const OverviewStat(label: 'Alerts today', value: '0', icon: Icons.notifications_outlined),
-    );
-
-    final offlineStat = stats.firstWhere(
-      (s) => s.label.toLowerCase().contains('offline'),
-      orElse: () => const OverviewStat(label: 'Devices offline', value: '0', icon: Icons.wifi_off),
-    );
-
     final dogCount = int.tryParse(dogsStat.value) ?? 1;
-    final needsAttentionCount = int.tryParse(needsAttentionStat.value) ?? 0;
-    final alertsCount = int.tryParse(alertsStat.value) ?? 0;
-    final offlineCount = int.tryParse(offlineStat.value) ?? 0;
-
-    final hasAttention = needsAttentionCount > 0 || alertsCount > 0;
-    final hasOffline = offlineCount > 0;
-
-    // Status pill config
-    final String statusText;
-    final IconData statusIcon;
-    final Color statusFg;
-    final Color statusBg;
-
-    if (hasAttention) {
-      final issueCount = needsAttentionCount > 0 ? needsAttentionCount : alertsCount;
-      statusText = '$issueCount Needs attention';
-      statusIcon = Icons.warning_amber_rounded;
-      statusFg = context.ff.statusHighOwner;
-      statusBg = context.ff.statusHighBg;
-    } else if (hasOffline) {
-      statusText = '$offlineCount Offline';
-      statusIcon = Icons.wifi_off;
-      statusFg = context.ff.warm;
-      statusBg = context.ff.warmSoft;
-    } else {
-      statusText = 'All systems normal';
-      statusIcon = Icons.check_circle_outline_rounded;
-      statusFg = context.ff.statusCalmFg;
-      statusBg = context.ff.statusCalmBg;
-    }
-
     final dogLabel = dogCount == 1 ? 'Dog monitored' : 'Dogs monitored';
 
-    // shadcn_flutter piloted here (ADR-017): Card gives the same surface this
-    // widget already drew by hand, NumberTicker animates the dog count on
-    // change instead of it just snapping to a new digit. Scoped locally via
-    // shadcn.Theme -- the app root stays MaterialApp (see shadcn_bridge.dart).
+    final sortLabel = switch (sortValue) {
+      'stress' => 'Stress Level',
+      'alerts' => 'Open Alerts',
+      _ => 'Name',
+    };
+
     return shadcn.Theme(
       data: furFeelShadcnTheme(context),
       child: shadcn.Card(
@@ -150,36 +113,68 @@ class OverviewStatsCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: FurFeelTokens.space2),
-            // Status Badge
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: FurFeelTokens.space3,
-                vertical: 5,
-              ),
-              decoration: BoxDecoration(
-                color: statusBg,
-                borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(statusIcon, size: 14, color: statusFg),
-                  const SizedBox(width: 4),
-                  Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: statusFg,
+            // Sorting Dropdown
+            if (onSortChanged != null)
+              Theme(
+                data: Theme.of(context).copyWith(
+                  popupMenuTheme: PopupMenuThemeData(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
+                    ),
+                    color: context.ff.surface,
+                  ),
+                ),
+                child: PopupMenuButton<String>(
+                  initialValue: sortValue,
+                  onSelected: onSortChanged,
+                  offset: const Offset(0, 40),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FurFeelTokens.space3,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.ff.surface,
+                      borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+                      border: Border.all(color: context.ff.hairline),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.sort, size: 14, color: context.ff.inkMuted),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Sort: $sortLabel',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: context.ff.inkMuted,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.keyboard_arrow_down, size: 14, color: context.ff.inkMuted),
+                      ],
                     ),
                   ),
-                ],
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'name',
+                      child: Text('Name (A-Z)', style: TextStyle(fontSize: 14)),
+                    ),
+                    const PopupMenuItem(
+                      value: 'stress',
+                      child: Text('Stress Level', style: TextStyle(fontSize: 14)),
+                    ),
+                    const PopupMenuItem(
+                      value: 'alerts',
+                      child: Text('Open Alerts', style: TextStyle(fontSize: 14)),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 }
-
