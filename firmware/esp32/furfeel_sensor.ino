@@ -16,8 +16,8 @@ const char* DEVICE_CODE   = "FURFEEL-DEV-0002";
 const char* DEVICE_KEY    = "014561cd2c1ab0f56a5e5c3ee0814122a868837f45ec441e";
 const char* FUNCTION_URL  = "https://kkbumkjvltlrggfefnkp.supabase.co/functions/v1/telemetry-intake";
 
-// ⏱️ Reduced from 10000 (10s) to 3000 (3s) for fast real-time app updates!
-const unsigned long SEND_INTERVAL_MS = 3000;
+// ⏱️ Set to 2000 (2 seconds) for fast real-time app updates!
+const unsigned long SEND_INTERVAL_MS = 2000;
 
 //================ DHT22 ===================
 #define DHTPIN 4
