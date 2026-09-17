@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
-import 'package:furfeel_mobile/widgets/contact_field_editor.dart';
 import 'package:furfeel_mobile/widgets/settings_group.dart';
 import 'package:furfeel_mobile/screens/settings/about_pages.dart';
 
@@ -68,11 +67,6 @@ class _SettingsPageState extends State<SettingsPage> {
         : s.copyWith(quietHoursEnd: _encodeTime(picked)));
   }
 
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,51 +83,6 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.all(FurFeelTokens.space4),
         children: [
-          // ────────────────────────────────────────────────────────────
-          // ACCOUNT
-          // ────────────────────────────────────────────────────────────
-          _Label('ACCOUNT').entrance(context),
-          const SizedBox(height: FurFeelTokens.space2),
-          SettingsGroup(
-            children: [
-              SettingsRow(
-                icon: Icons.manage_accounts_outlined,
-                title: 'Edit Profile',
-                subtitle: 'Name, photo',
-                onTap: widget.onEditProfile ??
-                    () => _snack('Open via Profile → your name card'),
-              ),
-              SettingsRow(
-                icon: Icons.phone_outlined,
-                title: 'Phone Number',
-                subtitle: ctrl.profile?.phone ?? 'Not set',
-                onTap: () => editContactField(
-                  context,
-                  title: 'Phone Number',
-                  hint: '+63 9XX XXX XXXX',
-                  keyboardType: TextInputType.phone,
-                  current: ctrl.profile?.phone,
-                  save: ctrl.repository.updateMyPhone,
-                ),
-              ),
-              SettingsRow(
-                icon: Icons.emergency_outlined,
-                iconBackground: context.ff.warmSoft,
-                iconColor: context.ff.warm,
-                title: 'Emergency Contact',
-                subtitle: ctrl.profile?.emergencyContact ?? 'Not set',
-                onTap: () => editContactField(
-                  context,
-                  title: 'Emergency Contact',
-                  hint: 'Name and number',
-                  current: ctrl.profile?.emergencyContact,
-                  save: ctrl.repository.updateMyEmergencyContact,
-                ),
-              ),
-            ],
-          ).entrance(context, index: 1),
-          const SizedBox(height: FurFeelTokens.space5),
-
           // ────────────────────────────────────────────────────────────
           // APPEARANCE
           // ────────────────────────────────────────────────────────────
@@ -321,32 +270,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ).entrance(context, index: 7),
-          const SizedBox(height: FurFeelTokens.space5),
-
-          // ────────────────────────────────────────────────────────────
-          // PRIVACY & SECURITY
-          // ────────────────────────────────────────────────────────────
-          _Label('PRIVACY & SECURITY').entrance(context, index: 8),
-          const SizedBox(height: FurFeelTokens.space2),
-          SettingsGroup(
-            children: [
-              SettingsRow(
-                icon: Icons.lock_reset_outlined,
-                title: 'Change Password',
-                onTap: widget.onChangePassword ??
-                    () => _snack('Open via Profile → your name card → Change Password'),
-              ),
-              SettingsRow(
-                icon: Icons.no_accounts_outlined,
-                iconBackground: context.ff.statusHighBg,
-                iconColor: context.ff.statusHighFg,
-                title: 'Delete Account',
-                destructive: true,
-                onTap: widget.onDeleteAccount ??
-                    () => _snack('Open via Profile → your name card → Delete Account'),
-              ),
-            ],
-          ).entrance(context, index: 9),
           const SizedBox(height: FurFeelTokens.space5),
 
           // ────────────────────────────────────────────────────────────
