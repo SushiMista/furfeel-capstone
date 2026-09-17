@@ -23,10 +23,16 @@ String hourLabel(int hour) {
 /// A colour band alone tells you the day had *some* shape but never which hour
 /// was which — the readout is what makes it answer a question.
 class DayTimeline extends StatefulWidget {
-  const DayTimeline({super.key, required this.repository, required this.dog});
+  const DayTimeline({
+    super.key,
+    required this.repository,
+    required this.dog,
+    this.refreshTrigger = 0,
+  });
 
   final FurFeelRepository repository;
   final Dog dog;
+  final int refreshTrigger;
 
   @override
   State<DayTimeline> createState() => _DayTimelineState();
@@ -48,11 +54,13 @@ class _DayTimelineState extends State<DayTimeline> {
   @override
   void didUpdateWidget(DayTimeline oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.dog.id != widget.dog.id) {
-      setState(() {
-        _hours = null;
-        _selectedHour = null;
-      });
+    if (oldWidget.dog.id != widget.dog.id || oldWidget.refreshTrigger != widget.refreshTrigger) {
+      if (oldWidget.dog.id != widget.dog.id) {
+        setState(() {
+          _hours = null;
+          _selectedHour = null;
+        });
+      }
       _load();
     }
   }

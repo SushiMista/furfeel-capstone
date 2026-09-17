@@ -6,6 +6,7 @@ import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/settings_group.dart';
 import 'package:furfeel_mobile/screens/settings/about_pages.dart';
+import 'package:furfeel_mobile/screens/settings/bug_report_page.dart';
 
 /// Settings — categorized into clear sections.
 ///
@@ -301,6 +302,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                       builder: (_) => const AboutPage()),
+                ),
+              ),
+              SettingsRow(
+                icon: Icons.bug_report_outlined,
+                title: 'Report a Bug or Issue',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const BugReportPage()),
                 ),
               ),
             ],

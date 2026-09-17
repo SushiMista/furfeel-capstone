@@ -242,6 +242,7 @@ class FakeRepository implements FurFeelRepository {
         classification: latestClassification,
         device: device,
         wellness: wellness,
+        openAlertsCount: alerts.where((a) => a.status == 'open').length,
       );
 
   @override
@@ -440,4 +441,14 @@ class FakeRepository implements FurFeelRepository {
     lastOnReading = onReading;
     return () async {};
   }
+
+  @override
+  Future<void> submitBugReport({
+    required String reporterName,
+    required String reporterEmail,
+    required String title,
+    required String description,
+    String category = 'bug',
+  }) async {}
+
 }
