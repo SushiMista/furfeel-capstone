@@ -28,6 +28,17 @@ export async function seedInitialBiotelemetry(
     baselineRr = 20,
   } = options;
 
+  // Do NOT seed simulated biotelemetry on real physical ESP32 hardware 'FURFEEL-DEV-0002'
+  const { data: dev } = await client
+    .from("devices")
+    .select("device_code")
+    .eq("id", deviceId)
+    .maybeSingle();
+
+  if (dev?.device_code === "FURFEEL-DEV-0002") {
+    return;
+  }
+
   // 1. Try atomic Postgres RPC first
   try {
     const { error: rpcError } = await client.rpc("seed_dog_biotelemetry", {

@@ -11,6 +11,8 @@ function fakeBaselinesTable(row: unknown) {
   const chain = {
     select: () => chain,
     eq: () => chain,
+    order: () => chain,
+    limit: () => chain,
     maybeSingle: async () => ({ data: row, error: null }),
     single: async () => ({ data: row, error: null }),
     upsert: (payload: unknown) => {

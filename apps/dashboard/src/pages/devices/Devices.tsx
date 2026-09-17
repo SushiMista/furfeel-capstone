@@ -25,6 +25,7 @@ import {
   deleteDevice,
 } from "../../lib/adminQueries.ts";
 import { recordAuditLog, fetchPendingDeviceDeletionRequests } from "../../lib/auditLogger.ts";
+import { seedInitialBiotelemetry } from "../../lib/biotelemetrySeeder.ts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
@@ -171,13 +172,49 @@ export function Devices() {
 
     setSaving(true);
     try {
+      const prevDogId = editingDevice.dog_id;
+      const targetDogId = editDogId || null;
+
       await updateDevice(supabase, editingDevice.id, {
         status: editStatus,
         firmware_version: editFirmware.trim() || null,
-        dog_id: editDogId || null,
+        dog_id: targetDogId,
       });
 
-      const assignedDog = dogs.find((d) => d.id === editDogId);
+      // Handle biotelemetry placeholder logic upon device reassignment
+      if (editingDevice.device_code === "FURFEEL-DEV-0002") {
+        if (targetDogId) {
+          // Clear simulated seed readings for target dog so real ESP32 stream starts clean
+          await supabase.from("stress_classifications").delete().eq("dog_id", targetDogId);
+          await supabase.from("telemetry_readings").delete().eq("dog_id", targetDogId);
+        }
+
+        // If previous dog was un-paired from real hardware, seed biotelemetry if they have a simulated collar assigned
+        if (prevDogId && prevDogId !== targetDogId) {
+          const { data: prevCollar } = await supabase
+            .from("devices")
+            .select("id, device_code")
+            .eq("dog_id", prevDogId)
+            .maybeSingle();
+
+          if (prevCollar && prevCollar.device_code !== "FURFEEL-DEV-0002") {
+            await seedInitialBiotelemetry(supabase, {
+              dogId: prevDogId,
+              deviceId: prevCollar.id,
+              count: 6,
+            });
+          }
+        }
+      } else if (targetDogId) {
+        // Seeding for simulated / non-hardware collars
+        await seedInitialBiotelemetry(supabase, {
+          dogId: targetDogId,
+          deviceId: editingDevice.id,
+          count: 6,
+        });
+      }
+
+      const assignedDog = dogs.find((d) => d.id === targetDogId);
       setDevices((prev) =>
         prev.map((d) =>
           d.id === editingDevice.id
@@ -185,7 +222,7 @@ export function Devices() {
                 ...d,
                 status: editStatus,
                 firmware_version: editFirmware.trim() || null,
-                dog_id: editDogId || null,
+                dog_id: targetDogId,
                 dog: assignedDog ? { id: assignedDog.id, name: assignedDog.name } : null,
               }
             : d,
