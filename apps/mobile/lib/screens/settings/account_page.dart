@@ -7,6 +7,7 @@ import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/user_avatar.dart';
+import 'package:furfeel_mobile/widgets/contact_field_editor.dart';
 import 'package:furfeel_mobile/util/errors.dart';
 
 /// ADDED: Profile / Account (docs/04): name, email, profile photo
@@ -230,13 +231,38 @@ class _AccountPageState extends State<AccountPage> {
                   trailing: Icon(Icons.chevron_right, color: context.ff.inkMuted),
                   onTap: _busy ? null : _editName,
                 ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
                 ListTile(
                   leading: Icon(Icons.mail_outline, color: context.ff.brand),
                   title: const Text('Email'),
                   subtitle: Text(profile?.email ?? '—'),
                 ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: Icon(Icons.phone_outlined, color: context.ff.brand),
+                  title: const Text('Phone Number'),
+                  subtitle: Text(profile?.phone ?? 'Not set'),
+                  trailing: Icon(Icons.chevron_right, color: context.ff.inkMuted),
+                  onTap: _busy ? null : () => editContactField(
+                    context,
+                    title: 'Phone Number',
+                    hint: '+63 9XX XXX XXXX',
+                    keyboardType: TextInputType.phone,
+                    current: profile?.phone,
+                    save: widget.repository.updateMyPhone,
+                  ).then((_) => setState(() {})),
+                ),
+                ListTile(
+                  leading: Icon(Icons.emergency_outlined, color: context.ff.warm),
+                  title: const Text('Emergency Contact'),
+                  subtitle: Text(profile?.emergencyContact ?? 'Not set'),
+                  trailing: Icon(Icons.chevron_right, color: context.ff.inkMuted),
+                  onTap: _busy ? null : () => editContactField(
+                    context,
+                    title: 'Emergency Contact',
+                    hint: 'Name and number',
+                    current: profile?.emergencyContact,
+                    save: widget.repository.updateMyEmergencyContact,
+                  ).then((_) => setState(() {})),
+                ),
                 ListTile(
                   leading: Icon(Icons.password_outlined, color: context.ff.brand),
                   title: const Text('Change password'),

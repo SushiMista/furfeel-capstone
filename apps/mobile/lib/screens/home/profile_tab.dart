@@ -5,14 +5,12 @@ import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
-import 'package:furfeel_mobile/widgets/contact_field_editor.dart';
 import 'package:furfeel_mobile/widgets/dog_avatar.dart';
 import 'package:furfeel_mobile/widgets/settings_group.dart';
 import 'package:furfeel_mobile/widgets/user_avatar.dart';
 import 'package:furfeel_mobile/screens/settings/account_page.dart';
 import 'package:furfeel_mobile/screens/dogs/care_tips_page.dart';
-import 'package:furfeel_mobile/screens/dogs/device_pairing_page.dart';
-import 'package:furfeel_mobile/screens/dogs/dog_form_page.dart';
+import 'package:furfeel_mobile/screens/dogs/dog_profile_page.dart';
 import 'package:furfeel_mobile/screens/settings/partner_clinics_page.dart';
 import 'package:furfeel_mobile/screens/settings/settings_page.dart';
 
@@ -40,13 +38,6 @@ class ProfileTab extends StatelessWidget {
   /// Called after any create/edit/delete so the shell reloads its dog list.
   final Future<void> Function() onDogsChanged;
   final Future<void> Function() onSignOut;
-
-  Future<void> _openForm(BuildContext context, {Dog? dog}) async {
-    final result = await Navigator.of(context).push<Object?>(
-      MaterialPageRoute(builder: (_) => DogFormPage(repository: repository, dog: dog)),
-    );
-    if (result != null) await onDogsChanged();
-  }
 
   Future<void> _confirmSignOut(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -81,99 +72,59 @@ class ProfileTab extends StatelessWidget {
       ),
       children: [
         // ── Identity header ────────────────────────────────────────────
-        PressScale(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) =>
-                    AccountPage(repository: repository, onSignOut: onSignOut),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: FurFeelTokens.space3),
-              child: Row(
-                children: [
-                  UserAvatar(profile: profile, repository: repository, radius: 32),
-                  const SizedBox(width: FurFeelTokens.space4),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          profile?.name ?? userEmail ?? 'Your account',
-                          style: Theme.of(context).textTheme.titleLarge,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          profile?.email ?? userEmail ?? '',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: context.ff.inkMuted),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right, color: context.ff.inkMuted),
-                ],
-              ),
-            ),
-          ),
-        ).entrance(context),
-        const SizedBox(height: FurFeelTokens.space4),
-
-        // ── Account Info ───────────────────────────────────────────────
         SettingsGroup(
-          header: 'ACCOUNT INFO',
           children: [
-            SettingsRow(
-              icon: Icons.phone_outlined,
-              title: 'Phone Number',
-              subtitle: profile?.phone ?? 'Not set',
-              showChevron: true,
-              onTap: () => editContactField(
-                context,
-                title: 'Phone Number',
-                hint: '+63 9XX XXX XXXX',
-                keyboardType: TextInputType.phone,
-                current: profile?.phone,
-                save: repository.updateMyPhone,
+            PressScale(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        AccountPage(repository: repository, onSignOut: onSignOut),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(FurFeelTokens.space4),
+                  child: Row(
+                    children: [
+                      UserAvatar(profile: profile, repository: repository, radius: 32),
+                      const SizedBox(width: FurFeelTokens.space4),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              profile?.name ?? userEmail ?? 'Your account',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              profile?.email ?? userEmail ?? '',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: context.ff.inkMuted),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: context.ff.inkMuted),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            SettingsRow(
-              icon: Icons.emergency_outlined,
-              iconBackground: context.ff.warmSoft,
-              iconColor: context.ff.warm,
-              title: 'Emergency Contact',
-              subtitle: profile?.emergencyContact ?? 'Not set',
-              showChevron: true,
-              onTap: () => editContactField(
-                context,
-                title: 'Emergency Contact',
-                hint: 'Name and number',
-                current: profile?.emergencyContact,
-                save: repository.updateMyEmergencyContact,
-              ),
-            ),
-            SettingsRow(
-              icon: Icons.calendar_month_outlined,
-              iconBackground: context.ff.statusCalmBg,
-              iconColor: context.ff.statusCalmFg,
-              title: 'Member Since',
-              subtitle: profile == null ? '—' : _monthYear(profile.createdAt),
-              showChevron: false,
             ),
           ],
-        ).entrance(context, index: 1),
+        ).entrance(context),
         const SizedBox(height: FurFeelTokens.space5),
 
         // ── Settings ──────────────────────────────────────────────────
         SettingsGroup(
+          header: 'PREFERENCES',
           children: [
             SettingsRow(
               icon: Icons.tune,
@@ -202,17 +153,12 @@ class ProfileTab extends StatelessWidget {
         // ── My Dogs ───────────────────────────────────────────────────
         SettingsGroup(
           header: 'MY DOGS',
-          headerAction: TextButton.icon(
-            onPressed: () => _openForm(context),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add'),
-          ),
           children: [
             if (dogs.isEmpty)
               SettingsRow(
                 icon: Icons.pets,
                 title: 'No dogs yet',
-                subtitle: 'Add a dog to start monitoring',
+                subtitle: 'Your veterinarian has not assigned a dog',
                 showChevron: false,
               )
             else
@@ -234,18 +180,12 @@ class ProfileTab extends StatelessWidget {
                       '${dog.ageYears} ${dog.ageYears == 1 ? 'year' : 'years'} old',
                     dog.clinicId != null ? 'Clinic-monitored' : 'Home only',
                   ].join(' · '),
-                  trailing: IconButton(
-                    tooltip: 'Harness',
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(Icons.sensors, color: context.ff.inkMuted),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            DevicePairingPage(repository: repository, dog: dog),
-                      ),
+                  showChevron: true,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DogProfilePage(repository: repository, dog: dog),
                     ),
-                  ),
-                  onTap: () => _openForm(context, dog: dog),
+                  ).then((_) => onDogsChanged()),
                 ),
           ],
         ).entrance(context, index: 3),
@@ -295,9 +235,3 @@ class ProfileTab extends StatelessWidget {
   }
 }
 
-const _monthNames = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-String _monthYear(DateTime date) => '${_monthNames[date.month - 1]} ${date.year}';

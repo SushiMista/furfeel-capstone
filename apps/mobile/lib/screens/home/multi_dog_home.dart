@@ -11,7 +11,6 @@ import 'package:furfeel_mobile/widgets/pet_selector.dart';
 import 'package:furfeel_mobile/widgets/skeletons.dart';
 import 'package:furfeel_mobile/widgets/stress_pill.dart';
 import 'package:furfeel_mobile/screens/dogs/dog_detail_page.dart';
-import 'package:furfeel_mobile/screens/dogs/dog_form_page.dart';
 
 /// Multi-dog Home (QA item 9): one minimalist glance row per owned dog —
 /// photo, name, breed, stress pill; numbers live on the dog's own page.
@@ -73,16 +72,6 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
         .then((_) => _load());
   }
 
-  Future<void> _addDog() {
-    return Navigator.of(context)
-        .push(
-          MaterialPageRoute<void>(
-            builder: (_) => DogFormPage(repository: widget.repository),
-          ),
-        )
-        .then((_) => _load());
-  }
-
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -102,17 +91,17 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
           FurFeelTokens.space6 + MediaQuery.paddingOf(context).bottom,
         ),
         children: [
-          const _PackGreeting(),
+          _PackGreeting(dogCount: widget.dogs.length),
           const SizedBox(height: FurFeelTokens.space3),
-          // Board's "My Pets" row: quick jump to any dog plus the only
-          // add-a-dog affordance on this screen.
-          PetSelector(
-            dogs: widget.dogs,
-            repository: widget.repository,
-            onSelect: _openDog,
-            onAdd: _addDog,
-          ).entrance(context),
-          const SizedBox(height: FurFeelTokens.space3),
+          if (widget.dogs.length > 1) ...[
+            // Board's "My Pets" row: quick jump to any dog
+            PetSelector(
+              dogs: widget.dogs,
+              repository: widget.repository,
+              onSelect: _openDog,
+            ).entrance(context),
+            const SizedBox(height: FurFeelTokens.space3),
+          ],
           // At-a-glance overview strip (mirrors the dashboard's clinic KPI
           // row) — built from the same per-dog overviews already fetched
           // above; no extra query.
@@ -159,7 +148,8 @@ List<OverviewStat> _overviewStats(List<DogOverview> overviews) {
   final alertsToday = overviews.fold<int>(0, (sum, o) => sum + (o.wellness?.alertCount ?? 0));
 
   return [
-    OverviewStat(label: 'Dogs monitored', value: '${overviews.length}', icon: Icons.pets),
+    if (overviews.length > 1)
+      OverviewStat(label: 'Dogs monitored', value: '${overviews.length}', icon: Icons.pets),
     if (calmToday != null)
       OverviewStat(
         label: 'Calm today',
@@ -188,7 +178,9 @@ List<OverviewStat> _overviewStats(List<DogOverview> overviews) {
 }
 
 class _PackGreeting extends StatelessWidget {
-  const _PackGreeting();
+  const _PackGreeting({required this.dogCount});
+  
+  final int dogCount;
 
   @override
   Widget build(BuildContext context) {
@@ -208,13 +200,15 @@ class _PackGreeting extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 2),
-        Text('Here\'s how your pack is doing',
+        Text(dogCount > 1 ? 'Here\'s how your pack is doing' : 'Here\'s how your dog is doing',
             style: Theme.of(context).textTheme.bodySmall),
       ],
     ).entrance(context);
   }
-}/// One glanceable dog card. Word + color everywhere, never color alone.
-class DogOverviewCard extends StatelessWidget {
+}
+
+/// One glanceable dog card. Word + color everywhere, never color alone.
+class DogOverviewCard extends StatefulWidget {
   const DogOverviewCard({
     super.key,
     required this.overview,
@@ -227,73 +221,194 @@ class DogOverviewCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<DogOverviewCard> createState() => _DogOverviewCardState();
+}
+
+class _DogOverviewCardState extends State<DogOverviewCard> {
+  Future<String>? _photoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initFuture();
+  }
+
+  @override
+  void didUpdateWidget(DogOverviewCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.overview.dog.photoPath != widget.overview.dog.photoPath) {
+      _initFuture();
+    }
+  }
+
+  void _initFuture() {
+    final path = widget.overview.dog.photoPath;
+    _photoFuture = path == null ? null : widget.repository.getSignedMediaUrl(path);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final dog = overview.dog;
-    final level = overview.classification?.stressLevel;
+    final dog = widget.overview.dog;
+    final level = widget.overview.classification?.stressLevel;
+    final tint = dogTint(context, dog);
 
     return PressScale(
       child: Material(
-        color: context.ff.surface,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
         child: InkWell(
-          onTap: onTap,
+          onTap: widget.onTap,
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-          child: Container(
-            padding: const EdgeInsets.all(FurFeelTokens.space4),
-            decoration: BoxDecoration(
-              border: Border.all(color: context.ff.hairline),
-              borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-              boxShadow: FurFeelTokens.shadowCard,
-            ),
-            child: Row(
-              children: [
-                DogAvatar(
-                  dog: dog,
-                  repository: repository,
-                  backgroundColor: level != null
-                      ? stressLevelSoftBg(context, level)
-                      : context.ff.brandSoft,
+          child: FutureBuilder<String>(
+            future: _photoFuture,
+            builder: (context, snapshot) {
+              final imageUrl = snapshot.data;
+
+              return Container(
+                height: 260,
+                decoration: BoxDecoration(
+                  color: imageUrl == null ? tint : null,
+                  borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+                  image: imageUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(imageUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                  boxShadow: FurFeelTokens.shadowCard,
                 ),
-                const SizedBox(width: FurFeelTokens.space3),
-                Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.05),
+                        Colors.transparent,
+                        context.ff.brandInk.withValues(alpha: 0.5),
+                        context.ff.brandInk.withValues(alpha: 0.9),
+                      ],
+                      stops: const [0.0, 0.3, 0.6, 1.0],
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(FurFeelTokens.space5),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (level != null)
+                            StressPill(level: level)
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'No data yet',
+                                style: textTheme.labelSmall?.copyWith(color: Colors.white),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const Spacer(),
                       Text(
                         dog.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.titleMedium?.copyWith(
+                        style: textTheme.headlineMedium?.copyWith(
+                          color: Colors.white,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      if (dog.breed != null)
-                        Text(
-                          dog.breed!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.bodySmall,
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          if (dog.breed != null) dog.breed!,
+                          if (dog.ageYears != null) '${dog.ageYears}y',
+                        ].join(' · '),
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.8),
                         ),
+                      ),
+                      const SizedBox(height: FurFeelTokens.space4),
+                      Row(
+                        children: [
+                          _MiniStat(
+                            icon: Icons.favorite_border,
+                            label: widget.overview.reading?.heartRateBpm != null
+                                ? '${widget.overview.reading!.heartRateBpm} bpm'
+                                : '--',
+                            color: Colors.white,
+                            bgColor: Colors.white.withValues(alpha: 0.2),
+                          ),
+                          const SizedBox(width: FurFeelTokens.space3),
+                          _MiniStat(
+                            icon: Icons.notifications_none,
+                            label: '${widget.overview.wellness?.alertCount ?? 0} alerts',
+                            color: Colors.white,
+                            bgColor: Colors.white.withValues(alpha: 0.2),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(width: FurFeelTokens.space2),
-                if (level != null)
-                  StressPill(level: level)
-                else
-                  Text(
-                    'No data yet',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: context.ff.inkMuted,
-                    ),
-                  ),
-                const SizedBox(width: FurFeelTokens.space2),
-                Icon(Icons.chevron_right, size: 18, color: context.ff.inkMuted),
-              ],
-            ),
+              );
+            },
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.bgColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color bgColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
       ),
     );
   }
