@@ -1,27 +1,21 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Activity,
   ArrowRight,
   Camera,
   CheckCircle2,
   Circle,
   Cpu,
   Dog as DogIcon,
-  HeartPulse,
   Info,
   PawPrint,
-  Plus,
   Radio,
   Sparkles,
   Upload,
   UserCheck,
-  UserPlus,
-  Users,
   X,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
-import { useAuth } from "../../lib/useAuth.ts";
 import { useCurrentRole } from "../../lib/useCurrentRole.ts";
 import { useToast } from "../../components/ui/toast.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
@@ -44,7 +38,6 @@ import type { Clinic, Device, DogSex, User } from "../../../../../packages/share
 export function PatientIntake() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { session } = useAuth();
   const { role, clinicId: userClinicId } = useCurrentRole();
 
   const [loading, setLoading] = useState(true);

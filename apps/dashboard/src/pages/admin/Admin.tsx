@@ -355,7 +355,7 @@ export function Admin() {
 }
 
 /** Operational Inefficiencies and Actionable Alert Banner */
-function AdminInefficienciesBanner({ inefficiencies }: { inefficiencies: AdminInefficiencies }) {
+export function AdminInefficienciesBanner({ inefficiencies }: { inefficiencies: AdminInefficiencies }) {
   const { unassignedActiveDevices, unassignedDogs, staleDevices, inactiveUsers } = inefficiencies;
 
   const totalInefficiencies =

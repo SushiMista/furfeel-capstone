@@ -238,7 +238,7 @@ export async function registerDevice(
 export async function updateDevice(
   client: SupabaseClient,
   deviceId: string,
-  patch: { dog_id?: string | null; status?: DeviceStatus },
+  patch: { dog_id?: string | null; status?: DeviceStatus; firmware_version?: string | null },
 ): Promise<Device> {
   // Enforce 1 dog = 1 device protocol: if binding to a dog, unassign any existing device for that dog first
   if (patch.dog_id) {

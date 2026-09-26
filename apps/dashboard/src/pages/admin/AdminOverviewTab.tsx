@@ -1,39 +1,26 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Activity,
   ArrowRight,
-  BellRing,
   Bug,
   Building2,
-  CheckCircle2,
   Cpu,
   Dog as DogIcon,
   FileSearch,
-  Plus,
-  Radio,
-  RotateCcw,
-  ShieldAlert,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
-  UserCheck,
   UserCog,
   Users as UsersIcon,
-  Wifi,
-  WifiOff,
 } from "lucide-react";
-import { supabase } from "../../lib/supabaseClient.ts";
 import { fetchAuditLogs, type AuditLogRecord } from "../../lib/auditLogger.ts";
 import { UserRoleChart } from "../../components/UserRoleChart.tsx";
-import { DeviceAdoptionChart } from "../../components/DeviceAdoptionChart.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
-import { Badge } from "../../components/ui/badge.tsx";
-import { Button } from "../../components/ui/button.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { formatPhilippineTime } from "../../lib/time.ts";
+import type { AdminInefficiencies } from "../../lib/adminQueries.ts";
+import { AdminInefficienciesBanner } from "./Admin.tsx";
 import type {
-  AdminInefficiencies,
   BugReport,
   Clinic,
   Device,
@@ -56,7 +43,6 @@ export function AdminOverviewTab({
   bugReports: BugReport[];
   inefficiencies: AdminInefficiencies;
 }) {
-  const navigate = useNavigate();
   const [recentLogs, setRecentLogs] = useState<AuditLogRecord[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
 
@@ -101,6 +87,8 @@ export function AdminOverviewTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <AdminInefficienciesBanner inefficiencies={inefficiencies} />
+
       {/* 6 Technical KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
         {/* Card 1: Clinics */}
