@@ -8,16 +8,10 @@ import {
   Edit,
   Plus,
   Unlink,
-  CheckCircle2,
-  Calendar,
-  Weight,
-  User,
   Image as ImageIcon,
-  X,
   Sparkles,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
-import { useAuth } from "../../lib/useAuth.ts";
 import {
   fetchDogs,
   getMediaSignedUrl,
@@ -37,7 +31,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
-import { Badge } from "../../components/ui/badge.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Input, Label, Select } from "../../components/ui/input.tsx";
 import { Dialog } from "../../components/ui/dialog.tsx";
@@ -47,8 +40,7 @@ import { cn } from "../../lib/cn.ts";
 
 export function DogManagement() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
 
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [devices, setDevices] = useState<DeviceWithDog[]>([]);

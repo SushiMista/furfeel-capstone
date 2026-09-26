@@ -19,7 +19,6 @@ import {
   PawPrint,
   Radio,
   UserCog,
-  Users,
 } from "lucide-react";
 import { useAuth } from "../lib/useAuth.ts";
 import { useCurrentRole } from "../lib/useCurrentRole.ts";

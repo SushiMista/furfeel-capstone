@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Filter, LayoutGrid, RotateCcw, Rows3, Search, SlidersHorizontal } from "lucide-react";
+import { LayoutGrid, RotateCcw, Rows3, Search } from "lucide-react";
 import { friendlyError } from "../../lib/errors.ts";
 import { timed } from "../../lib/perf.ts";
 import { supabase } from "../../lib/supabaseClient.ts";

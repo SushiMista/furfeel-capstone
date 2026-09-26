@@ -10,14 +10,9 @@ import {
   Search,
   Cpu,
   Dog as DogIcon,
-  CheckCircle2,
-  Info,
-  Clock,
-  RotateCcw,
-  Sparkles,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
-import { useAuth } from "../../lib/useAuth.ts";
+import { useCurrentRole } from "../../lib/useCurrentRole.ts";
 import { fetchDevicesReadOnly, fetchDogs, type DeviceWithDog, type Dog } from "../../lib/queries.ts";
 import {
   registerDevice,
@@ -47,9 +42,8 @@ const STATUS_BADGE: Record<string, "default" | "neutral" | "outline"> = {
 
 export function Devices() {
   const [searchParams] = useSearchParams();
-  const { profile } = useAuth();
-  const { toast } = useToast();
-  const role = profile?.role;
+  const { role, clinicId, name, email } = useCurrentRole();
+  const toast = useToast();
   const isAdmin = role === "admin";
 
   const [devices, setDevices] = useState<DeviceWithDog[]>([]);
@@ -307,7 +301,7 @@ export function Devices() {
         next.set(target.id, {
           reason: reasonText,
           requestedAt: new Date().toISOString(),
-          requestedBy: profile?.name || profile?.email || "Clinic Staff",
+          requestedBy: name || email || "Clinic Staff",
         });
         return next;
       });
@@ -329,13 +323,13 @@ export function Devices() {
         action: "device.deletion_requested",
         target_resource: "devices",
         target_id: target.id,
-        clinic_id: profile?.clinic_id ?? null,
+        clinic_id: clinicId ?? null,
         details: {
           device_code: target.device_code,
           dog_name: target.dog?.name ?? null,
           reason: reasonText,
           requested_at: new Date().toISOString(),
-          requested_by: profile?.name || profile?.email || "Clinic Staff",
+          requested_by: name || email || "Clinic Staff",
         },
         severity: "warning",
       });
