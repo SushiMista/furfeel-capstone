@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -6,6 +5,7 @@ import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
 import 'package:furfeel_mobile/widgets/auth_pattern_background.dart';
+import 'package:furfeel_mobile/data/google_auth_helper.dart';
 import 'package:furfeel_mobile/screens/auth/login_page.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -177,16 +177,13 @@ class _SignUpPageState extends State<SignUpPage> {
       _error = null;
     });
     try {
-      await widget.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: kIsWeb ? Uri.base.origin : 'io.furfeel.app://login-callback',
-        authScreenLaunchMode: LaunchMode.platformDefault,
-        queryParams: {'prompt': 'select_account'},
-      );
+      await performGoogleSignIn(widget.client);
     } on AuthException catch (e) {
       if (mounted) setState(() { _error = e.message; _googleBusy = false; });
     } catch (_) {
       if (mounted) setState(() { _error = 'Could not start Google sign-in. Check your connection.'; _googleBusy = false; });
+    } finally {
+      if (mounted) setState(() => _googleBusy = false);
     }
   }
 

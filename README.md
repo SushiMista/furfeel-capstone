@@ -53,10 +53,11 @@ cp apps/mobile/env.json.example apps/mobile/env.json
 cp firmware/simulator/.env.example firmware/simulator/.env
 
 # 3. run
-cd apps/dashboard && npm install && npm run dev          # dashboard
-cd apps/mobile && flutter run -d chrome --dart-define-from-file=env.json or flutter run --dart-define-from-file=env.json
- # owner app
-cd firmware/simulator && npm install && npm start -- --sweep               # live data
+cd apps/dashboard && npm install && npm run dev                                                    # vet dashboard (port 5173/5174)
+cd apps/mobile && flutter run -d chrome --web-port 5175 --dart-define-from-file=env.json          # owner web app
+# Or for Android emulator / phone:
+# cd apps/mobile && flutter run --dart-define-from-file=env.json
+cd firmware/simulator && npm install && npm start -- --sweep                                      # live collar data
 ```
 
 Seed logins: owner `owner@example.com` · vet `vet@example.com` — both `password123`.
