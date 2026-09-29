@@ -11,23 +11,22 @@
 #include <time.h>
 #include <Preferences.h>
 
-//================ BLE PROVISIONING ===================
+//================ BLE (APPROACH 3: DIRECT PUSH) ======
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
 #define SERVICE_UUID           "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHAR_SCAN_UUID         "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 #define CHAR_CREDENTIALS_UUID  "a3c87500-8ed3-4bdf-8a39-a01bebede295"
 #define CHAR_STATUS_UUID       "cba1d466-344c-4be3-ab3f-189f80dd7518"
 
 Preferences preferences;
 BLEServer* pServer = NULL;
-BLECharacteristic* pScanCharacteristic = NULL;
 BLECharacteristic* pCredsCharacteristic = NULL;
 BLECharacteristic* pStatusCharacteristic = NULL;
-bool deviceConnected = false;
+
+bool bleActive = false;
 bool shouldConnectWifi = false;
 String pendingSSID = "";
 String pendingPass = "";
@@ -39,9 +38,8 @@ const char* FUNCTION_URL = "https://kkbumkjvltlrggfefnkp.supabase.co/functions/v
 
 const unsigned long SEND_INTERVAL_MS = 2000;
 
-// Fallback Wi-Fi if none saved in Flash
-String wifiSSID = "Keng";
-String wifiPassword = "onetoten";
+String wifiSSID = "";
+String wifiPassword = "";
 
 //================ DHT22 ===================
 #define DHTPIN 4
@@ -91,8 +89,8 @@ float temperature = NAN;
 float humidity = NAN;
 
 //================ PROTOTYPES ==============
-void setupBLE();
-void scanWifiNetworks();
+void startBLE();
+void stopBLE();
 void loadSavedWifi();
 void saveWifiCredentials(String ssid, String pass);
 bool connectWifi();
@@ -105,28 +103,6 @@ void computeStats(float *arr, int n, float &mean, float &stdDev, float &mn, floa
 void sendTelemetry();
 
 //================ BLE CALLBACKS ============
-class ServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
-        deviceConnected = true;
-        Serial.println("📱 Phone connected via Bluetooth!");
-    };
-    void onDisconnect(BLEServer* pServer) {
-        deviceConnected = false;
-        Serial.println("📱 Phone disconnected from Bluetooth.");
-        BLEDevice::startAdvertising(); // restart advertising
-    }
-};
-
-class ScanCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) {
-        String value = pCharacteristic->getValue().c_str();
-        if (value == "SCAN") {
-            Serial.println("📡 Received Wi-Fi scan request from Phone...");
-            scanWifiNetworks();
-        }
-    }
-};
-
 class CredsCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
         String value = pCharacteristic->getValue().c_str();
@@ -136,7 +112,7 @@ class CredsCallbacks: public BLECharacteristicCallbacks {
             pendingSSID = value.substring(0, delim);
             pendingPass = value.substring(delim + 1);
             shouldConnectWifi = true;
-            Serial.println("📥 Received new Wi-Fi credentials via Bluetooth:");
+            Serial.println("📥 Received Wi-Fi credentials from phone:");
             Serial.println("   SSID: " + pendingSSID);
         }
     }
@@ -165,50 +141,49 @@ void setup()
         particleSensor.setPulseAmplitudeIR(0x3F);
     }
 
-    // 1. Initialize BLE Provisioning
-    setupBLE();
-
-    // 2. Load saved Wi-Fi from Flash
+    // 1. Check if we have saved Wi-Fi in Flash
     loadSavedWifi();
 
-    // 3. Connect Wi-Fi
-    if (connectWifi()) {
+    // 2. Try connecting to saved Wi-Fi
+    if (wifiSSID.length() > 0 && connectWifi()) {
         syncTime();
+    } else {
+        // 3. If no Wi-Fi or connection failed, open Bluetooth for Phone Setup
+        Serial.println("📡 Starting Bluetooth so phone can push Wi-Fi credentials...");
+        startBLE();
     }
 
     lastRespiration = millis();
     Serial.println();
     Serial.println("======================================");
-    Serial.println(" FurFeel Smart Collar Ready (BLE + Wi-Fi)");
+    Serial.println(" FurFeel Smart Collar Ready");
     Serial.println("======================================");
 }
 
 //================ LOOP ====================
 void loop()
 {
-    // Handle Wi-Fi provisioning request from Bluetooth
+    // Handle Wi-Fi credentials received from phone app
     if (shouldConnectWifi) {
         shouldConnectWifi = false;
         wifiSSID = pendingSSID;
         wifiPassword = pendingPass;
         saveWifiCredentials(wifiSSID, wifiPassword);
 
+        delay(600);
+
+        // Turn OFF Bluetooth to prevent radio conflict
+        stopBLE();
+
+        Serial.println("🌐 Connecting to received Wi-Fi...");
         if (connectWifi()) {
             syncTime();
-            if (pStatusCharacteristic) {
-                String status = "CONNECTED;" + WiFi.localIP().toString();
-                pStatusCharacteristic->setValue(status.c_str());
-                pStatusCharacteristic->notify();
-            }
         } else {
-            if (pStatusCharacteristic) {
-                pStatusCharacteristic->setValue("FAILED");
-                pStatusCharacteristic->notify();
-            }
+            Serial.println("⚠️ Could not connect to Wi-Fi. Restarting Bluetooth...");
+            startBLE();
         }
     }
 
-    // Capture posture and biotelemetry
     capturePostureWindow();
 
     if (millis() - lastDHT >= 2000) {
@@ -229,31 +204,22 @@ void loop()
 }
 
 //================ BLE FUNCTIONS ============
-void setupBLE()
+void startBLE()
 {
+    if (bleActive) return;
+
     String devName = "FurFeel-" + String(DEVICE_CODE);
     BLEDevice::init(devName.c_str());
     pServer = BLEDevice::createServer();
-    pServer->setCallbacks(new ServerCallbacks());
 
     BLEService *pService = pServer->createService(SERVICE_UUID);
 
-    // 1. Scan Characteristic (Phone writes 'SCAN', ESP32 notifies with JSON list)
-    pScanCharacteristic = pService->createCharacteristic(
-        CHAR_SCAN_UUID,
-        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY
-    );
-    pScanCharacteristic->setCallbacks(new ScanCallbacks());
-    pScanCharacteristic->addDescriptor(new BLE2902());
-
-    // 2. Credentials Characteristic (Phone writes 'SSID;PASSWORD')
     pCredsCharacteristic = pService->createCharacteristic(
         CHAR_CREDENTIALS_UUID,
-        BLECharacteristic::PROPERTY_WRITE
+        BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR
     );
     pCredsCharacteristic->setCallbacks(new CredsCallbacks());
 
-    // 3. Status Characteristic (ESP32 notifies 'CONNECTED;IP' or 'FAILED')
     pStatusCharacteristic = pService->createCharacteristic(
         CHAR_STATUS_UUID,
         BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
@@ -267,47 +233,34 @@ void setupBLE()
     pAdvertising->setScanResponse(true);
     pAdvertising->setMinPreferred(0x06);
     BLEDevice::startAdvertising();
-    Serial.println("📶 Bluetooth Advertising Started: " + devName);
+
+    bleActive = true;
+    Serial.println("📶 Bluetooth ready for setup: " + devName);
 }
 
-void scanWifiNetworks()
+void stopBLE()
 {
-    Serial.println("🔍 Scanning for nearby 2.4GHz Wi-Fi...");
-    WiFi.mode(WIFI_STA);
-    int n = WiFi.scanNetworks();
-    String result = "";
-
-    if (n == 0) {
-        result = "NO_NETWORKS";
-    } else {
-        // Build comma-separated list of SSIDs (max 10)
-        for (int i = 0; i < min(n, 10); ++i) {
-            if (i > 0) result += ",";
-            result += WiFi.SSID(i) + " (" + String(WiFi.RSSI(i)) + "dBm)";
-        }
-    }
-
-    Serial.println("Found: " + result);
-    if (pScanCharacteristic) {
-        pScanCharacteristic->setValue(result.c_str());
-        pScanCharacteristic->notify();
-    }
+    if (!bleActive) return;
+    BLEDevice::deinit(true);
+    bleActive = false;
+    pServer = NULL;
+    pCredsCharacteristic = NULL;
+    pStatusCharacteristic = NULL;
+    Serial.println("📴 Bluetooth turned OFF to prioritize Wi-Fi & telemetry.");
 }
 
 //================ FLASH STORAGE (NVS) ======
 void loadSavedWifi()
 {
     preferences.begin("furfeel-wifi", true); // read-only mode
-    String savedSSID = preferences.getString("ssid", "");
-    String savedPass = preferences.getString("pass", "");
+    wifiSSID = preferences.getString("ssid", "");
+    wifiPassword = preferences.getString("pass", "");
     preferences.end();
 
-    if (savedSSID.length() > 0) {
-        wifiSSID = savedSSID;
-        wifiPassword = savedPass;
-        Serial.println("💾 Loaded Wi-Fi from Flash: " + wifiSSID);
+    if (wifiSSID.length() > 0) {
+        Serial.println("💾 Loaded saved Wi-Fi from Flash: " + wifiSSID);
     } else {
-        Serial.println("💾 No saved Wi-Fi found in Flash. Using default.");
+        Serial.println("💾 No Wi-Fi credentials in Flash.");
     }
 }
 
@@ -324,21 +277,22 @@ void saveWifiCredentials(String ssid, String pass)
 bool connectWifi()
 {
     Serial.print("Connecting to Wi-Fi: " + wifiSSID);
+    WiFi.mode(WIFI_STA);
     WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
 
     unsigned long startAttempt = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 10000) { // 10s timeout
+    while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 12000) {
         delay(500);
         Serial.print(".");
     }
 
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println();
-        Serial.print("✅ Connected! IP Address: ");
+        Serial.print("✅ Connected! IP: ");
         Serial.println(WiFi.localIP());
         return true;
     } else {
-        Serial.println("\n⚠️ Failed to connect to Wi-Fi. Awaiting Bluetooth setup.");
+        Serial.println("\n⚠️ Failed to connect to Wi-Fi.");
         return false;
     }
 }
@@ -402,7 +356,7 @@ void capturePostureWindow()
     float mag[WINDOW_SIZE];
     for (int i = 0; i < WINDOW_SIZE; i++)
         mag[i] = sqrt(winAccelX[i]*winAccelX[i] + winAccelY[i]*winAccelY[i] + winAccelZ[i]*winAccelZ[i]);
-    computeStats(mag, WINDOW_SIZE, mean, stdDev, mn, mx); feats[24] = mean; feats[25] = stdDev;
+    computeStats(mag, WINDOW_SIZE, mean, stdDev, mn, mx); feats[24]=mean; feats[25]=stdDev;
 
     float gyroMagSum = 0;
     for (int i = 0; i < WINDOW_SIZE; i++)
@@ -429,7 +383,9 @@ void updateHeartRate()
     if (checkForBeat(irValue)) {
         long delta = millis() - lastBeat;
         lastBeat = millis();
-        beatsPerMinute = 60.0 / (delta / 1000.0);
+        if (delta > 0) {
+            beatsPerMinute = 60.0 / (delta / 1000.0);
+        }
 
         if (beatsPerMinute > 35 && beatsPerMinute < 220) {
             rates[rateSpot++] = (byte)beatsPerMinute;
@@ -479,6 +435,7 @@ void printReadings()
     Serial.print("Flex Value       : "); Serial.println(analogRead(FLEX_PIN));
     Serial.print("Motion           : "); Serial.println(currentMotion, 3);
     Serial.print("Posture          : "); Serial.println(currentPosture);
+    Serial.print("Wi-Fi Status     : "); Serial.println(WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected");
     Serial.println("======================================");
 }
 
@@ -537,5 +494,3 @@ void sendTelemetry()
     Serial.println("==============================");
     https.end();
 }
-
-

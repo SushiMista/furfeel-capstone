@@ -18,16 +18,9 @@ class BleDiscoveredCollar {
 
 class BleProvisioningService {
   static const String serviceUuid = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
-  static const String scanCharUuid = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
   static const String credsCharUuid = 'a3c87500-8ed3-4bdf-8a39-a01bebede295';
-  static const String statusCharUuid = 'cba1d466-344c-4be3-ab3f-189f80dd7518';
 
-  BluetoothDevice? _connectedDevice;
-  BluetoothCharacteristic? _scanChar;
-  BluetoothCharacteristic? _credsChar;
-  BluetoothCharacteristic? _statusChar;
-
-  Stream<List<BleDiscoveredCollar>> scanForCollars({Duration timeout = const Duration(seconds: 8)}) async* {
+  Stream<List<BleDiscoveredCollar>> scanForCollars({Duration timeout = const Duration(seconds: 6)}) async* {
     if (kIsWeb) {
       throw UnsupportedError('Bluetooth provisioning is supported on mobile devices.');
     }
@@ -37,7 +30,6 @@ class BleProvisioningService {
       throw const BleException('Bluetooth is not supported on this device.');
     }
 
-    // Check adapter state
     final adapterState = await FlutterBluePlus.adapterState.first;
     if (adapterState != BluetoothAdapterState.on) {
       if (Platform.isAndroid) {
@@ -47,7 +39,6 @@ class BleProvisioningService {
       }
     }
 
-    // Start scan
     await FlutterBluePlus.startScan(
       withServices: [Guid(serviceUuid)],
       timeout: timeout,
@@ -59,7 +50,6 @@ class BleProvisioningService {
         final name = r.device.platformName.isNotEmpty
             ? r.device.platformName
             : r.advertisementData.advName;
-        // Accept FurFeel collars or matching service UUID
         if (name.contains('FurFeel') || r.advertisementData.serviceUuids.contains(Guid(serviceUuid))) {
           collars.add(BleDiscoveredCollar(
             device: r.device,
@@ -72,117 +62,59 @@ class BleProvisioningService {
     }
   }
 
-  Future<void> connectToCollar(BluetoothDevice device) async {
-    _connectedDevice = device;
+  Future<void> sendCredentialsToCollar({
+    required BluetoothDevice device,
+    required String ssid,
+    required String password,
+  }) async {
+    // 1. Connect
     await device.connect(autoConnect: false).timeout(const Duration(seconds: 10));
 
-    if (Platform.isAndroid) {
-      try {
-        await device.requestMtu(512);
-      } catch (_) {}
-    }
-
-    final services = await device.discoverServices();
-    final targetService = services.firstWhere(
-      (s) => s.uuid == Guid(serviceUuid),
-      orElse: () => throw const BleException('FurFeel Provisioning Service not found on device.'),
-    );
-
-    for (final c in targetService.characteristics) {
-      if (c.uuid == Guid(scanCharUuid)) _scanChar = c;
-      if (c.uuid == Guid(credsCharUuid)) _credsChar = c;
-      if (c.uuid == Guid(statusCharUuid)) _statusChar = c;
-    }
-
-    if (_credsChar == null || _statusChar == null) {
-      throw const BleException('Incompatible collar firmware: missing characteristics.');
-    }
-  }
-
-  Future<List<String>> requestWifiScan() async {
-    if (_scanChar == null) {
-      throw const BleException('Collar is not connected.');
-    }
-
-    final completer = Completer<String>();
-    StreamSubscription<List<int>>? sub;
-
     try {
-      await _scanChar!.setNotifyValue(true);
-      sub = _scanChar!.lastValueStream.listen((value) {
-        if (value.isNotEmpty) {
-          final text = utf8.decode(value, allowMalformed: true);
-          if (!completer.isCompleted && text.isNotEmpty) {
-            completer.complete(text);
-          }
-        }
-      });
-
-      // Send SCAN command
-      await _scanChar!.write(utf8.encode('SCAN'), withoutResponse: false);
-
-      final rawResult = await completer.future.timeout(
-        const Duration(seconds: 8),
-        onTimeout: () => '',
-      );
-
-      if (rawResult.isEmpty || rawResult == 'NO_NETWORKS') {
-        return [];
+      // Negotiate MTU on Android to allow payloads > 20 bytes
+      if (Platform.isAndroid) {
+        try {
+          await device.requestMtu(512).timeout(const Duration(seconds: 2));
+        } catch (_) {}
       }
 
-      return rawResult
-          .split(',')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
-  Future<String> sendWifiCredentials(String ssid, String password) async {
-    if (_credsChar == null || _statusChar == null) {
-      throw const BleException('Collar is not connected.');
-    }
-
-    final completer = Completer<String>();
-    StreamSubscription<List<int>>? sub;
-
-    try {
-      await _statusChar!.setNotifyValue(true);
-      sub = _statusChar!.lastValueStream.listen((value) {
-        if (value.isNotEmpty) {
-          final status = utf8.decode(value, allowMalformed: true);
-          if (!completer.isCompleted) {
-            completer.complete(status);
-          }
-        }
-      });
-
-      // Format: SSID;PASSWORD
-      final payload = utf8.encode('$ssid;$password');
-      await _credsChar!.write(payload, withoutResponse: false);
-
-      // Wait for connection confirmation from ESP32 (up to 15s)
-      final status = await completer.future.timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => 'TIMEOUT',
+      // 2. Discover services
+      final services = await device.discoverServices();
+      final targetService = services.firstWhere(
+        (s) => s.uuid == Guid(serviceUuid),
+        orElse: () => throw const BleException('FurFeel setup service not found on collar.'),
       );
 
-      return status;
+      final credsChar = targetService.characteristics.firstWhere(
+        (c) => c.uuid == Guid(credsCharUuid),
+        orElse: () => throw const BleException('Credentials characteristic not found.'),
+      );
+
+      // 3. Write SSID;PASSWORD
+      final payload = utf8.encode('$ssid;$password');
+      if (credsChar.properties.writeWithoutResponse) {
+        await credsChar.write(payload, withoutResponse: true);
+      } else {
+        try {
+          await credsChar.write(payload, withoutResponse: false).timeout(const Duration(seconds: 4));
+        } catch (_) {
+          await credsChar.write(payload, withoutResponse: true);
+        }
+      }
+
+      // Give ESP32 a moment to process before closing
+      await Future<void>.delayed(const Duration(milliseconds: 1000));
     } finally {
-      await sub?.cancel();
+      try {
+        await device.disconnect();
+      } catch (_) {}
     }
   }
 
-  Future<void> disconnect() async {
+  Future<void> stopScan() async {
     try {
-      await _connectedDevice?.disconnect();
+      await FlutterBluePlus.stopScan();
     } catch (_) {}
-    _connectedDevice = null;
-    _scanChar = null;
-    _credsChar = null;
-    _statusChar = null;
   }
 }
 
