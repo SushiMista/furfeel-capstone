@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:furfeel_mobile/data/ble_provisioning_service.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 
 enum ProvisioningStep {
-  scanningCollars,
-  connectingCollar,
-  selectWifi,
-  connectingWifi,
+  form,
+  sending,
   success,
   error,
 }
@@ -30,122 +27,73 @@ class WifiProvisioningModal extends StatefulWidget {
 
 class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
   final _bleService = BleProvisioningService();
+  final _ssidController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  ProvisioningStep _step = ProvisioningStep.scanningCollars;
-  List<BleDiscoveredCollar> _discoveredCollars = [];
+  ProvisioningStep _step = ProvisioningStep.form;
   BleDiscoveredCollar? _selectedCollar;
-  List<String> _wifiNetworks = [];
-  String? _selectedSsid;
   String _errorMessage = '';
-  String _connectedIp = '';
   bool _obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
-    _startCollarScan();
+    _startScan();
   }
 
   @override
   void dispose() {
-    _bleService.disconnect();
+    _bleService.stopScan();
+    _ssidController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  void _startCollarScan() {
-    setState(() {
-      _step = ProvisioningStep.scanningCollars;
-      _discoveredCollars = [];
-      _errorMessage = '';
+  void _startScan() {
+    _bleService.scanForCollars().listen((collars) {
+      if (mounted) {
+        setState(() {
+          if (_selectedCollar == null && collars.isNotEmpty) {
+            _selectedCollar = collars.first;
+          }
+        });
+      }
     });
-
-    _bleService.scanForCollars().listen(
-      (collars) {
-        if (mounted) {
-          setState(() => _discoveredCollars = collars);
-        }
-      },
-      onError: (err) {
-        if (mounted) {
-          setState(() {
-            _step = ProvisioningStep.error;
-            _errorMessage = err.toString();
-          });
-        }
-      },
-    );
   }
 
-  Future<void> _connectToCollar(BleDiscoveredCollar collar) async {
-    setState(() {
-      _selectedCollar = collar;
-      _step = ProvisioningStep.connectingCollar;
-      _errorMessage = '';
-    });
-
-    try {
-      await _bleService.connectToCollar(collar.device);
-      final networks = await _bleService.requestWifiScan();
-      if (!mounted) return;
-
-      setState(() {
-        _wifiNetworks = networks;
-        if (networks.isNotEmpty) {
-          _selectedSsid = networks.first.split(' (').first;
-        }
-        _step = ProvisioningStep.selectWifi;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _step = ProvisioningStep.error;
-        _errorMessage = 'Failed to connect to collar: $e';
-      });
-    }
-  }
-
-  Future<void> _submitWifiCredentials() async {
-    final ssid = _selectedSsid?.trim() ?? '';
+  Future<void> _submit() async {
+    final ssid = _ssidController.text.trim();
     final pass = _passwordController.text.trim();
 
     if (ssid.isEmpty) {
-      setState(() => _errorMessage = 'Please select a Wi-Fi network.');
+      setState(() => _errorMessage = 'Please enter your home Wi-Fi name (SSID).');
+      return;
+    }
+
+    if (_selectedCollar == null) {
+      setState(() => _errorMessage = 'No FurFeel collar detected. Make sure it is powered on.');
       return;
     }
 
     setState(() {
-      _step = ProvisioningStep.connectingWifi;
+      _step = ProvisioningStep.sending;
       _errorMessage = '';
     });
 
     try {
-      final result = await _bleService.sendWifiCredentials(ssid, pass);
-      if (!mounted) return;
+      await _bleService.sendCredentialsToCollar(
+        device: _selectedCollar!.device,
+        ssid: ssid,
+        password: pass,
+      );
 
-      if (result.startsWith('CONNECTED')) {
-        final parts = result.split(';');
-        setState(() {
-          _connectedIp = parts.length > 1 ? parts[1] : '';
-          _step = ProvisioningStep.success;
-        });
-      } else if (result == 'TIMEOUT') {
-        setState(() {
-          _step = ProvisioningStep.error;
-          _errorMessage = 'Connection timed out. Check your password and ensure collar is near the router.';
-        });
-      } else {
-        setState(() {
-          _step = ProvisioningStep.error;
-          _errorMessage = 'Collar failed to connect to "$ssid". Please verify your password.';
-        });
-      }
+      if (!mounted) return;
+      setState(() => _step = ProvisioningStep.success);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _step = ProvisioningStep.error;
-        _errorMessage = 'Error transmitting Wi-Fi credentials: $e';
+        _errorMessage = 'Failed to transmit Wi-Fi credentials: $e';
       });
     }
   }
@@ -159,7 +107,7 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
         left: 24,
         right: 24,
         top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 28,
       ),
       decoration: BoxDecoration(
         color: ff.surface,
@@ -180,7 +128,47 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
             ),
           ),
           const SizedBox(height: 20),
-          _buildHeader(ff),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: ff.brandSoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.wifi_tethering, color: ff.brand, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Connect Collar to Wi-Fi',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: ff.ink,
+                      ),
+                    ),
+                    Text(
+                      'Direct Bluetooth Push',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        color: ff.inkMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.close, color: ff.inkMuted),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           _buildBody(ff),
         ],
@@ -188,60 +176,12 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
     );
   }
 
-  Widget _buildHeader(FurFeelPalette ff) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: ff.brandSoft,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(Icons.wifi_tethering, color: ff.brand, size: 24),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Connect Collar to Wi-Fi',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: ff.ink,
-                ),
-              ),
-              Text(
-                'Bluetooth Home Setup',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  color: ff.inkMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-        IconButton(
-          icon: Icon(Icons.close, color: ff.inkMuted),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ],
-    );
-  }
-
   Widget _buildBody(FurFeelPalette ff) {
     switch (_step) {
-      case ProvisioningStep.scanningCollars:
-        return _buildScanningCollarsView(ff);
-      case ProvisioningStep.connectingCollar:
-        return _buildLoadingView(ff, 'Connecting to FurFeel Collar...');
-      case ProvisioningStep.selectWifi:
-        return _buildSelectWifiView(ff);
-      case ProvisioningStep.connectingWifi:
-        return _buildLoadingView(ff, 'Saving Wi-Fi to Collar & Connecting...');
+      case ProvisioningStep.form:
+        return _buildFormView(ff);
+      case ProvisioningStep.sending:
+        return _buildSendingView(ff);
       case ProvisioningStep.success:
         return _buildSuccessView(ff);
       case ProvisioningStep.error:
@@ -249,101 +189,62 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
     }
   }
 
-  Widget _buildScanningCollarsView(FurFeelPalette ff) {
+  Widget _buildFormView(FurFeelPalette ff) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Make sure your FurFeel harness is powered on and nearby.',
-          style: TextStyle(fontSize: 14, color: ff.inkMuted),
+        // Collar selection indicator
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: ff.surfaceAlt,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: ff.hairline),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.bluetooth_connected, color: ff.brand, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _selectedCollar != null
+                      ? 'Detected: ${_selectedCollar!.name}'
+                      : 'Searching for collar nearby...',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _selectedCollar != null ? ff.ink : ff.inkMuted,
+                  ),
+                ),
+              ),
+              if (_selectedCollar == null)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
-        if (_discoveredCollars.isEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 36),
-            alignment: Alignment.center,
-            child: Column(
-              children: [
-                CircularProgressIndicator(color: ff.brand),
-                const SizedBox(height: 16),
-                Text(
-                  'Searching for nearby collars via Bluetooth...',
-                  style: TextStyle(fontSize: 13, color: ff.inkMuted),
-                ),
-              ],
-            ),
-          )
-        else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _discoveredCollars.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final collar = _discoveredCollars[index];
-              return ListTile(
-                tileColor: ff.surfaceAlt,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: BorderSide(color: ff.hairline),
-                ),
-                leading: Icon(Icons.bluetooth, color: ff.brand),
-                title: Text(collar.name, style: TextStyle(fontWeight: FontWeight.w600, color: ff.ink)),
-                subtitle: Text('Signal: ${collar.rssi} dBm', style: TextStyle(fontSize: 12, color: ff.inkMuted)),
-                trailing: Icon(Icons.arrow_forward_ios, size: 14, color: ff.inkMuted),
-                onTap: () => _connectToCollar(collar),
-              );
-            },
+        TextFormField(
+          controller: _ssidController,
+          decoration: InputDecoration(
+            labelText: 'Home Wi-Fi Name (SSID)',
+            hintText: 'e.g. MyHomeWiFi',
+            prefixIcon: const Icon(Icons.wifi),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
-      ],
-    );
-  }
-
-  Widget _buildSelectWifiView(FurFeelPalette ff) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Connected to ${_selectedCollar?.name ?? "Collar"}. Select your 2.4GHz home Wi-Fi network:',
-          style: TextStyle(fontSize: 14, color: ff.inkMuted),
         ),
-        const SizedBox(height: 16),
-        if (_wifiNetworks.isEmpty)
-          TextFormField(
-            decoration: const InputDecoration(
-              labelText: 'Wi-Fi Network Name (SSID)',
-              prefixIcon: Icon(Icons.wifi),
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (val) => _selectedSsid = val,
-          )
-        else
-          DropdownButtonFormField<String>(
-            initialValue: _selectedSsid,
-            decoration: const InputDecoration(
-              labelText: 'Available Wi-Fi Networks',
-              prefixIcon: Icon(Icons.wifi),
-              border: OutlineInputBorder(),
-            ),
-            items: _wifiNetworks.map((net) {
-              final ssidName = net.split(' (').first;
-              return DropdownMenuItem<String>(
-                value: ssidName,
-                child: Text(net, overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
-            onChanged: (val) => setState(() => _selectedSsid = val),
-          ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         TextFormField(
           controller: _passwordController,
           obscureText: _obscurePassword,
           decoration: InputDecoration(
             labelText: 'Wi-Fi Password',
             prefixIcon: const Icon(Icons.lock_outline),
-            border: const OutlineInputBorder(),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             suffixIcon: IconButton(
               icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -351,7 +252,7 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
           ),
         ),
         if (_errorMessage.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(_errorMessage, style: const TextStyle(color: Colors.red, fontSize: 13)),
         ],
         const SizedBox(height: 20),
@@ -362,23 +263,23 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          onPressed: _submitWifiCredentials,
-          child: const Text('Save & Connect Collar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          onPressed: _submit,
+          child: const Text('Send to Collar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
         ),
       ],
     );
   }
 
-  Widget _buildLoadingView(FurFeelPalette ff, String message) {
+  Widget _buildSendingView(FurFeelPalette ff) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 40),
+      padding: const EdgeInsets.symmetric(vertical: 36),
       alignment: Alignment.center,
       child: Column(
         children: [
           CircularProgressIndicator(color: ff.brand),
           const SizedBox(height: 20),
           Text(
-            message,
+            'Connecting to collar and transmitting credentials...',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: ff.ink),
           ),
@@ -388,6 +289,8 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
   }
 
   Widget _buildSuccessView(FurFeelPalette ff) {
+    final ssid = _ssidController.text.trim();
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -401,17 +304,17 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
           ),
           child: Column(
             children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 54).animate().scale(),
+              const Icon(Icons.check_circle, color: Colors.green, size: 50),
               const SizedBox(height: 12),
               const Text(
-                'Collar Connected to Wi-Fi!',
+                'Wi-Fi Credentials Sent!',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
               ),
               const SizedBox(height: 6),
               Text(
-                'Collar IP: $_connectedIp\nLive telemetry is now streaming to your app.',
+                'The collar is now connecting to "$ssid" and will begin streaming telemetry.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
               ),
             ],
           ),
@@ -445,13 +348,10 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 30),
+              const Icon(Icons.error_outline, color: Colors.red, size: 28),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  _errorMessage.isNotEmpty ? _errorMessage : 'An unexpected error occurred.',
-                  style: const TextStyle(fontSize: 13, color: Colors.red),
-                ),
+                child: Text(_errorMessage, style: const TextStyle(fontSize: 13, color: Colors.red)),
               ),
             ],
           ),
@@ -464,8 +364,8 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          onPressed: _startCollarScan,
-          child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          onPressed: () => setState(() => _step = ProvisioningStep.form),
+          child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.w600)),
         ),
       ],
     );
