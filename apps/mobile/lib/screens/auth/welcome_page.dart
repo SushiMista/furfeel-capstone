@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,6 +6,7 @@ import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
 import 'package:furfeel_mobile/widgets/auth_pattern_background.dart';
+import 'package:furfeel_mobile/data/google_auth_helper.dart';
 import 'package:furfeel_mobile/screens/auth/sign_up_page.dart';
 import 'package:furfeel_mobile/screens/auth/login_page.dart';
 
@@ -60,20 +60,14 @@ class _WelcomePageState extends State<WelcomePage> {
   Future<void> _signInWithGoogle() async {
     setState(() => _googleBusy = true);
     try {
-      await widget.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: kIsWeb ? Uri.base.origin : 'io.furfeel.app://login-callback',
-        authScreenLaunchMode:
-            kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
-        queryParams: {'prompt': 'select_account'},
-      );
+      await performGoogleSignIn(widget.client);
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not start Google sign-in. Check your connection.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google sign-in error: $e')));
       }
     } finally {
       if (mounted) setState(() => _googleBusy = false);

@@ -48,6 +48,7 @@ dependencies:
   web: ^1.1.1
   shadcn_flutter: ^0.0.53
   webview_flutter: ^4.10.0
+  google_sign_in: ^6.2.2
 
 dev_dependencies:
   flutter_test:
