@@ -7,6 +7,7 @@ import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/settings_group.dart';
 import 'package:furfeel_mobile/screens/settings/about_pages.dart';
 import 'package:furfeel_mobile/screens/settings/bug_report_page.dart';
+import 'package:furfeel_mobile/widgets/wifi_provisioning_modal.dart';
 
 /// Settings — categorized into clear sections.
 ///
@@ -271,6 +272,23 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ).entrance(context, index: 7),
+          const SizedBox(height: FurFeelTokens.space5),
+
+          // ────────────────────────────────────────────────────────────
+          // HARNESS & HARDWARE
+          // ────────────────────────────────────────────────────────────
+          _Label('HARNESS & HARDWARE').entrance(context, index: 8),
+          const SizedBox(height: FurFeelTokens.space2),
+          SettingsGroup(
+            children: [
+              SettingsRow(
+                icon: Icons.wifi_tethering,
+                title: 'Connect Harness to Home Wi-Fi',
+                subtitle: 'Pair over Bluetooth to configure 2.4GHz Wi-Fi',
+                onTap: () => WifiProvisioningModal.show(context),
+              ),
+            ],
+          ).entrance(context, index: 9),
           const SizedBox(height: FurFeelTokens.space5),
 
           // ────────────────────────────────────────────────────────────
