@@ -7,11 +7,8 @@ import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
 import 'package:furfeel_mobile/widgets/auth_pattern_background.dart';
-import 'package:furfeel_mobile/screens/auth/progressive_signup_page.dart';
-import 'package:furfeel_mobile/widgets/furfeel_logo.dart';
+import 'package:furfeel_mobile/screens/auth/sign_up_page.dart';
 import 'package:furfeel_mobile/screens/auth/login_page.dart';
-import 'package:furfeel_mobile/screens/auth/otp_verification_page.dart';
-import 'package:furfeel_mobile/screens/home/root_shell.dart';
 
 /// ADDED: real first-run flow (docs/04 Onboarding/sign-up): a warm animated
 /// welcome, then create account (Supabase Auth) or sign in. After sign-up the
@@ -97,7 +94,7 @@ class _WelcomePageState extends State<WelcomePage> {
 
   void _openSignUp(BuildContext context, {bool replace = false}) {
     final route = MaterialPageRoute<void>(
-      builder: (_) => ProgressiveSignUpPage(client: widget.client),
+      builder: (_) => SignUpPage(client: widget.client),
     );
     final navigator = Navigator.of(context);
     replace ? navigator.pushReplacement(route) : navigator.push(route);

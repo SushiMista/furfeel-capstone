@@ -13,8 +13,9 @@ import { AlertsQueue } from "./pages/alerts/AlertsQueue.tsx";
 import { Handover } from "./pages/handover/Handover.tsx";
 import { Devices } from "./pages/devices/Devices.tsx";
 import { Reports } from "./pages/reports/Reports.tsx";
-import { ClinicTeams } from "./pages/teams/ClinicTeams.tsx";
 import { Admin } from "./pages/admin/Admin.tsx";
+import { PatientIntake } from "./pages/intake/PatientIntake.tsx";
+import { DogManagement } from "./pages/dogs/DogManagement.tsx";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading: authLoading } = useAuth();
@@ -39,6 +40,14 @@ function RequireAuth({ children }: { children: ReactNode }) {
 function ReviewRedirect() {
   const { dogId } = useParams<{ dogId: string }>();
   return <Navigate to={`/dogs/${dogId}?tab=review`} replace />;
+}
+
+function RoleBasedRoot() {
+  const { role } = useCurrentRole();
+  if (role === "admin") {
+    return <Navigate to="/admin/overview" replace />;
+  }
+  return <Overview />;
 }
 
 export function App() {
@@ -66,7 +75,7 @@ export function App() {
             path="/"
             element={
               <RequireAuth>
-                <Overview />
+                <RoleBasedRoot />
               </RequireAuth>
             }
           />
@@ -75,6 +84,22 @@ export function App() {
             element={
               <RequireAuth>
                 <MonitoringBoard />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/intake"
+            element={
+              <RequireAuth>
+                <PatientIntake />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/patients"
+            element={
+              <RequireAuth>
+                <DogManagement />
               </RequireAuth>
             }
           />
@@ -94,7 +119,7 @@ export function App() {
               </RequireAuth>
             }
           />
-          <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
           <Route
             path="/admin/:tab"
             element={
@@ -135,14 +160,7 @@ export function App() {
               </RequireAuth>
             }
           />
-          <Route
-            path="/teams"
-            element={
-              <RequireAuth>
-                <ClinicTeams />
-              </RequireAuth>
-            }
-          />
+          <Route path="/teams" element={<Navigate to="/" replace />} />
         </Routes>
       </ToastProvider>
     </BrowserRouter>

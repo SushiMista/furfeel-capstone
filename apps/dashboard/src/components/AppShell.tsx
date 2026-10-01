@@ -19,7 +19,6 @@ import {
   PawPrint,
   Radio,
   UserCog,
-  Users,
 } from "lucide-react";
 import { useAuth } from "../lib/useAuth.ts";
 import { useCurrentRole } from "../lib/useCurrentRole.ts";
@@ -42,6 +41,7 @@ interface NavGroup {
   id: string;
   label: string;
   adminOnly?: boolean;
+  vetOnly?: boolean;
   items: NavItem[];
 }
 
@@ -49,19 +49,22 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "clinical",
     label: "Clinical Operations",
+    vetOnly: true,
     items: [
       { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
       { to: "/board", label: "Monitoring Board", icon: HeartPulse },
+      { to: "/intake", label: "Patient Intake", icon: PawPrint },
+      { to: "/patients", label: "Patient Dogs", icon: Dog },
       { to: "/alerts", label: "Alerts Queue", icon: BellRing },
       { to: "/handover", label: "Handover Notes", icon: ClipboardList },
-      { to: "/teams", label: "My Clinic Team", icon: Users },
     ],
   },
   {
     id: "fleet",
     label: "Fleet & Telemetry",
+    vetOnly: true,
     items: [
-      { to: "/devices", label: "Device Fleet", icon: Radio },
+      { to: "/devices", label: "Device Management", icon: Radio },
       { to: "/reports", label: "Analytics & Reports", icon: BarChart3 },
     ],
   },
@@ -70,6 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Admin Console",
     adminOnly: true,
     items: [
+      { to: "/admin/overview", label: "System Overview", icon: LayoutDashboard },
       { to: "/admin/users", label: "User Accounts", icon: UserCog },
       { to: "/admin/clinics", label: "Partner Clinics", icon: Building2 },
       { to: "/admin/devices", label: "Device Management", icon: Cpu },
@@ -233,6 +237,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1" aria-label="Main navigation">
           {NAV_GROUPS.map((group) => {
             if (group.adminOnly && role !== "admin") return null;
+            if (group.vetOnly && role === "admin") return null;
             const isOpen = openGroups[group.id] ?? true;
 
             return (
