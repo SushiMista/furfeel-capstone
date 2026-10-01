@@ -23,6 +23,8 @@ class CurvedStatusHeader extends StatelessWidget {
     this.leading,
     this.trailing,
     this.chips = const [],
+    this.backgroundImage,
+    this.scroll,
   });
 
   /// Full-bleed background colour (status ramp or metric colour).
@@ -52,26 +54,70 @@ class CurvedStatusHeader extends StatelessWidget {
   /// Translucent info pills under the description.
   final List<Widget> chips;
 
+  /// Optional background image URL to subtly blend behind the color gradient.
+  final String? backgroundImage;
+  final ScrollController? scroll;
+
+  Widget _buildBackground(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (backgroundImage != null)
+          Image.network(
+            backgroundImage!,
+            fit: BoxFit.cover,
+          ),
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                color.withValues(alpha: backgroundImage != null ? 0.7 : 1.0),
+                color,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sheet = context.ff.bg;
-    return Container(
-      width: double.infinity,
-      // Vertical gradient: fullest at the top, easing lighter toward the curve.
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [color, Color.lerp(color, Colors.white, 0.16)!],
-        ),
-      ),
-      child: Column(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(FurFeelTokens.space4,
-                  FurFeelTokens.space5, FurFeelTokens.space4, 0),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Background image with fading gradient overlay
+        scroll == null
+            ? Positioned.fill(child: _buildBackground(context))
+            : AnimatedBuilder(
+                animation: scroll!,
+                builder: (context, _) {
+                  final offset = scroll!.hasClients ? scroll!.offset : 0.0;
+                  // If overscrolled, offset is negative. We pull the top UP by the same
+                  // amount so it anchors to the screen top, and it stretches down to the bottom.
+                  final top = offset < 0 ? offset : 0.0;
+                  return Positioned(
+                    top: top,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _buildBackground(context),
+                  );
+                },
+              ),
+        // Content
+        SizedBox(
+          width: double.infinity,
+          child: Column(
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(FurFeelTokens.space4,
+                      FurFeelTokens.space5, FurFeelTokens.space4, 0),
               child: Column(
                 children: [
                   // Header row: leading · title · trailing.
@@ -152,15 +198,17 @@ class CurvedStatusHeader extends StatelessWidget {
             ),
           ),
           // The wide edge-to-edge curve.
-          const SizedBox(height: FurFeelTokens.space5),
+          const SizedBox(height: FurFeelTokens.space6), // More space before the curve
           ClipRect(
             child: CustomPaint(
-              size: const Size(double.infinity, 56),
+              size: const Size(double.infinity, 120), // Increased height for a deeper curve
               painter: _CurvePainter(sheet),
             ),
           ),
         ],
       ),
+        ),
+      ],
     );
   }
 }

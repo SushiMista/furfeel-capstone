@@ -7,6 +7,10 @@ import {
   Bell,
   Building2,
   CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Cpu,
   Dog as DogIcon,
   Download,
@@ -25,6 +29,8 @@ import {
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   fetchAuditLogs,
+  fetchAuditLogsWithCount,
+  fetchPendingDeviceDeletionRequests,
   type AuditLogRecord,
 } from "../../lib/auditLogger.ts";
 import {
@@ -78,6 +84,7 @@ import { DeviceAdoptionChart } from "../../components/DeviceAdoptionChart.tsx";
 import { formatPhilippineTime } from "../../lib/time.ts";
 import { dogTint } from "../../lib/dogTint.ts";
 import { BugReportsTab } from "./BugReportsTab.tsx";
+import { AdminOverviewTab } from "./AdminOverviewTab.tsx";
 import { fetchBugReports } from "../../lib/bugReportQueries.ts";
 import type {
   Alert,
@@ -92,8 +99,8 @@ import type {
 } from "../../../../../packages/shared/types/index.ts";
 
 const DEVICE_STATUSES: DeviceStatus[] = ["active", "inactive", "offline", "maintenance"];
-type Tab = "users" | "clinics" | "devices" | "dogs" | "dog-clinic" | "bugs" | "audit" | "health";
-const TABS: Tab[] = ["users", "clinics", "devices", "dogs", "dog-clinic", "bugs", "audit", "health"];
+type Tab = "overview" | "users" | "clinics" | "devices" | "dogs" | "dog-clinic" | "bugs" | "audit" | "health";
+const TABS: Tab[] = ["overview", "users", "clinics", "devices", "dogs", "dog-clinic", "bugs", "audit", "health"];
 
 /** Shared destructive-action confirmation (docs/19 dialog primitive). */
 function ConfirmDeleteDialog({
@@ -189,29 +196,28 @@ export function Admin() {
       </p>
     );
 
-  if (!tabParam || !TABS.includes(tabParam as Tab)) return <Navigate to="/admin/users" replace />;
+  if (!tabParam || !TABS.includes(tabParam as Tab)) return <Navigate to="/admin/overview" replace />;
   const tab = tabParam as Tab;
 
   const displayTabTitle =
-    tab === "bugs"
-      ? "Bug Reports"
-      : tab === "dogs" || tab === "dog-clinic"
-        ? "Dog Management"
-        : tab === "users"
-          ? "User Accounts"
-          : tab === "clinics"
-            ? "Partner Clinics"
-            : tab === "devices"
-              ? "Device Management"
-              : tab === "audit"
-                ? "Audit Logs"
-                : "System Health";
+    tab === "overview"
+      ? "System Overview"
+      : tab === "bugs"
+        ? "Bug Reports"
+        : tab === "dogs" || tab === "dog-clinic"
+          ? "Dog Management"
+          : tab === "users"
+            ? "User Accounts"
+            : tab === "clinics"
+              ? "Partner Clinics"
+              : tab === "devices"
+                ? "Device Management"
+                : tab === "audit"
+                  ? "Audit Logs"
+                  : "System Health";
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Top Banner: Inefficiencies & Operational Alerts */}
-      <AdminInefficienciesBanner inefficiencies={inefficiencies} />
-
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-4">
         <div>
           <h1 className="m-0 text-2xl font-extrabold capitalize text-ink tracking-tight">
@@ -222,6 +228,17 @@ export function Admin() {
           </p>
         </div>
       </div>
+
+      {tab === "overview" && (
+        <AdminOverviewTab
+          users={users}
+          clinics={clinics}
+          devices={devices}
+          dogs={dogs}
+          bugReports={bugReports}
+          inefficiencies={inefficiencies}
+        />
+      )}
 
       {tab === "users" && (
         <UsersTab
@@ -343,7 +360,7 @@ export function Admin() {
 }
 
 /** Operational Inefficiencies and Actionable Alert Banner */
-function AdminInefficienciesBanner({ inefficiencies }: { inefficiencies: AdminInefficiencies }) {
+export function AdminInefficienciesBanner({ inefficiencies }: { inefficiencies: AdminInefficiencies }) {
   const { unassignedActiveDevices, unassignedDogs, staleDevices, inactiveUsers } = inefficiencies;
 
   const totalInefficiencies =
@@ -1717,6 +1734,22 @@ function DevicesTab({
 
   const [pendingDelete, setPendingDelete] = useState<Device | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deletionRequests, setDeletionRequests] = useState<
+    Map<string, { reason: string; requestedAt: string; requestedBy: string }>
+  >(new Map());
+
+  const loadDelRequests = useCallback(async () => {
+    try {
+      const map = await fetchPendingDeviceDeletionRequests();
+      setDeletionRequests(map);
+    } catch {
+      // non-blocking
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDelRequests();
+  }, [loadDelRequests, devices]);
 
   // Multi-select bulk state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1848,6 +1881,16 @@ function DevicesTab({
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
+          {deletionRequests.size > 0 && (
+            <div className="flex items-center gap-2.5 p-3 rounded-xl border border-warning/40 bg-warning/10 text-xs text-ink font-bold">
+              <ShieldAlert size={16} className="text-warning shrink-0" />
+              <span>
+                {deletionRequests.size} device deletion / decommission request(s) submitted by clinic veterinarians.
+                Review and approve below.
+              </span>
+            </div>
+          )}
+
           <Table>
             <THead>
               <Tr className="border-t-0">
@@ -1870,8 +1913,10 @@ function DevicesTab({
             <TBody>
               {devices.map((d) => {
                 const isSelected = selectedIds.has(d.id);
+                const delRequest = deletionRequests.get(d.id);
+
                 return (
-                  <Tr key={d.id} className={isSelected ? "bg-brand-soft/40" : undefined}>
+                  <Tr key={d.id} className={isSelected ? "bg-brand-soft/40" : delRequest ? "bg-amber-500/5" : undefined}>
                     <Td className="text-center">
                       <input
                         type="checkbox"
@@ -1883,9 +1928,19 @@ function DevicesTab({
                     </Td>
                     <Td className="font-semibold">{d.device_code}</Td>
                     <Td>
-                      <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", DEVICE_STATUS_BADGE_STYLE[d.status])}>
-                        {d.status}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", DEVICE_STATUS_BADGE_STYLE[d.status])}>
+                          {d.status}
+                        </span>
+                        {delRequest && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded"
+                            title={`Reason: ${delRequest.reason} (by ${delRequest.requestedBy})`}
+                          >
+                            ⚠️ Deletion Requested: {delRequest.reason}
+                          </span>
+                        )}
+                      </div>
                     </Td>
                     <Td className="text-ink-muted">
                       {d.dog_id ? (dogNames.get(d.dog_id) ?? "—") : "— unassigned —"}
@@ -1920,11 +1975,16 @@ function DevicesTab({
                         <button
                           type="button"
                           aria-label={`Delete ${d.device_code}`}
-                          title="Delete Device"
+                          title={delRequest ? "Approve Deletion Request" : "Delete Device"}
                           onClick={() => setPendingDelete(d)}
-                          className="flex h-8 w-8 items-center justify-center rounded-md bg-high-soft text-high-fg transition-colors duration-fast hover:bg-high hover:text-white"
+                          className={`flex h-8 items-center justify-center rounded-md transition-colors duration-fast ${
+                            delRequest
+                              ? "px-2 bg-high text-white text-[11px] font-bold gap-1 shadow-xs"
+                              : "w-8 bg-high-soft text-high-fg hover:bg-high hover:text-white"
+                          }`}
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={13} />
+                          {delRequest && <span>Approve Delete</span>}
                         </button>
                       </div>
                     </Td>
@@ -2998,7 +3058,11 @@ function DogsTab({
 /** Audit Logs Tab */
 function AuditLogsTab() {
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState("");
   const [surfaceFilter, setSurfaceFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -3007,53 +3071,141 @@ function AuditLogsTab() {
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
-    const data = await fetchAuditLogs({
+    const { data, count } = await fetchAuditLogsWithCount({
       surface: surfaceFilter,
       role: roleFilter,
       severity: severityFilter,
       search,
+      page,
+      pageSize,
     });
     setLogs(data);
+    setTotalCount(count);
     setLoading(false);
-  }, [surfaceFilter, roleFilter, severityFilter, search]);
+  }, [surfaceFilter, roleFilter, severityFilter, search, page, pageSize]);
 
   useEffect(() => {
     loadLogs();
   }, [loadLogs]);
 
-  const handleExportCSV = () => {
-    if (logs.length === 0) return;
-    const headers = [
-      "Timestamp",
-      "Surface",
-      "Actor Email",
-      "Actor Role",
-      "Action",
-      "Target Resource",
-      "Target ID",
-      "Severity",
-    ];
-    const rows = logs.map((l) => [
-      new Date(l.created_at).toISOString(),
-      l.surface,
-      l.actor_email,
-      l.actor_role,
-      l.action,
-      l.target_resource,
-      l.target_id ?? "",
-      l.severity,
-    ]);
+  // Reset to page 1 whenever filters change
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setPage(1);
+  };
 
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.map((val) => `"${val}"`).join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `furfeel_audit_logs_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleSurfaceChange = (val: string) => {
+    setSurfaceFilter(val);
+    setPage(1);
+  };
+
+  const handleRoleChange = (val: string) => {
+    setRoleFilter(val);
+    setPage(1);
+  };
+
+  const handleSeverityChange = (val: string) => {
+    setSeverityFilter(val);
+    setPage(1);
+  };
+
+  const handlePageSizeChange = (val: number) => {
+    setPageSize(val);
+    setPage(1);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      // Export all matching records for the current filter criteria (up to 5000)
+      const allLogs = await fetchAuditLogs({
+        surface: surfaceFilter,
+        role: roleFilter,
+        severity: severityFilter,
+        search,
+        limit: 5000,
+      });
+
+      if (allLogs.length === 0) return;
+      const headers = [
+        "Timestamp",
+        "Surface",
+        "Actor Email",
+        "Actor Role",
+        "Action",
+        "Target Resource",
+        "Target ID",
+        "Severity",
+      ];
+      const rows = allLogs.map((l) => [
+        new Date(l.created_at).toISOString(),
+        l.surface,
+        l.actor_email,
+        l.actor_role,
+        l.action,
+        l.target_resource,
+        l.target_id ?? "",
+        l.severity,
+      ]);
+
+      const csvContent =
+        "data:text/csv;charset=utf-8," +
+        [headers.join(","), ...rows.map((e) => e.map((val) => `"${val}"`).join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `furfeel_audit_logs_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const renderPaginationButtons = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (page <= 3) {
+        pages.push(1, 2, 3, 4, "...", totalPages);
+      } else if (page >= totalPages - 2) {
+        pages.push(1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, "...", page - 1, page, page + 1, "...", totalPages);
+      }
+    }
+
+    return pages.map((p, idx) => {
+      if (typeof p === "string") {
+        return (
+          <span key={`ellipsis-${idx}`} className="px-1.5 py-1 text-xs text-ink-muted select-none">
+            …
+          </span>
+        );
+      }
+      const isActive = p === page;
+      return (
+        <Button
+          key={p}
+          variant={isActive ? "primary" : "ghost"}
+          size="sm"
+          onClick={() => setPage(p)}
+          disabled={loading}
+          className={cn(
+            "h-7 min-w-7 px-2 text-xs font-semibold",
+            isActive ? "shadow-xs font-bold" : "text-ink-muted hover:text-ink",
+          )}
+          aria-label={`Go to page ${p}`}
+          aria-current={isActive ? "page" : undefined}
+        >
+          {p}
+        </Button>
+      );
+    });
   };
 
   return (
@@ -3068,9 +3220,9 @@ function AuditLogsTab() {
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             Refresh
           </Button>
-          <Button variant="secondary" size="sm" onClick={handleExportCSV} disabled={logs.length === 0}>
-            <Download size={14} />
-            Export CSV
+          <Button variant="secondary" size="sm" onClick={handleExportCSV} disabled={exporting || totalCount === 0}>
+            <Download size={14} className={exporting ? "animate-spin" : ""} />
+            {exporting ? "Exporting…" : "Export CSV"}
           </Button>
         </div>
       </CardHeader>
@@ -3080,16 +3232,16 @@ function AuditLogsTab() {
           <Input
             placeholder="Search action or email..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
-          <Select value={surfaceFilter} onChange={(e) => setSurfaceFilter(e.target.value)}>
+          <Select value={surfaceFilter} onChange={(e) => handleSurfaceChange(e.target.value)}>
             <option value="all">All Surfaces</option>
             <option value="dashboard">Dashboard</option>
             <option value="mobile">Mobile App</option>
             <option value="edge_function">Edge Functions</option>
             <option value="database">Database</option>
           </Select>
-          <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+          <Select value={roleFilter} onChange={(e) => handleRoleChange(e.target.value)}>
             <option value="all">All Roles</option>
             <option value="admin">Admin</option>
             <option value="veterinarian">Veterinarian</option>
@@ -3097,7 +3249,7 @@ function AuditLogsTab() {
             <option value="owner">Dog Owner</option>
             <option value="system">System</option>
           </Select>
-          <Select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
+          <Select value={severityFilter} onChange={(e) => handleSeverityChange(e.target.value)}>
             <option value="all">All Severities</option>
             <option value="info">Info</option>
             <option value="warning">Warning</option>
@@ -3111,61 +3263,148 @@ function AuditLogsTab() {
         ) : logs.length === 0 ? (
           <EmptyState>No audit records match the selected filters.</EmptyState>
         ) : (
-          <Table>
-            <THead>
-              <Tr>
-                <Th>Time</Th>
-                <Th>Actor</Th>
-                <Th>Action</Th>
-                <Th>Target</Th>
-                <Th>Surface</Th>
-                <Th>Severity</Th>
-                <Th>Details</Th>
-              </Tr>
-            </THead>
-            <TBody>
-              {logs.map((log) => (
-                <Tr key={log.id}>
-                  <Td className="text-xs text-ink-muted whitespace-nowrap">
-                    {formatPhilippineTime(log.created_at)}
-                  </Td>
-                  <Td>
-                    <div className="font-medium text-xs text-ink">{log.actor_email}</div>
-                    <div className="text-[10px] text-ink-muted uppercase">{log.actor_role}</div>
-                  </Td>
-                  <Td className="font-mono text-xs font-semibold">{log.action}</Td>
-                  <Td className="text-xs">
-                    <span className="font-medium text-ink">{log.target_resource}</span>
-                    {log.target_id && (
-                      <span className="text-[10px] text-ink-muted block truncate max-w-[120px]">
-                        {log.target_id}
-                      </span>
-                    )}
-                  </Td>
-                  <Td className="text-xs capitalize">{log.surface}</Td>
-                  <Td>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
-                        log.severity === "critical"
-                          ? "bg-red-100 text-red-800"
-                          : log.severity === "warning"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-slate-100 text-slate-800",
-                      )}
-                    >
-                      {log.severity}
-                    </span>
-                  </Td>
-                  <Td>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
-                      <Eye size={14} />
-                    </Button>
-                  </Td>
+          <>
+            <Table>
+              <THead>
+                <Tr>
+                  <Th>Time</Th>
+                  <Th>Actor</Th>
+                  <Th>Action</Th>
+                  <Th>Target</Th>
+                  <Th>Surface</Th>
+                  <Th>Severity</Th>
+                  <Th>Details</Th>
                 </Tr>
-              ))}
-            </TBody>
-          </Table>
+              </THead>
+              <TBody>
+                {logs.map((log) => (
+                  <Tr key={log.id}>
+                    <Td className="text-xs text-ink-muted whitespace-nowrap">
+                      {formatPhilippineTime(log.created_at)}
+                    </Td>
+                    <Td>
+                      <div className="font-medium text-xs text-ink">{log.actor_email}</div>
+                      <div className="text-[10px] text-ink-muted uppercase">{log.actor_role}</div>
+                    </Td>
+                    <Td className="font-mono text-xs font-semibold">{log.action}</Td>
+                    <Td className="text-xs">
+                      <span className="font-medium text-ink">{log.target_resource}</span>
+                      {log.target_id && (
+                        <span className="text-[10px] text-ink-muted block truncate max-w-[120px]">
+                          {log.target_id}
+                        </span>
+                      )}
+                    </Td>
+                    <Td className="text-xs capitalize">{log.surface}</Td>
+                    <Td>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
+                          log.severity === "critical"
+                            ? "bg-red-100 text-red-800"
+                            : log.severity === "warning"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-slate-100 text-slate-800",
+                        )}
+                      >
+                        {log.severity}
+                      </span>
+                    </Td>
+                    <Td>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
+                        <Eye size={14} />
+                      </Button>
+                    </Td>
+                  </Tr>
+                ))}
+              </TBody>
+            </Table>
+
+            {/* Pagination Controls */}
+            {totalCount > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-hairline text-xs">
+                {/* Left: Summary & Rows Selector */}
+                <div className="flex items-center gap-3 text-ink-muted flex-wrap">
+                  <span>
+                    Showing <strong className="text-ink font-semibold">{(page - 1) * pageSize + 1}</strong> to{" "}
+                    <strong className="text-ink font-semibold">{Math.min(page * pageSize, totalCount)}</strong> of{" "}
+                    <strong className="text-ink font-semibold">{totalCount}</strong> records
+                  </span>
+                  <div className="flex items-center gap-1.5 ml-1">
+                    <span className="text-[11px]">Rows:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                      disabled={loading}
+                      className="h-7 rounded-md border border-hairline bg-surface px-2 text-xs font-medium text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                      aria-label="Records per page"
+                    >
+                      <option value={10}>10</option>
+                      <option value={15}>15</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Right: Page Navigation Buttons */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage(1)}
+                    disabled={page === 1 || loading}
+                    className="h-7 px-2 text-xs"
+                    title="First Page"
+                    aria-label="First Page"
+                  >
+                    <ChevronsLeft size={14} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1 || loading}
+                    className="h-7 px-2 text-xs"
+                    title="Previous Page"
+                    aria-label="Previous Page"
+                  >
+                    <ChevronLeft size={14} />
+                    <span className="hidden sm:inline ml-1">Prev</span>
+                  </Button>
+
+                  <div className="flex items-center gap-1 px-1">
+                    {renderPaginationButtons()}
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages || loading}
+                    className="h-7 px-2 text-xs"
+                    title="Next Page"
+                    aria-label="Next Page"
+                  >
+                    <span className="hidden sm:inline mr-1">Next</span>
+                    <ChevronRight size={14} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage(totalPages)}
+                    disabled={page === totalPages || loading}
+                    className="h-7 px-2 text-xs"
+                    title="Last Page"
+                    aria-label="Last Page"
+                  >
+                    <ChevronsRight size={14} />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
 

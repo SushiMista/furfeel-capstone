@@ -400,6 +400,7 @@ class DemoRepository implements FurFeelRepository {
         classification: _classifications.last,
         device: await fetchDeviceForDog(dog.id),
         wellness: await fetchWellness(dog.id, DateTime.now()),
+        openAlertsCount: (await fetchAlerts(dog.id)).where((a) => a.status == 'open').length,
       );
 
   // ---- Media ----
@@ -479,4 +480,16 @@ class DemoRepository implements FurFeelRepository {
   }) {
     return () async {}; // static sample data — nothing streams
   }
+
+  @override
+  Future<void> submitBugReport({
+    required String reporterName,
+    required String reporterEmail,
+    required String title,
+    required String description,
+    String category = 'bug',
+  }) async {
+    await Future.delayed(const Duration(seconds: 1));
+  }
+
 }

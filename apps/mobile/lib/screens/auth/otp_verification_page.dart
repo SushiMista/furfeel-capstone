@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
-import 'package:furfeel_mobile/widgets/furfeel_logo.dart';
 
 class OtpVerificationPage extends StatefulWidget {
   const OtpVerificationPage({

@@ -82,6 +82,15 @@ abstract class FurFeelRepository {
   Future<Device> pairDevice(String deviceCode, String dogId);
   Future<void> unpairDevice(String deviceId);
 
+  /// Submit a bug report directly to the admin system.
+  Future<void> submitBugReport({
+    required String reporterName,
+    required String reporterEmail,
+    required String title,
+    required String description,
+    String category = 'bug',
+  });
+
   /// Resting reference values for the vital detail screens (QA); null when
   /// the clinic hasn't set them.
   Future<DogBaseline?> fetchBaseline(String dogId);
@@ -180,6 +189,7 @@ class DogOverview {
     this.classification,
     this.device,
     this.wellness,
+    this.openAlertsCount = 0,
   });
 
   final Dog dog;
@@ -187,6 +197,7 @@ class DogOverview {
   final StressClassification? classification;
   final Device? device;
   final WellnessSnapshot? wellness;
+  final int openAlertsCount;
 }
 
 class SupabaseFurFeelRepository implements FurFeelRepository {
@@ -585,6 +596,7 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
       fetchDeviceForDog(dog.id),
       // Wellness is a nicety on the card — never let it fail the overview.
       fetchWellness(dog.id, DateTime.now()).catchError((_) => null),
+      fetchAlerts(dog.id).catchError((_) => <Alert>[]),
     ]);
     return DogOverview(
       dog: dog,
@@ -592,6 +604,7 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
       classification: results[1] as StressClassification?,
       device: results[2] as Device?,
       wellness: results[3] as WellnessSnapshot?,
+      openAlertsCount: (results[4] as List<Alert>).where((a) => a.status == 'open').length,
     );
   }
 
@@ -879,5 +892,23 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
 
     channel.subscribe();
     return () => _client.removeChannel(channel);
+  }
+
+  @override
+  Future<void> submitBugReport({
+    required String reporterName,
+    required String reporterEmail,
+    required String title,
+    required String description,
+    String category = 'bug',
+  }) async {
+    await _client.from('bug_reports').insert({
+      'reporter_name': reporterName,
+      'reporter_email': reporterEmail,
+      'title': title,
+      'description': description,
+      'category': category,
+      'user_id': _client.auth.currentUser?.id,
+    });
   }
 }

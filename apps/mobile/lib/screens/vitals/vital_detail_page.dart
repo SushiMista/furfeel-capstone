@@ -15,19 +15,21 @@ import 'package:furfeel_mobile/widgets/curved_status_header.dart';
 /// baseline when available, otherwise the general reference the classifier
 /// uses) and plain-language owner guidance. Informational only — ranges vary
 /// by breed, size, and age; never a diagnosis.
-enum VitalKind { heartRate, breathing, activity }
+enum VitalKind { heartRate, breathing, activity, ambientTemperature }
 
 extension VitalKindInfo on VitalKind {
   String get label => switch (this) {
         VitalKind.heartRate => 'Heart rate',
         VitalKind.breathing => 'Breathing',
         VitalKind.activity => 'Activity',
+        VitalKind.ambientTemperature => 'Ambient temp',
       };
 
   IconData get icon => switch (this) {
         VitalKind.heartRate => Icons.favorite_outline,
         VitalKind.breathing => Icons.air,
         VitalKind.activity => Icons.directions_run_outlined,
+        VitalKind.ambientTemperature => Icons.thermostat_outlined,
       };
 
   /// Per-metric identity colour (ADR-024). Overrides the monochrome-chart rule
@@ -36,6 +38,7 @@ extension VitalKindInfo on VitalKind {
         VitalKind.heartRate => context.ff.vitalHeart,
         VitalKind.breathing => context.ff.vitalBreathing,
         VitalKind.activity => context.ff.vitalActivity,
+        VitalKind.ambientTemperature => const Color(0xFFF59E0B), // Warm amber for temperature
       };
 }
 
@@ -79,8 +82,15 @@ class VitalDetailPage extends StatefulWidget {
 }
 
 class _VitalDetailPageState extends State<VitalDetailPage> {
+  final _scroll = ScrollController();
   DogBaseline? _baseline;
   List<TelemetryReading> _recent = const [];
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -103,6 +113,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
         VitalKind.heartRate => r.heartRateBpm?.toDouble(),
         VitalKind.breathing => r.respiratoryRateBpm?.toDouble(),
         VitalKind.activity => r.motionActivity,
+        VitalKind.ambientTemperature => r.ambientTemperatureC == null ? null : (settings.useFahrenheit ? r.ambientTemperatureC! * 9 / 5 + 32 : r.ambientTemperatureC),
       };
 
   // Owner-friendly reference ranges. Baseline (clinic-set) wins; the general
@@ -138,6 +149,11 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
           value: 'below 0.6 when resting (scale 0–1)',
           source: 'how the harness measures movement',
         );
+      case VitalKind.ambientTemperature:
+        return (
+          value: settings.useFahrenheit ? '64–75 °F indoors' : '18–24 °C indoors',
+          source: 'comfortable range for most dogs',
+        );
     }
   }
 
@@ -156,6 +172,10 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
           'A 0-to-1 movement index from the harness motion sensor — 0 is '
               'still, 1 is constant motion. Restless pacing scores high even '
               'without exercise, which is why it feeds the stress level.',
+        VitalKind.ambientTemperature =>
+          'The temperature immediately surrounding the harness. It helps '
+              'FurFeel understand if your dog is panting or restless because '
+              'of the heat, rather than anxiety or pain.',
       };
 
   VitalStatus? get _status => switch (widget.kind) {
@@ -164,6 +184,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
         VitalKind.breathing =>
           respiratoryStatus(widget.reading?.respiratoryRateBpm, _baseline),
         VitalKind.activity => null,
+        VitalKind.ambientTemperature => null,
       };
 
   ActivityState get _activityState => widget.reading == null
@@ -188,6 +209,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
       VitalKind.heartRate => r?.heartRateBpm?.toString() ?? '—',
       VitalKind.breathing => r?.respiratoryRateBpm?.toString() ?? '—',
       VitalKind.activity => _activityState.label,
+      VitalKind.ambientTemperature => r?.ambientTemperatureC == null ? '—' : (settings.useFahrenheit ? (r!.ambientTemperatureC! * 9 / 5 + 32) : r!.ambientTemperatureC!).toStringAsFixed(1),
     };
   }
 
@@ -195,6 +217,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
         VitalKind.heartRate => 'bpm',
         VitalKind.breathing => 'breaths/min',
         VitalKind.activity => '',
+        VitalKind.ambientTemperature => settings.useFahrenheit ? '°F' : '°C',
       };
 
   /// The vet-set normal for this vital (the clinic baseline), for the coloured
@@ -206,6 +229,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
       VitalKind.heartRate => b.restingHeartRateBpm?.toDouble(),
       VitalKind.breathing => b.restingRespiratoryRateBpm?.toDouble(),
       VitalKind.activity => null,
+      VitalKind.ambientTemperature => null,
     };
   }
 
@@ -213,6 +237,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
   String _heroDescription() {
     if (widget.reading == null) return 'Waiting for the next reading';
     if (widget.kind == VitalKind.activity) return _activityState.description;
+    if (widget.kind == VitalKind.ambientTemperature) return 'Local harness temperature';
     final s = _status;
     return s == null ? 'Live reading' : '${s.label} for ${widget.dog.name}';
   }
@@ -226,6 +251,8 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
     final unit = _unit(settings);
     return Scaffold(
       body: ListView(
+            controller: _scroll,
+            clipBehavior: Clip.none,
         padding: EdgeInsets.zero,
         children: [
           // Immersive metric-coloured hero with the curved divider (docs/22 v7).
@@ -236,6 +263,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
             value: _currentValue(settings),
             unit: unit.isEmpty ? null : unit,
             description: _heroDescription(),
+            scroll: _scroll,
             leading: HeaderCircleButton(
               icon: Icons.arrow_back_ios_new,
               tooltip: 'Back',

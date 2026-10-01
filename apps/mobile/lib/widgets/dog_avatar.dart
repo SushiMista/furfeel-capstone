@@ -53,7 +53,7 @@ Color dogTint(BuildContext context, Dog dog) {
 /// be partial, and for some owners the placeholder is the permanent state —
 /// so it gets the same tinted treatment as a real photo and is meant to look
 /// intentional rather than missing (docs/21 §5).
-class DogAvatar extends StatelessWidget {
+class DogAvatar extends StatefulWidget {
   const DogAvatar({
     super.key,
     required this.dog,
@@ -65,25 +65,44 @@ class DogAvatar extends StatelessWidget {
 
   final Dog dog;
   final FurFeelRepository repository;
-
-  /// Half the avatar's width, for parity with [CircleAvatar]. Non-circular
-  /// shapes derive their height from it.
   final double radius;
-
-  /// Overrides the dog's derived tint. Leave null in normal use.
   final Color? backgroundColor;
-
   final DogAvatarShape shape;
 
   @override
-  Widget build(BuildContext context) {
-    final bg = backgroundColor ?? dogTint(context, dog);
-    final photoPath = dog.photoPath;
+  State<DogAvatar> createState() => _DogAvatarState();
+}
 
-    if (photoPath == null) return _frame(context, bg, null);
+class _DogAvatarState extends State<DogAvatar> {
+  Future<String>? _urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFuture();
+  }
+
+  @override
+  void didUpdateWidget(DogAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dog.photoPath != widget.dog.photoPath) {
+      _loadFuture();
+    }
+  }
+
+  void _loadFuture() {
+    final path = widget.dog.photoPath;
+    _urlFuture = path == null ? null : widget.repository.getSignedMediaUrl(path);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = widget.backgroundColor ?? dogTint(context, widget.dog);
+
+    if (_urlFuture == null) return _frame(context, bg, null);
 
     return FutureBuilder<String>(
-      future: repository.getSignedMediaUrl(photoPath),
+      future: _urlFuture,
       builder: (context, snapshot) => _frame(context, bg, snapshot.data),
     );
   }
@@ -94,27 +113,27 @@ class DogAvatar extends StatelessWidget {
     // Icons.pets glyph, and consistent everywhere a dog has no photo.
     final mark = SvgPicture.asset(
       'assets/illustrations/placeholder_pet.svg',
-      width: radius * 1.35,
-      height: radius * 1.35,
+      width: widget.radius * 1.35,
+      height: widget.radius * 1.35,
       colorFilter: ColorFilter.mode(context.ff.brandInk, BlendMode.srcIn),
     );
 
-    if (shape == DogAvatarShape.circle) {
+    if (widget.shape == DogAvatarShape.circle) {
       return CircleAvatar(
-        radius: radius,
+        radius: widget.radius,
         backgroundColor: bg,
         foregroundImage: url == null ? null : NetworkImage(url),
         child: mark,
       );
     }
 
-    final width = radius * 2;
+    final width = widget.radius * 2;
     // The arch is taller than it is wide — that vertical proportion is what
     // makes it read as an arch rather than a rounded rectangle.
-    final height = shape == DogAvatarShape.arch ? radius * 2.6 : width;
-    final borderRadius = shape == DogAvatarShape.arch
+    final height = widget.shape == DogAvatarShape.arch ? widget.radius * 2.6 : width;
+    final borderRadius = widget.shape == DogAvatarShape.arch
         ? BorderRadius.vertical(
-            top: Radius.circular(radius),
+            top: Radius.circular(widget.radius),
             bottom: const Radius.circular(FurFeelTokens.radiusMd),
           )
         : BorderRadius.circular(FurFeelTokens.radiusMd);

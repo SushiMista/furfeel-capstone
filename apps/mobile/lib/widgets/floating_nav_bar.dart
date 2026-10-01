@@ -14,7 +14,7 @@ class FloatingNavDestination {
   final IconData icon;
   final IconData selectedIcon;
 
-  /// Not rendered — the bar is icon-only. This is the accessible name the
+  /// Not rendered — the bar is labelled. This is the accessible name the
   /// item is announced and found by, so it must stay set and meaningful.
   final String label;
 
@@ -25,7 +25,7 @@ class FloatingNavDestination {
 /// brand-tinted shadow that hovers above the page background instead of a
 /// bar flush with the screen edges.
 ///
-/// Icon-only by choice. Selection never rides on colour alone: the selected
+/// Labels explicitly shown for clarity. Selection never rides on colour alone: the selected
 /// item swaps to its *filled* glyph and gains a soft brand pill behind it, so
 /// it is distinguishable without colour vision. Labels are still carried on
 /// every destination and exposed through [Semantics], so screen readers
@@ -114,7 +114,7 @@ class _NavSurface extends StatelessWidget {
       width: width,
       decoration: BoxDecoration(
         color: context.ff.surface,
-        borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+        borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
         border: Border.all(color: context.ff.hairline),
         boxShadow: [
           BoxShadow(
@@ -164,7 +164,7 @@ class _FloatingNavItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         customBorder: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+          borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
         ),
         child: Semantics(
           // Icon-only bar: this is the ONLY place the destination's name
@@ -182,14 +182,29 @@ class _FloatingNavItem extends StatelessWidget {
                     context.reduceMotion ? Duration.zero : FurFeelTokens.motionFast,
                 curve: Curves.easeOut,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: FurFeelTokens.space4,
-                  vertical: FurFeelTokens.space2,
+                  horizontal: FurFeelTokens.space3,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: selected ? context.ff.brandSoft : Colors.transparent,
-                  borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+                  borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
                 ),
-                child: icon,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    icon,
+                    const SizedBox(height: 2),
+                    Text(
+                      destination.label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                        color: color,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

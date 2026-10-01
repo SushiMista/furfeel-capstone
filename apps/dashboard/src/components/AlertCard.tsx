@@ -102,22 +102,22 @@ export function AlertCard({
   const deviceCode = matchCode ? matchCode[1] : null;
 
   const targetDeviceUrl = deviceCode
-    ? `/admin/devices?device_code=${encodeURIComponent(deviceCode)}`
+    ? `/devices?device_code=${encodeURIComponent(deviceCode)}`
     : alert.dog_id
-      ? `/admin/devices?dog_id=${encodeURIComponent(alert.dog_id)}`
-      : `/admin/devices?status=offline`;
+      ? `/devices?dog_id=${encodeURIComponent(alert.dog_id)}`
+      : `/devices?status=offline`;
 
   return (
     <div
       className={cn(
-        "relative mb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border p-4 shadow-xs transition-all duration-200",
+        "relative mb-3 flex flex-col justify-between gap-3.5 rounded-xl border p-4 shadow-xs transition-all duration-200",
         cardBorder,
         isAcknowledged && "opacity-75 shadow-none alert-acknowledged",
         className,
       )}
     >
-      {/* Left section: Themed Icon + Message text */}
-      <div className="flex items-start gap-3.5 min-w-0 flex-1">
+      {/* Top section: Themed Icon + Message text */}
+      <div className="flex items-start gap-3.5 min-w-0 w-full">
         <div
           className={cn(
             "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-xs",
@@ -145,11 +145,11 @@ export function AlertCard({
             )}
           </div>
 
-          <p className="mt-1 text-xs text-ink/90 leading-relaxed font-medium m-0">
+          <p className="mt-1 text-xs text-ink/90 leading-relaxed font-medium m-0 break-words">
             {formatAlertMessage(alert.message)}
           </p>
 
-          <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-muted">
+          <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-muted flex-wrap">
             <span>{formatPhilippineTime(alert.created_at)}</span>
             {alert.status !== "open" && (
               <>
@@ -161,8 +161,8 @@ export function AlertCard({
         </div>
       </div>
 
-      {/* Right section: Action Buttons */}
-      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
+      {/* Bottom section: Action Buttons */}
+      <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-hairline/50 w-full justify-start sm:justify-end">
         {/* Investigate Dog Link */}
         {alert.dog_id && (
           <Link
