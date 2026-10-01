@@ -19,7 +19,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { formatPhilippineTime } from "../../lib/time.ts";
 import type { AdminInefficiencies } from "../../lib/adminQueries.ts";
-import { AdminInefficienciesBanner } from "./Admin.tsx";
 import type {
   BugReport,
   Clinic,
@@ -87,8 +86,6 @@ export function AdminOverviewTab({
 
   return (
     <div className="flex flex-col gap-6">
-      <AdminInefficienciesBanner inefficiencies={inefficiencies} />
-
       {/* 6 Technical KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
         {/* Card 1: Clinics */}
