@@ -62,6 +62,6 @@ describe("AlertCard", () => {
 
     expect(screen.getByText("Investigate Dog")).toBeInTheDocument();
     expect(screen.getByText("Check Device")).toBeInTheDocument();
-    expect(screen.getByText(/August 23, 2026 at 1:16 AM/)).toBeInTheDocument();
+    expect(screen.getByText("Device FURFEEL-DEV-0002 stopped sending data")).toBeInTheDocument();
   });
 });

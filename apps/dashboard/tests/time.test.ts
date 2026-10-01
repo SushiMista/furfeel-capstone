@@ -9,9 +9,9 @@ describe("time utility (Philippine Standard Time)", () => {
     expect(formatted).toBe("August 23, 2026 at 1:16 AM");
   });
 
-  it("replaces embedded UTC last-seen strings in alert messages with friendly Philippine time", () => {
+  it("removes redundant embedded UTC last-seen strings in alert messages", () => {
     const rawMessage = "Device FURFEEL-DEV-0002 stopped sending data (last seen 2026-08-22 17:16 UTC).";
     const converted = formatAlertMessage(rawMessage);
-    expect(converted).toBe("Device FURFEEL-DEV-0002 stopped sending data (last seen August 23, 2026 at 1:16 AM).");
+    expect(converted).toBe("Device FURFEEL-DEV-0002 stopped sending data");
   });
 });

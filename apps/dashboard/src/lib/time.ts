@@ -33,20 +33,15 @@ export function formatPhilippineTime(dateInput: string | Date | number): string 
   return formatter.format(date);
 }
 
-/** Formats alert message text, converting embedded UTC timestamps into Philippine Standard Time.
+/** Formats alert message text, removing redundant embedded '(last seen ...)' timestamps since the timestamp is displayed separately on the card.
  * Example input: "Device FURFEEL-DEV-0002 stopped sending data (last seen 2026-08-22 17:16 UTC)."
- * Example output: "Device FURFEEL-DEV-0002 stopped sending data (last seen August 23, 2026 at 1:16 AM)."
+ * Example output: "Device FURFEEL-DEV-0002 stopped sending data."
  */
 export function formatAlertMessage(message: string): string {
   if (!message) return "";
 
-  // Match pattern: (last seen YYYY-MM-DD HH:mm UTC)
-  return message.replace(
-    /\(last seen (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) UTC\)/g,
-    (_, dateStr, timeStr) => {
-      const utcIso = `${dateStr}T${timeStr}:00Z`;
-      const phtStr = formatPhilippineTime(utcIso);
-      return `(last seen ${phtStr})`;
-    },
-  );
+  // Remove redundant (last seen ...) timestamp
+  return message
+    .replace(/\s*\(last seen [^)]+\)\.?/gi, "")
+    .trim();
 }
