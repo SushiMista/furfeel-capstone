@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../theme/furfeel_tokens.dart';
@@ -113,19 +114,30 @@ class _NavSurface extends StatelessWidget {
       height: 64,
       width: width,
       decoration: BoxDecoration(
-        color: context.ff.surface,
         borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-        border: Border.all(color: context.ff.hairline),
         boxShadow: [
           BoxShadow(
-            color: context.ff.ink.withValues(alpha: 0.10),
-            offset: const Offset(0, 10),
-            blurRadius: 28,
-            spreadRadius: -6,
+            color: context.ff.ink.withValues(alpha: 0.12),
+            offset: const Offset(0, 12),
+            blurRadius: 32,
+            spreadRadius: -4,
           ),
         ],
       ),
-      child: child,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: context.ff.surface.withValues(alpha: 0.70),
+              border: Border.all(color: context.ff.hairline.withValues(alpha: 0.4)),
+              borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
+            ),
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }
