@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:furfeel_mobile/data/google_oauth.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
@@ -50,7 +51,9 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _resetPassword() async {
     final email = _email.text.trim();
     if (email.isEmpty) {
-      setState(() => _error = 'Please enter your email to reset your password.');
+      setState(
+        () => _error = 'Please enter your email to reset your password.',
+      );
       return;
     }
     setState(() {
@@ -59,13 +62,20 @@ class _LoginPageState extends State<LoginPage> {
     });
     try {
       // Assuming SupabaseClient is available globally or we can use Supabase.instance.client
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: authRedirectUrl(currentOrigin: Uri.base.origin),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Password reset link sent to $email.')),
       );
     } catch (e) {
-      if (mounted) setState(() => _error = 'Could not send reset link. Check your email address.');
+      if (mounted) {
+        setState(
+          () => _error = 'Could not send reset link. Check your email address.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -96,7 +106,7 @@ class _LoginPageState extends State<LoginPage> {
     });
     final error = await widget.onGoogleSignIn!();
     if (!mounted) return;
-    
+
     if (error != null) {
       setState(() {
         _googleBusy = false;
@@ -133,138 +143,140 @@ class _LoginPageState extends State<LoginPage> {
                       fit: BoxFit.contain,
                     ),
                   ),
-                const SizedBox(height: FurFeelTokens.space5),
+                  const SizedBox(height: FurFeelTokens.space5),
 
-                // ── Divider with subtle brand tint ───────────────────────
-                Container(
-                  height: 1,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        context.ff.brand.withValues(alpha: 0.20),
-                        Colors.transparent,
-                      ],
+                  // ── Divider with subtle brand tint ───────────────────────
+                  Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          context.ff.brand.withValues(alpha: 0.20),
+                          Colors.transparent,
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: FurFeelTokens.space5),
+                  const SizedBox(height: FurFeelTokens.space5),
 
-                // ── Headline ─────────────────────────────────────────────
-                Text(
-                  'Welcome back',
-                  style: textTheme.headlineSmall?.copyWith(
-                    color: context.ff.brandInk,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ).entrance(context),
-                const SizedBox(height: FurFeelTokens.space2),
-                Text(
-                  'Sign in to see how your dog is doing.',
-                  style: textTheme.bodyMedium
-                      ?.copyWith(color: context.ff.inkMuted),
-                ).entrance(context, index: 1),
-                const SizedBox(height: FurFeelTokens.space5),
+                  // ── Headline ─────────────────────────────────────────────
+                  Text(
+                    'Welcome back',
+                    style: textTheme.headlineSmall?.copyWith(
+                      color: context.ff.brandInk,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ).entrance(context),
+                  const SizedBox(height: FurFeelTokens.space2),
+                  Text(
+                    'Sign in to see how your dog is doing.',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: context.ff.inkMuted,
+                    ),
+                  ).entrance(context, index: 1),
+                  const SizedBox(height: FurFeelTokens.space5),
 
-                // ── Form fields ──────────────────────────────────────────
-                AutofillGroup(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.email],
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          prefixIcon: Icon(Icons.email_outlined),
+                  // ── Form fields ──────────────────────────────────────────
+                  AutofillGroup(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextField(
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.email],
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: FurFeelTokens.space3),
-                      TextField(
-                        controller: _password,
-                        obscureText: _obscure,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.password],
-                        onSubmitted: (_) => _submit(),
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            onPressed: () =>
-                                setState(() => _obscure = !_obscure),
-                            tooltip: _obscure
-                                ? 'Show password'
-                                : 'Hide password',
-                            icon: Icon(
-                              _obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              color: context.ff.inkMuted,
+                        const SizedBox(height: FurFeelTokens.space3),
+                        TextField(
+                          controller: _password,
+                          obscureText: _obscure,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          onSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                              tooltip: _obscure
+                                  ? 'Show password'
+                                  : 'Hide password',
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                color: context.ff.inkMuted,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _submitting ? null : _resetPassword,
-                          child: const Text('Forgot password?'),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _submitting ? null : _resetPassword,
+                            child: const Text('Forgot password?'),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ).entrance(context, index: 2),
+                      ],
+                    ),
+                  ).entrance(context, index: 2),
 
-                // ── Inline error ─────────────────────────────────────────
-                if (_error != null) ...[
-                  const SizedBox(height: FurFeelTokens.space4),
-                  InlineFormError(message: _error!),
+                  // ── Inline error ─────────────────────────────────────────
+                  if (_error != null) ...[
+                    const SizedBox(height: FurFeelTokens.space4),
+                    InlineFormError(message: _error!),
+                  ],
+                  const SizedBox(height: FurFeelTokens.space5),
+
+                  // ── Primary CTA ──────────────────────────────────────────
+                  ElevatedButton(
+                    onPressed: _submitting || _googleBusy ? null : _submit,
+                    child: _submitting
+                        ? const BusyButtonLabel(label: 'Signing in')
+                        : const Text('Sign in'),
+                  ).entrance(context, index: 3),
+
+                  // ── Google sign-in ───────────────────────────────────────
+                  if (widget.onGoogleSignIn != null) ...[
+                    const SizedBox(height: FurFeelTokens.space4),
+                    const OrDivider(),
+                    const SizedBox(height: FurFeelTokens.space4),
+                    GoogleSignInButton(
+                      busy: _googleBusy,
+                      onPressed: _submitting ? null : _submitGoogle,
+                    ).entrance(context, index: 4),
+                  ],
+
+                  // ── Create account cross-link ────────────────────────────
+                  if (widget.onCreateAccount != null) ...[
+                    const SizedBox(height: FurFeelTokens.space3),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'New here?',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: context.ff.inkMuted,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: widget.onCreateAccount,
+                          child: const Text('Create account'),
+                        ),
+                      ],
+                    ).entrance(context, index: 5),
+                  ],
                 ],
-                const SizedBox(height: FurFeelTokens.space5),
-
-                // ── Primary CTA ──────────────────────────────────────────
-                ElevatedButton(
-                  onPressed: _submitting || _googleBusy ? null : _submit,
-                  child: _submitting
-                      ? const BusyButtonLabel(label: 'Signing in')
-                      : const Text('Sign in'),
-                ).entrance(context, index: 3),
-
-                // ── Google sign-in ───────────────────────────────────────
-                if (widget.onGoogleSignIn != null) ...[
-                  const SizedBox(height: FurFeelTokens.space4),
-                  const OrDivider(),
-                  const SizedBox(height: FurFeelTokens.space4),
-                  GoogleSignInButton(
-                    busy: _googleBusy,
-                    onPressed: _submitting ? null : _submitGoogle,
-                  ).entrance(context, index: 4),
-                ],
-
-                // ── Create account cross-link ────────────────────────────
-                if (widget.onCreateAccount != null) ...[
-                  const SizedBox(height: FurFeelTokens.space3),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'New here?',
-                        style: textTheme.bodyMedium
-                            ?.copyWith(color: context.ff.inkMuted),
-                      ),
-                      TextButton(
-                        onPressed: widget.onCreateAccount,
-                        child: const Text('Create account'),
-                      ),
-                    ],
-                  ).entrance(context, index: 5),
-                ],
-              ],
+              ),
             ),
-          ),
           ),
         ),
       ),

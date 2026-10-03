@@ -119,7 +119,7 @@ Open the printed `localhost` URL → sign in as the vet.
 cd apps/mobile
 flutter run -d chrome --web-port 5175 --dart-define-from-file=env.json
 ```
-Sign in as the owner. **Keep `--web-port 5175`** — Google sign-in only redirects back to allow-listed URLs, and `http://localhost:5175` is the port on the Supabase Auth allow-list (a random port ends in "this site can't be reached" after the Google screen). No Chrome device? Use `flutter run -d web-server --web-port 5175 --dart-define-from-file=env.json` and open the URL in any browser. (On Windows you can also target the desktop app with `-d windows`.)
+Sign in as the owner. **Keep `--web-port 5175`** — Google sign-in only redirects back to allow-listed URLs, and `http://localhost:5175`, `http://localhost:5175/`, and `http://localhost:5175/**` are the local owner-app URLs on the Supabase Auth allow-list (a random port ends in "this site can't be reached" after the Google screen). No Chrome device? Use `flutter run -d web-server --web-port 5175 --dart-define-from-file=env.json` and open the URL in any browser. (On Windows you can also target the desktop app with `-d windows`.)
 In the run terminal: `r` = hot reload, `R` = hot restart, `q` = quit.
 
 **Simulator (live data):**

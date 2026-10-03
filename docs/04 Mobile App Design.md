@@ -3,7 +3,7 @@ title: "Mobile App Design"
 type: product-design
 project: FurFeel
 created: 2026-07-09
-updated: 2026-07-18
+updated: 2026-10-04
 tags: [furfeel, mobile, ux]
 ---
 
@@ -110,10 +110,10 @@ The app should feel personal and complete, not a demo.
 - Live under the **More** tab (Profile, Settings, plus the occasional modules).
 
 ## Notifications
-Push alert when stress crosses **moderate/high** or the device goes **offline**; deep-link into the alert detail. In-app alert list + detail with **Acknowledge**. (FCM/APNs wiring may be finished by a human — build the in-app + token-registration side.)
+Push alert when stress crosses **moderate/high**, battery is low, or the device goes **offline**; deep-link into the alert detail. In-app alert list + detail with **Acknowledge** are built. `push_tokens` registration is in-app, but final FCM/APNs project credentials and delivery wiring are still the deploy-time step.
 
 ## MVP priority order
-1. User Dashboard (done) → 2. Alerts + acknowledge (done) → 3. History (done) → 4. Pet Creation → 5. Device Pairing → 6. Vet Review (owner) → 7. Care Insights → 8. Observation Assessment → 9. Push notifications.
+As-built: User Dashboard, Alerts + acknowledge, History/Trends/Detailed Log, Pet Creation, Device Pairing, owner Vet Review, Care Insights, Observation Assessment, Chat/media conversations, consent gate, demo mode, offline cache, bug reports, audit logging, and push-token registration are present. Remaining deployment item: FCM/APNs delivery credentials + server-side push dispatch.
 
 ## Related
 - [[19 Design System]]
