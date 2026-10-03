@@ -16,10 +16,10 @@ const _dog = Dog(
 
 const _mochi = Dog(id: 'dog-2', ownerUserId: 'user-1', name: 'Mochi', breed: 'Shiba Inu');
 
-TelemetryReading reading({int? hr = 92, int? rr = 22}) => TelemetryReading(
+TelemetryReading reading({int? hr = 92, int? rr = 22, DateTime? capturedAt}) => TelemetryReading(
       id: 'r1',
       dogId: 'dog-1',
-      capturedAt: DateTime.now().subtract(const Duration(minutes: 2)),
+      capturedAt: capturedAt ?? DateTime.now().subtract(const Duration(minutes: 2)),
       heartRateBpm: hr,
       respiratoryRateBpm: rr,
       motionActivity: 0.3,
@@ -52,16 +52,17 @@ Finder navTab(String label) =>
 void main() {
   testWidgets('status hero shows dog name, stress pill, vitals, and last-updated',
       (tester) async {
+    final capturedAt = DateTime(2026, 7, 11, 15, 42);
     final repo = FakeRepository(
       dogs: const [_dog],
-      latestReading: reading(),
+      latestReading: reading(capturedAt: capturedAt),
       latestClassification: StressClassification(
         id: 'c1',
         dogId: 'dog-1',
         stressLevel: StressLevel.calm,
         createdAt: DateTime.now(),
       ),
-      recentReadings: [reading()],
+      recentReadings: [reading(capturedAt: capturedAt)],
       // Paired + reporting: the setup checklist stays hidden for this fixture.
       device: const Device(id: 'device-1', deviceCode: 'FF-1', status: 'active'),
     );
@@ -71,6 +72,7 @@ void main() {
     expect(find.text('Health overview'), findsOneWidget); // immersive home loaded
     expect(find.text('Calm'), findsOneWidget); // the classification, as the hero
     expect(find.text('Biscuit is calm right now'), findsOneWidget);
+    expect(find.text('Updated 3:42 PM'), findsOneWidget);
 
     // Scroll to the heart-rate waveform row (value + unit are one rich span).
     await tester.scrollUntilVisible(

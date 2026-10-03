@@ -7,6 +7,7 @@ import 'package:furfeel_mobile/insights/biometrics.dart';
 import 'package:furfeel_mobile/models/activity_state.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
+import 'package:furfeel_mobile/util/friendly_time.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/day_timeline.dart';
 import 'package:furfeel_mobile/widgets/curved_status_header.dart';
@@ -15,9 +16,14 @@ import 'package:furfeel_mobile/widgets/candle_sparkline.dart';
 import 'package:furfeel_mobile/screens/vitals/vital_detail_page.dart';
 
 /// Finds the daily summary for one calendar day, or null when there's none.
-DailyStressSummary? _summaryForDay(List<DailyStressSummary> daily, DateTime day) {
+DailyStressSummary? _summaryForDay(
+  List<DailyStressSummary> daily,
+  DateTime day,
+) {
   for (final d in daily) {
-    if (d.day.year == day.year && d.day.month == day.month && d.day.day == day.day) {
+    if (d.day.year == day.year &&
+        d.day.month == day.month &&
+        d.day.day == day.day) {
       return d;
     }
   }
@@ -106,14 +112,19 @@ class _HomeTabState extends State<HomeTab> {
             repository: widget.repository,
             dog: widget.dog,
             level: level,
+            latestUpdatedAt: widget.reading?.capturedAt,
             openAlerts: widget.alerts.where((a) => a.status == 'open').length,
             hasCareTip: careGuidance != null,
             onBack: widget.onBack,
             scroll: _scroll,
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(FurFeelTokens.space4,
-                FurFeelTokens.space3, FurFeelTokens.space4, FurFeelTokens.space6 + bottom),
+            padding: EdgeInsets.fromLTRB(
+              FurFeelTokens.space4,
+              FurFeelTokens.space3,
+              FurFeelTokens.space4,
+              FurFeelTokens.space6 + bottom,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -123,7 +134,10 @@ class _HomeTabState extends State<HomeTab> {
                 ],
                 // Health overview — one waveform row per vital, each its own
                 // colour, opening a detail screen (docs/22 v7, ADR-024).
-                const SectionHeader(title: 'Health overview', hint: 'Last 7 days'),
+                const SectionHeader(
+                  title: 'Health overview',
+                  hint: 'Last 7 days',
+                ),
                 const SizedBox(height: FurFeelTokens.space3),
                 _VitalGrid(
                   repository: widget.repository,
@@ -135,15 +149,20 @@ class _HomeTabState extends State<HomeTab> {
                   const SizedBox(height: FurFeelTokens.space5),
                   const SectionHeader(title: 'Care'),
                   const SizedBox(height: FurFeelTokens.space3),
-                  _CareInsightsCard(guidance: careGuidance).entrance(context, index: 2),
+                  _CareInsightsCard(
+                    guidance: careGuidance,
+                  ).entrance(context, index: 2),
                 ],
                 const SizedBox(height: FurFeelTokens.space5),
                 const SectionHeader(title: 'Activity'),
                 const SizedBox(height: FurFeelTokens.space3),
                 _TodaySoFar(daily: widget.daily).entrance(context, index: 3),
                 const SizedBox(height: FurFeelTokens.space3),
-                DayTimeline(repository: widget.repository, dog: widget.dog, refreshTrigger: widget.refreshTrigger)
-                    .entrance(context, index: 4),
+                DayTimeline(
+                  repository: widget.repository,
+                  dog: widget.dog,
+                  refreshTrigger: widget.refreshTrigger,
+                ).entrance(context, index: 4),
               ],
             ),
           ),
@@ -162,6 +181,7 @@ class _ImmersiveHero extends StatefulWidget {
     required this.repository,
     required this.dog,
     required this.level,
+    required this.latestUpdatedAt,
     required this.openAlerts,
     required this.hasCareTip,
     this.onBack,
@@ -171,6 +191,7 @@ class _ImmersiveHero extends StatefulWidget {
   final FurFeelRepository repository;
   final Dog dog;
   final StressLevel? level;
+  final DateTime? latestUpdatedAt;
   final int openAlerts;
   final bool hasCareTip;
   final VoidCallback? onBack;
@@ -203,7 +224,9 @@ class _ImmersiveHeroState extends State<_ImmersiveHero> {
       return;
     }
     try {
-      final url = await widget.repository.getSignedMediaUrl(widget.dog.photoPath!);
+      final url = await widget.repository.getSignedMediaUrl(
+        widget.dog.photoPath!,
+      );
       if (mounted) setState(() => _photoUrl = url);
     } catch (_) {
       if (mounted) setState(() => _photoUrl = null);
@@ -238,11 +261,23 @@ class _ImmersiveHeroState extends State<_ImmersiveHero> {
       leading: widget.onBack == null
           ? const HeaderCircleButton(icon: Icons.pets)
           : HeaderCircleButton(
-              icon: Icons.arrow_back_ios_new, tooltip: 'Back', onTap: widget.onBack),
+              icon: Icons.arrow_back_ios_new,
+              tooltip: 'Back',
+              onTap: widget.onBack,
+            ),
       chips: [
+        if (widget.latestUpdatedAt != null)
+          HeaderChip(
+            icon: Icons.schedule,
+            label: 'Updated ${clockTime(widget.latestUpdatedAt!)}',
+          ),
         HeaderChip(
-          icon: widget.openAlerts == 0 ? Icons.check : Icons.notifications_active_outlined,
-          label: widget.openAlerts == 0 ? 'No alerts' : '${widget.openAlerts} alerts',
+          icon: widget.openAlerts == 0
+              ? Icons.check
+              : Icons.notifications_active_outlined,
+          label: widget.openAlerts == 0
+              ? 'No alerts'
+              : '${widget.openAlerts} alerts',
         ),
         if (widget.hasCareTip)
           const HeaderChip(icon: Icons.auto_awesome, label: '1 care tip'),
@@ -285,7 +320,8 @@ class _VitalGridState extends State<_VitalGrid> {
   void didUpdateWidget(_VitalGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Switching dogs must not leave the previous dog's trend on screen.
-    if (oldWidget.dog.id != widget.dog.id || oldWidget.refreshTrigger != widget.refreshTrigger) {
+    if (oldWidget.dog.id != widget.dog.id ||
+        oldWidget.refreshTrigger != widget.refreshTrigger) {
       if (oldWidget.dog.id != widget.dog.id) {
         setState(() => _recent = const []);
       }
@@ -306,23 +342,24 @@ class _VitalGridState extends State<_VitalGrid> {
     widget.repository
         .fetchReadingsBetween(dogId, now.subtract(const Duration(days: 7)), now)
         .then((rows) {
-      // A slow response for a dog the user already navigated away from must
-      // not overwrite the current one.
-      if (mounted && dogId == widget.dog.id) {
-        setState(() => _recent = rows);
-      }
-    }).catchError((_) {});
+          // A slow response for a dog the user already navigated away from must
+          // not overwrite the current one.
+          if (mounted && dogId == widget.dog.id) {
+            setState(() => _recent = rows);
+          }
+        })
+        .catchError((_) {});
   }
 
   /// Dense recent values for one vital, oldest first, for the waveform row.
   /// Downsampled so a week of readings reads as a smooth wave, not a smear.
   List<double> _waveValues(VitalKind kind) {
     double? pick(TelemetryReading r) => switch (kind) {
-          VitalKind.heartRate => r.heartRateBpm?.toDouble(),
-          VitalKind.breathing => r.respiratoryRateBpm?.toDouble(),
-          VitalKind.activity => r.motionActivity,
-          VitalKind.ambientTemperature => r.ambientTemperatureC,
-        };
+      VitalKind.heartRate => r.heartRateBpm?.toDouble(),
+      VitalKind.breathing => r.respiratoryRateBpm?.toDouble(),
+      VitalKind.activity => r.motionActivity,
+      VitalKind.ambientTemperature => r.ambientTemperatureC,
+    };
 
     final values = <double>[];
     for (final r in _recent) {
@@ -351,12 +388,19 @@ class _VitalGridState extends State<_VitalGrid> {
 
     final settings = SettingsScope.of(context);
     (String, String) valueAndUnit(VitalKind kind) => switch (kind) {
-          VitalKind.heartRate => (reading?.heartRateBpm?.toString() ?? '—', 'bpm'),
-          VitalKind.breathing =>
-            (reading?.respiratoryRateBpm?.toString() ?? '—', 'bpm'),
-          VitalKind.activity => (activityState.label, ''),
-          VitalKind.ambientTemperature => (reading?.ambientTemperatureC == null ? '—' : settings.formatTemperature(reading!.ambientTemperatureC!), settings.temperatureUnitLabel),
-        };
+      VitalKind.heartRate => (reading?.heartRateBpm?.toString() ?? '—', 'bpm'),
+      VitalKind.breathing => (
+        reading?.respiratoryRateBpm?.toString() ?? '—',
+        'bpm',
+      ),
+      VitalKind.activity => (activityState.label, ''),
+      VitalKind.ambientTemperature => (
+        reading?.ambientTemperatureC == null
+            ? '—'
+            : settings.formatTemperature(reading!.ambientTemperatureC!),
+        settings.temperatureUnitLabel,
+      ),
+    };
 
     return Column(
       children: [
@@ -478,7 +522,7 @@ class _VitalBentoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final darkColor = Color.lerp(color, Colors.black, 0.4) ?? color;
-    
+
     return PressScale(
       child: Container(
         height: 160,
@@ -551,7 +595,10 @@ class _VitalBentoCard extends StatelessWidget {
                             children: [
                               Positioned.fill(
                                 bottom: 16, // leave room for labels
-                                child: CandleSparkline(series: series, color: Colors.white),
+                                child: CandleSparkline(
+                                  series: series,
+                                  color: Colors.white,
+                                ),
                               ),
                               Positioned(
                                 left: 0,
@@ -579,7 +626,14 @@ class _VitalBentoCard extends StatelessWidget {
                               ),
                             ],
                           )
-                        : Center(child: Text('—', style: TextStyle(color: Colors.white.withValues(alpha: 0.5)))),
+                        : Center(
+                            child: Text(
+                              '—',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -610,9 +664,21 @@ class _TodaySoFar extends StatelessWidget {
     final delta = yesterdayShare == null ? null : todayShare - yesterdayShare;
     final (trendIcon, trendColor, trendWord) = switch (delta) {
       null => (null, context.ff.inkMuted, null),
-      >= 0.05 => (Icons.trending_up, context.ff.statusCalmFg, 'calmer than yesterday'),
-      <= -0.05 => (Icons.trending_down, context.ff.warm, 'less calm than yesterday'),
-      _ => (Icons.trending_flat, context.ff.inkMuted, 'about the same as yesterday'),
+      >= 0.05 => (
+        Icons.trending_up,
+        context.ff.statusCalmFg,
+        'calmer than yesterday',
+      ),
+      <= -0.05 => (
+        Icons.trending_down,
+        context.ff.warm,
+        'less calm than yesterday',
+      ),
+      _ => (
+        Icons.trending_flat,
+        context.ff.inkMuted,
+        'about the same as yesterday',
+      ),
     };
 
     return Container(
@@ -734,7 +800,9 @@ class _BirthdayBanner extends StatelessWidget {
               children: [
                 Text(
                   'Happy birthday, ${dog.name}!',
-                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 Text(
                   age == null
@@ -778,14 +846,17 @@ class _CareInsightsCard extends StatelessWidget {
               ],
             ),
             borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.5),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.6),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
                 color: p.warm.withValues(alpha: 0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
-              )
-            ]
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,7 +869,11 @@ class _CareInsightsCard extends StatelessWidget {
                       color: p.warm.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.tips_and_updates_outlined, size: 16, color: p.warm),
+                    child: Icon(
+                      Icons.tips_and_updates_outlined,
+                      size: 16,
+                      color: p.warm,
+                    ),
                   ),
                   const SizedBox(width: FurFeelTokens.space3),
                   SectionHeader(title: 'Care insights'),
@@ -807,7 +882,9 @@ class _CareInsightsCard extends StatelessWidget {
               const SizedBox(height: FurFeelTokens.space3),
               Text(
                 guidance.title,
-                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: FurFeelTokens.space2),
               Text(
@@ -816,7 +893,10 @@ class _CareInsightsCard extends StatelessWidget {
               ),
               const SizedBox(height: FurFeelTokens.space4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(6),

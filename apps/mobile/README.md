@@ -11,7 +11,8 @@ Supabase client config comes in via `--dart-define-from-file`. Create `env.json`
 ```json
 {
   "SUPABASE_URL": "https://<project-ref>.supabase.co",
-  "SUPABASE_ANON_KEY": "<anon key>"
+  "SUPABASE_ANON_KEY": "<anon key>",
+  "MOBILE_WEB_AUTH_REDIRECT_URL": "http://localhost:5175/"
 }
 ```
 
@@ -20,6 +21,21 @@ Then:
 ```sh
 flutter run --dart-define-from-file=env.json
 ```
+
+For Flutter web testing, keep the port fixed so Google OAuth can return to the
+local owner app:
+
+```sh
+flutter run -d chrome --web-port 5175 --dart-define-from-file=env.json
+```
+
+`MOBILE_WEB_AUTH_REDIRECT_URL` is only needed for Flutter web builds. The owner
+app is not hosted yet, so keep it at `http://localhost:5175/` until there is a
+real owner-app web deployment. Supabase Auth must allow-list that URL, the bare
+origin `http://localhost:5175`, and `http://localhost:5175/**`; APK builds use
+the native deep link
+`io.furfeel.app://login-callback`. If the active return URL is missing from the
+allow-list, Google sign-in can fall back to the dashboard Site URL.
 
 Sign in as the seeded owner: `owner@example.com` / `password123`. Only the anon key is used — every query is scoped by RLS to the signed-in owner's dogs.
 

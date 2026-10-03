@@ -3,6 +3,7 @@ title: "System Overview"
 type: architecture
 project: FurFeel
 created: 2026-07-09
+updated: 2026-10-04
 tags: [furfeel, architecture, overview]
 ---
 
@@ -12,7 +13,7 @@ FurFeel is a real-time canine stress monitoring system made of four major parts:
 
 - Wearable IoT harness for collecting dog and environment readings.
 - Backend and cloud database for receiving, storing, and serving telemetry.
-- AI classification layer for converting telemetry into stress levels.
+- Rule-based classification layer for converting telemetry into stress levels.
 - Mobile and web applications for dog owners, veterinary staff, and veterinarians.
 
 ## Core Loop
@@ -32,10 +33,10 @@ Use a modular client-server architecture:
 - Web client: veterinary dashboard.
 - Backend platform: Supabase for authentication, database, realtime updates, storage, and service logic.
 - Database: Supabase PostgreSQL.
-- ML service or module: Random Forest inference.
+- Classification module: `rule-v1` inside the Supabase telemetry Edge Function, with a future Random Forest path only after expert-labeled `stress_labels` exist.
 
 ## Development Principle
-Build a working vertical slice first: one ESP32 or simulated device, one dog, one Wi-Fi telemetry stream into Supabase, one stored reading, one rule-based stress result, one Flutter status view, and one React dashboard display.
+The original vertical slice is complete: simulated/ESP32-style telemetry reaches Supabase, raw readings are stored, `rule-v1` classifications and alerts are written, and both Flutter/mobile and React/dashboard clients render live status. Current work should extend full app modules from the relevant spec while preserving that slice.
 
 ## Related
 - [[02 Architecture Decisions]]

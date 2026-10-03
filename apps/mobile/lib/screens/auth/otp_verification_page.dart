@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:furfeel_mobile/data/google_oauth.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
@@ -92,20 +93,26 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     _startCooldown();
 
     try {
-      await widget.client.auth.resend(type: OtpType.signup, email: widget.email);
+      await widget.client.auth.resend(
+        type: OtpType.signup,
+        email: widget.email,
+        emailRedirectTo: authRedirectUrl(currentOrigin: Uri.base.origin),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('A new code has been sent!')),
       );
     } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to resend code. Please try again later.')),
+        const SnackBar(
+          content: Text('Failed to resend code. Please try again later.'),
+        ),
       );
     }
   }
@@ -163,7 +170,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                 const SizedBox(height: FurFeelTokens.space2),
                 Text(
                   'We sent a 6-digit code to\n${widget.email}',
-                  style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: context.ff.inkMuted,
+                  ),
                   textAlign: TextAlign.center,
                 ).entrance(context, index: 1),
                 const SizedBox(height: FurFeelTokens.space5),
@@ -196,7 +205,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                     filled: true,
                     fillColor: context.ff.surface,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
+                      borderRadius: BorderRadius.circular(
+                        FurFeelTokens.radiusMd,
+                      ),
                       borderSide: BorderSide.none,
                     ),
                     contentPadding: const EdgeInsets.symmetric(
@@ -214,9 +225,13 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                     elevation: 0,
                     backgroundColor: context.ff.brand,
                     foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(FurFeelTokens.touchTargetMin),
+                    minimumSize: const Size.fromHeight(
+                      FurFeelTokens.touchTargetMin,
+                    ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        FurFeelTokens.radiusSm,
+                      ),
                     ),
                   ),
                   onPressed: _submitting ? null : _submit,
@@ -230,13 +245,17 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   children: [
                     Text(
                       "Didn't get it?",
-                      style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: context.ff.inkMuted,
+                      ),
                     ),
                     TextButton(
                       onPressed: _cooldownSeconds > 0 ? null : _resendCode,
-                      child: Text(_cooldownSeconds > 0
-                          ? 'Resend code in ${_cooldownSeconds}s'
-                          : 'Resend code'),
+                      child: Text(
+                        _cooldownSeconds > 0
+                            ? 'Resend code in ${_cooldownSeconds}s'
+                            : 'Resend code',
+                      ),
                     ),
                   ],
                 ).entrance(context, index: 4),

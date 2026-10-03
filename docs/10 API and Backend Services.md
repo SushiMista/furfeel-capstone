@@ -3,7 +3,7 @@ title: "API and Backend Services"
 type: backend-design
 project: FurFeel
 created: 2026-07-09
-updated: 2026-07-10
+updated: 2026-10-04
 tags: [furfeel, api, backend]
 ---
 
@@ -14,7 +14,7 @@ Supabase is the backend platform: Auth, PostgreSQL, Realtime, Storage, and Edge 
 - **`telemetry-intake`** — validate → store raw → classify (rule-v1) → alerts (incl. low-battery) → device-offline recovery.
 - **`delete-account`** — deletes the caller's own account; refuses if monitoring history exists (ADR-003).
 - **`admin-create-user`** — admin-only account creation, pre-confirmed (`email_confirm: true`) with role + clinic set in one call; re-checks the caller is `admin` server-side. (Self-signup in the apps still requires confirmation.)
-- **`admin-delete-user`** — admin-only deletion; refuses self-deletion and users who still own dogs or have linked records.
+- **`admin-delete-user`** — admin-only deletion/deactivation/reactivation; refuses self-deletion and protects dog/telemetry history.
 
 Aggregations and privileged writes are Postgres RPCs (see below). The endpoints below describe the intended contract; RLS-backed client queries satisfy most of them.
 
@@ -36,10 +36,12 @@ Handled by Supabase Auth SDK (`signUp`, `signInWithPassword`, `signInWithOAuth`,
 Called via `supabase.rpc(...)`; each runs under the caller's RLS or is `security definer` with an internal permission check. Execute is revoked from `anon`.
 - `stress_daily_summary(dog_id, days, tz_offset)` — 100%-stacked daily stress mix for Trends/reports (SECURITY INVOKER; caller RLS applies).
 - `stress_hourly_pattern(dog_id, days, tz_offset)` — calmest/tensest hour-of-day pattern (SECURITY INVOKER).
+- `clinic_stress_daily_summary(days, tz_offset)` — clinic-wide stress mix for the dashboard Overview without client-side fan-out.
 - `vet_note_feed(dog_id)` — vet notes joined with author name + avatar for the owner-facing Vet Review (owner-scoped).
 - `set_dog_photo(dog_id, photo_path)` — sets a dog's profile photo (SECURITY DEFINER; owner-or-clinic check) so `dogs` UPDATE stays locked down.
 - `pair_device(device_code, dog_id)` / `unpair_device(dog_id)` — device pairing without granting broad `devices` UPDATE.
 - `dog_wellness_score(dog_id, day)` — optional 0–100 daily wellness score (calm-time %, activity/rest, alerts); SECURITY INVOKER, provisional/engineering (not clinical).
+- `seed_dog_biotelemetry(dog_id, device_id, count, baseline_hr, baseline_rr)` — clinic-staff/admin seeding helper for new patient intake/demo vitals.
 
 ### Devices
 - `POST /devices/register` → body `{ device_code, dog_id }`; returns `{ id, device_code, ingest_key }` (ingest_key shown once, stored hashed).
@@ -84,12 +86,17 @@ Called via `supabase.rpc(...)`; each runs under the caller's RLS or is `security
 ### Media (supplementary)
 - `POST /dogs/{dog_id}/media` → uploads to Supabase Storage, inserts `media_submissions`.
 - `GET /dogs/{dog_id}/media` · `PATCH /media/{id}/review` (clinic only).
+- `media_messages` is the realtime owner↔clinic thread table under a media submission. Threads are supplementary communication and never classifier inputs.
+
+### Bug Reports and Audit Logs
+- Mobile and dashboard users can submit bug reports into `bug_reports`; admins can triage status/severity/category.
+- Dashboard, mobile, Edge Functions, and selected database triggers write append-only operational events to `audit_logs`; admins can view all, clinic users see permitted clinic-scoped rows.
 
 ## Realtime
-Dashboard and mobile subscribe to Postgres changes on `telemetry_readings`, `stress_classifications`, and `alerts` filtered by `dog_id` so live status updates without polling.
+Dashboard and mobile subscribe to Postgres changes on `telemetry_readings`, `stress_classifications`, `alerts`, `dogs`, `devices`, `media_submissions`, `media_messages`, and `stress_labels` where needed, filtered/scoped by RLS so live status updates without polling.
 
 ## Where the classifier runs
-**Decision needed → default:** run the rule-based classifier **inside the telemetry Edge Function** (synchronous, simplest for the vertical slice). Alternative — a Postgres trigger/function — is acceptable but harder to unit-test. Record the final choice as an ADR. (See `15 Open Technical Questions`.)
+Implemented decision: the rule-based classifier runs synchronously inside `telemetry-intake`. The function validates the payload, stores raw telemetry, resolves baselines/overrides, calls the shared `classifier` module, writes `stress_classifications`, evaluates alerts, and updates device health. Postgres RPCs aggregate already-written classifications for charts; they do not classify.
 
 ## Related
 - [[07 Sensor Data Pipeline]]
