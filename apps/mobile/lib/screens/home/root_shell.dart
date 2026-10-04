@@ -19,6 +19,7 @@ import 'package:furfeel_mobile/screens/home/alerts_tab.dart';
 import 'package:furfeel_mobile/screens/home/chat_tab.dart';
 import 'package:furfeel_mobile/screens/auth/consent_page.dart';
 import 'package:furfeel_mobile/screens/home/empty_account_page.dart';
+import 'package:furfeel_mobile/screens/home/home_tab.dart';
 import 'package:furfeel_mobile/screens/home/multi_dog_home.dart';
 import 'package:furfeel_mobile/screens/home/profile_tab.dart';
 import 'package:furfeel_mobile/screens/home/trends_tab.dart';
@@ -59,9 +60,12 @@ class _RootShellState extends State<RootShell> {
 
   TelemetryReading? _latestReading;
   StressClassification? _latestClassification;
+  Device? _device;
+  List<CareGuidance> _guidance = const [];
   List<Alert> _alerts = [];
   List<DailyStressSummary> _dailySummaries = [];
   List<HourlyStressBucket> _hourlyPattern = [];
+  int _refreshCount = 0;
   bool _loading = true;
   String? _error;
 
@@ -73,7 +77,10 @@ class _RootShellState extends State<RootShell> {
   Dog? get _selectedDog {
     final dogs = _dogs;
     if (dogs == null || dogs.isEmpty) return null;
-    return dogs.firstWhere((d) => d.id == _selectedDogId, orElse: () => dogs.first);
+    return dogs.firstWhere(
+      (d) => d.id == _selectedDogId,
+      orElse: () => dogs.first,
+    );
   }
 
   @override
@@ -100,14 +107,16 @@ class _RootShellState extends State<RootShell> {
 
   Future<void> _checkConsent() async {
     try {
-      final accepted =
-          await widget.repository.hasAcceptedConsent(kConsentPolicyVersion);
+      final accepted = await widget.repository.hasAcceptedConsent(
+        kConsentPolicyVersion,
+      );
       if (accepted) {
         // Remember the CONFIRMED acceptance so an offline cold start can show
         // the cached last-known status instead of dead-ending at the gate.
         // Only server-confirmed acceptances are cached — never an assumption.
-        SharedPreferences.getInstance()
-            .then((p) => p.setBool(_consentCacheKey, true));
+        SharedPreferences.getInstance().then(
+          (p) => p.setBool(_consentCacheKey, true),
+        );
       }
       if (mounted) setState(() => _consented = accepted);
     } catch (_) {
@@ -115,8 +124,9 @@ class _RootShellState extends State<RootShell> {
       // exact policy version still counts (consents are append-only records);
       // otherwise show the gate — monitoring data must not render before
       // consent is confirmed (docs/12). Accepting retries.
-      final cached =
-          (await SharedPreferences.getInstance()).getBool(_consentCacheKey);
+      final cached = (await SharedPreferences.getInstance()).getBool(
+        _consentCacheKey,
+      );
       if (mounted) setState(() => _consented = cached == true);
     }
   }
@@ -168,6 +178,8 @@ class _RootShellState extends State<RootShell> {
         _loading = true;
         _latestReading = null;
         _latestClassification = null;
+        _device = null;
+        _guidance = const [];
         _alerts = [];
         _dailySummaries = [];
         _hourlyPattern = [];
@@ -179,23 +191,29 @@ class _RootShellState extends State<RootShell> {
   Future<void> _loadDogData(String dogId) async {
     try {
       // [perf] home_load: docs/20 ISO 25010 performance evidence.
-      final results = await timed('home_load', () => Future.wait<Object?>([
-        widget.repository.fetchLatestReading(dogId),
-        widget.repository.fetchLatestClassification(dogId),
-        // Alerts back to 14 days-ish so week-over-week insights are honest.
-        widget.repository.fetchAlerts(dogId, limit: 100),
-        widget.repository.fetchDeviceForDog(dogId),
-        widget.repository.fetchCareGuidance(),
-        widget.repository.fetchDailyStressSummary(dogId),
-        widget.repository.fetchHourlyStressPattern(dogId),
-      ]));
+      final results = await timed(
+        'home_load',
+        () => Future.wait<Object?>([
+          widget.repository.fetchLatestReading(dogId),
+          widget.repository.fetchLatestClassification(dogId),
+          // Alerts back to 14 days-ish so week-over-week insights are honest.
+          widget.repository.fetchAlerts(dogId, limit: 100),
+          widget.repository.fetchDeviceForDog(dogId),
+          widget.repository.fetchCareGuidance(),
+          widget.repository.fetchDailyStressSummary(dogId),
+          widget.repository.fetchHourlyStressPattern(dogId),
+        ]),
+      );
       if (!mounted || _selectedDogId != dogId) return;
       setState(() {
         _latestReading = results[0] as TelemetryReading?;
         _latestClassification = results[1] as StressClassification?;
         _alerts = results[2] as List<Alert>;
+        _device = results[3] as Device?;
+        _guidance = results[4] as List<CareGuidance>;
         _dailySummaries = results[5] as List<DailyStressSummary>;
         _hourlyPattern = results[6] as List<HourlyStressBucket>;
+        _refreshCount++;
         _loading = false;
         _error = null;
         _staleSince = null;
@@ -227,10 +245,14 @@ class _RootShellState extends State<RootShell> {
       if (!mounted || _selectedDogId != dogId) return;
       final cached = await StatusCache.load();
       if (!mounted || _selectedDogId != dogId) return;
-      if (cached != null && cached.reading?.dogId == dogId && _latestReading == null) {
+      if (cached != null &&
+          cached.reading?.dogId == dogId &&
+          _latestReading == null) {
         setState(() {
           _latestReading = cached.reading;
           _latestClassification = cached.classification;
+          _device = null;
+          _guidance = const [];
           _staleSince = cached.savedAt;
           _loading = false;
           _error = null;
@@ -352,16 +374,20 @@ class _RootShellState extends State<RootShell> {
               ],
             ),
       body: widget.demo
-          ? Column(children: [
-              const _DemoBanner(),
-              Expanded(child: _buildBody(dog)),
-            ])
+          ? Column(
+              children: [
+                const _DemoBanner(),
+                Expanded(child: _buildBody(dog)),
+              ],
+            )
           : _staleSince == null
-              ? _buildBody(dog)
-              : Column(children: [
-                  _OfflineBanner(since: _staleSince!),
-                  Expanded(child: _buildBody(dog)),
-                ]),
+          ? _buildBody(dog)
+          : Column(
+              children: [
+                _OfflineBanner(since: _staleSince!),
+                Expanded(child: _buildBody(dog)),
+              ],
+            ),
       // Floating pill bar (modern-minimal): Scaffold reserves exactly the
       // bar's own rendered height (margin + pill), so tab content never
       // needs manual bottom padding -- the page background simply shows
@@ -415,28 +441,43 @@ class _RootShellState extends State<RootShell> {
     }
 
     return switch (_tab) {
-      0 => MultiDogHomeTab(repository: widget.repository, dogs: _dogs!),
+      0 =>
+        _dogs!.length == 1
+            ? HomeTab(
+                repository: widget.repository,
+                dog: dog,
+                reading: _latestReading,
+                classification: _latestClassification,
+                daily: _dailySummaries,
+                device: _device,
+                guidance: _guidance,
+                onRefresh: _refresh,
+                refreshTrigger: _refreshCount,
+                dogsCount: _dogs!.length,
+                alerts: _alerts,
+              )
+            : MultiDogHomeTab(repository: widget.repository, dogs: _dogs!),
       1 => AlertsTab(
-          dog: dog,
-          alerts: _alerts,
-          onAcknowledge: _acknowledgeAlert,
-          onRefresh: _refresh,
-        ),
+        dog: dog,
+        alerts: _alerts,
+        onAcknowledge: _acknowledgeAlert,
+        onRefresh: _refresh,
+      ),
       2 => TrendsTab(
-          repository: widget.repository,
-          dog: dog,
-          daily: _dailySummaries,
-          hourly: _hourlyPattern,
-          alerts: _alerts,
-          onRefresh: _refresh,
-        ),
+        repository: widget.repository,
+        dog: dog,
+        daily: _dailySummaries,
+        hourly: _hourlyPattern,
+        alerts: _alerts,
+        onRefresh: _refresh,
+      ),
       3 => ProfileTab(
-          repository: widget.repository,
-          dogs: _dogs ?? const [],
-          userEmail: widget.userEmail,
-          onDogsChanged: _loadDogs,
-          onSignOut: widget.onSignOut,
-        ),
+        repository: widget.repository,
+        dogs: _dogs ?? const [],
+        userEmail: widget.userEmail,
+        onDogsChanged: _loadDogs,
+        onSignOut: widget.onSignOut,
+      ),
       // Chat picks its own dog (conversations are granted per dog), so it
       // takes the whole list rather than the shell's selected dog.
       _ => ChatTab(repository: widget.repository, dogs: _dogs ?? const []),
@@ -445,9 +486,7 @@ class _RootShellState extends State<RootShell> {
 
   /// First-run onboarding (ADDED): Show empty account state when owner has no dogs.
   Widget _buildOnboarding(BuildContext context) {
-    return EmptyAccountPage(
-      onSignOut: widget.onSignOut,
-    );
+    return EmptyAccountPage(onSignOut: widget.onSignOut);
   }
 }
 
@@ -492,60 +531,67 @@ class _DogSwitcher extends StatelessWidget {
       child: Tooltip(
         message: hasMultiple ? 'Switch dog' : selected.name,
         child: Container(
-        constraints: const BoxConstraints(maxWidth: 190),
-        padding: const EdgeInsets.symmetric(
-          horizontal: FurFeelTokens.space3,
-          vertical: 6,
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              context.ff.brand.withValues(alpha: 0.12),
-              context.ff.brand.withValues(alpha: 0.18),
-            ],
+          constraints: const BoxConstraints(maxWidth: 190),
+          padding: const EdgeInsets.symmetric(
+            horizontal: FurFeelTokens.space3,
+            vertical: 6,
           ),
-          borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
-          border: Border.all(
-            color: context.ff.brand.withValues(alpha: 0.25),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Tiny paw avatar
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: context.ff.brand.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.pets, size: 13, color: context.ff.brandStrong),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                context.ff.brand.withValues(alpha: 0.12),
+                context.ff.brand.withValues(alpha: 0.18),
+              ],
             ),
-            const SizedBox(width: 6),
-            // Flexible + ellipsis: a long dog name must never push this Row
-            // past the app-bar width (unconstrained Text here overflowed and
-            // fed the TextPainter paint-time size assert).
-            Flexible(
-              child: Text(
-                selected.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+            borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+            border: Border.all(
+              color: context.ff.brand.withValues(alpha: 0.25),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Tiny paw avatar
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: context.ff.brand.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.pets,
+                  size: 13,
                   color: context.ff.brandStrong,
                 ),
               ),
-            ),
-            if (hasMultiple) ...[
-              const SizedBox(width: 2),
-              Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 18, color: context.ff.brandStrong),
+              const SizedBox(width: 6),
+              // Flexible + ellipsis: a long dog name must never push this Row
+              // past the app-bar width (unconstrained Text here overflowed and
+              // fed the TextPainter paint-time size assert).
+              Flexible(
+                child: Text(
+                  selected.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: context.ff.brandStrong,
+                  ),
+                ),
+              ),
+              if (hasMultiple) ...[
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: context.ff.brandStrong,
+                ),
+              ],
             ],
-          ],
-        ),
+          ),
         ),
       ),
     );
@@ -596,7 +642,8 @@ class _DogSwitcherSheet extends StatelessWidget {
             // ── Sheet title ───────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(
-                  horizontal: FurFeelTokens.space5),
+                horizontal: FurFeelTokens.space5,
+              ),
               child: Row(
                 children: [
                   Icon(Icons.pets, size: 18, color: context.ff.brand),
@@ -615,7 +662,8 @@ class _DogSwitcherSheet extends StatelessWidget {
             Divider(color: context.ff.hairline, height: 1),
 
             // ── Dog list ─────────────────────────────────────────────────
-            for (final dog in dogs) _DogRow(dog: dog, selected: selected, onTap: onSelected),
+            for (final dog in dogs)
+              _DogRow(dog: dog, selected: selected, onTap: onSelected),
 
             const SizedBox(height: FurFeelTokens.space4),
           ],
@@ -689,17 +737,16 @@ class _DogRow extends StatelessWidget {
                     dog.name,
                     style: textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: isActive
-                          ? context.ff.brandInk
-                          : context.ff.ink,
+                      color: isActive ? context.ff.brandInk : context.ff.ink,
                     ),
                   ),
                   if (dog.breed != null) ...[
                     const SizedBox(height: 2),
                     Text(
                       dog.breed!,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: context.ff.inkMuted),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: context.ff.inkMuted,
+                      ),
                     ),
                   ],
                 ],
