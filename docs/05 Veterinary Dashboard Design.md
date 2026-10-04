@@ -3,7 +3,7 @@ title: "Veterinary Dashboard Design"
 type: product-design
 project: FurFeel
 created: 2026-07-09
-updated: 2026-07-18
+updated: 2026-10-04
 tags: [furfeel, dashboard, veterinary]
 ---
 
@@ -12,7 +12,7 @@ tags: [furfeel, dashboard, veterinary]
 Full clinic-app spec covering the manuscript's three vet modules plus Admin. Style: follow [[19 Design System]] (blue brand, clinical Design 2 density, shadcn/ui + Tremor). Anon key only; RLS-scoped to the staff member's `clinic_id`. No diagnosis language.
 
 ## Navigation
-Left sidebar: **Overview · Monitoring Board · Alerts · Reports · Admin** (Admin visible to `admin` role only).
+Left sidebar: **Overview · Monitoring Board · Alerts · Reports · Vet Review · Handover · Devices · Teams · Dogs · Patient Intake · Admin**. Admin-only tools stay role-gated; clinic pages stay scoped to the staff member's `clinic_id`.
 
 ## Modules (manuscript)
 
@@ -24,6 +24,8 @@ Left sidebar: **Overview · Monitoring Board · Alerts · Reports · Admin** (Ad
 - Live via Realtime. Filter: all / needs attention.
 - **Dog detail:** header + current stress pill, vital cards, vitals trend chart (Tremor), stress classification timeline, a **14-day stress-mix chart** (same 100%-stacked composition as the owner app, via `stress_daily_summary`), open alerts, vet-notes panel, and a **Thresholds tab** (`ThresholdEditor`) letting clinic staff override this dog's classifier score cutoffs and per-variable tiers (heart rate, respiratory rate, motion, ambient heat, humidity), falling back to the clinic-wide default when left blank — see `08 AI Classification Pipeline` and [[09 Database Schema]] (`dog_baselines`).
 - **Overview page:** greets the vet, a **"Calm today" KPI**, and a **clinic-wide 14-day stress-mix** chart aggregated across the clinic's dogs.
+
+**Schema caveat:** ward/admission/intervention UI exists in dashboard source, but the later rollback migration drops `dogs.ward_location`, `dogs.admission_status`, and `clinical_interventions`. Keep this feature marked unresolved until a new forward migration restores or removes that contract.
 
 ### 2. Vet Review Module
 - Review biometrics + stress history + **owner-submitted media** (`media_submissions`): view, mark reviewed, annotate.
@@ -42,8 +44,17 @@ Four tabs, offered to the `admin` role only as UX. RLS (`users_update_admin` / `
 - **Clinics — Create, Read, Update, Delete:** plain RLS-backed CRUD (`clinics_admin_manage` is `for all`). Update edits name/address/contact via a dialog; delete is blocked with a friendly message when the clinic is still referenced by a user or a dog (Postgres FK violation `23503`, reworded client-side rather than shown raw).
 - **Devices — Create, Read, Update, Delete:** register, assign to a dog, set status (Update), plus dog ↔ clinic assignment. Delete is blocked the same way when the device has telemetry history (`telemetry_readings.device_id` is `NOT NULL` with no cascade, protecting ADR-003) — the message points at setting status to inactive/maintenance instead, since a never-used device deletes cleanly.
 - **System Health** (docs/03 "view system health", read-only): device fleet online/offline counts (from `devices.status`, which pg_cron already maintains), telemetry ingest volume (last hour / 24 h + last-received time), open-alert count, and user/clinic/dog totals. Fleet + totals derive from the already-loaded admin data; only telemetry and alerts add queries (`fetchSystemHealth`).
+- **Audit Logs:** append-only admin/clinic-visible operational events from dashboard/mobile helpers, Edge Functions, and selected database triggers (`audit_logs`).
+- **Bug Reports:** triage queue for mobile/dashboard issue reports (`bug_reports`) with status, severity, category, and admin notes.
 
 Every delete in the UI routes through a shared confirmation dialog (`ConfirmDeleteDialog`) — the one Admin action that can't be undone doesn't fire on a single click.
+
+## Additional as-built clinic modules
+- **Dogs / Dog Management:** clinic-scoped dog records, photos, clinic assignment, and admin-supported maintenance actions.
+- **Patient Intake:** creates/links a patient dog and device, then can seed realistic baseline telemetry through `seed_dog_biotelemetry` so charts are not empty during intake/demo.
+- **Devices:** fleet management, one-device-per-dog assignment, status/battery/last-seen visibility, and deletion-request audit support.
+- **Teams:** clinic team/member view using user role + clinic scoping.
+- **Heatmap Analytics:** exploratory clinic analytics over stress patterns; still decision-support only.
 
 ## Alerts queue
 Triage list grouped by severity; acknowledge (sets `acknowledged_by`/`acknowledged_at`); device-offline + stress alerts. **Bulk-acknowledge** (2026-07-19): "Acknowledge all open (n)" flips every open alert in one guarded update (same open-status race guard + RLS as the per-card button).
@@ -58,7 +69,7 @@ Sidebar page `/handover`: one printable view of the last 8/12/24 h — every mon
 Dog detail → **Thresholds** tab (`ThresholdEditor`): a vet asked to set the classifier threshold for each variable per dog rather than live with one clinic-wide cutoff. Two independent controls, tabbed by category (score cutoffs, then one tab per variable) so the editor never becomes a long scroll: score cutoffs (how many points reach mild/moderate/high) and per-variable tiers (when heart rate, respiratory rate, motion, ambient temperature, or humidity itself starts scoring). Every field shows "Default · x" or "Custom · effective x" and can be reset individually; blank = clinic-wide default from `classifier_config.json`. See `08 AI Classification Pipeline` and ADR-015/ADR-016.
 
 ## MVP priority order
-Board (done) → Dog detail (done) → Alerts queue (done) → Vet notes (done) → Reports (done) → Vet Review media + confirm/override (done) → Admin incl. add-user + System Health (done).
+As-built: Board, Dog detail, Alerts queue, Vet notes, Reports, Vet Review media + confirm/override, Admin CRUD, System Health, Handover, Devices, Teams, Dog Management, Patient Intake, Bug Reports, and Audit Logs are present. Ward/admission/interventions remain schema-unresolved because of the rollback migration noted above.
 
 ## Related
 - [[19 Design System]]

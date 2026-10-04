@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:furfeel_mobile/data/google_oauth.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
@@ -9,10 +9,7 @@ import 'package:furfeel_mobile/widgets/auth_pattern_background.dart';
 import 'package:furfeel_mobile/screens/auth/login_page.dart';
 
 class SignUpPage extends StatefulWidget {
-  const SignUpPage({
-    super.key,
-    required this.client,
-  });
+  const SignUpPage({super.key, required this.client});
 
   final SupabaseClient client;
 
@@ -65,8 +62,11 @@ class _SignUpPageState extends State<SignUpPage> {
     final hasUpper = password.contains(RegExp(r'[A-Z]'));
     final hasLower = password.contains(RegExp(r'[a-z]'));
     final hasNumber = password.contains(RegExp(r'[0-9]'));
-    final hasSpecial = password.contains(RegExp(r'[!@#\$%\^&\*~`\(\)\-_\+=\[\]\{\}\|;:,.<>\/?]'));
-    final isPasswordStrong = hasLength && hasUpper && hasLower && hasNumber && hasSpecial;
+    final hasSpecial = password.contains(
+      RegExp(r'[!@#\$%\^&\*~`\(\)\-_\+=\[\]\{\}\|;:,.<>\/?]'),
+    );
+    final isPasswordStrong =
+        hasLength && hasUpper && hasLower && hasNumber && hasSpecial;
 
     if (name.isEmpty || email.isEmpty) {
       setState(() {
@@ -94,10 +94,13 @@ class _SignUpPageState extends State<SignUpPage> {
       final response = await widget.client.auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo: authRedirectUrl(currentOrigin: Uri.base.origin),
         data: {
           'name': name,
           'phone': phone.isEmpty ? null : phone,
-          'emergency_contact': emergencyContact.isEmpty ? null : emergencyContact,
+          'emergency_contact': emergencyContact.isEmpty
+              ? null
+              : emergencyContact,
         },
       );
       if (!mounted) return;
@@ -177,16 +180,21 @@ class _SignUpPageState extends State<SignUpPage> {
       _error = null;
     });
     try {
-      await widget.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: kIsWeb ? Uri.base.origin : 'io.furfeel.app://login-callback',
-        authScreenLaunchMode: LaunchMode.platformDefault,
-        queryParams: {'prompt': 'select_account'},
-      );
+      await startGoogleOAuth(widget.client);
     } on AuthException catch (e) {
-      if (mounted) setState(() { _error = e.message; _googleBusy = false; });
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _googleBusy = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() { _error = 'Could not start Google sign-in. Check your connection.'; _googleBusy = false; });
+      if (mounted) {
+        setState(() {
+          _error = 'Could not start Google sign-in. Check your connection.';
+          _googleBusy = false;
+        });
+      }
     }
   }
 
@@ -196,7 +204,10 @@ class _SignUpPageState extends State<SignUpPage> {
         builder: (_) => LoginPage(
           signIn: (email, password) async {
             try {
-              await widget.client.auth.signInWithPassword(email: email, password: password);
+              await widget.client.auth.signInWithPassword(
+                email: email,
+                password: password,
+              );
               return null;
             } on AuthException catch (e) {
               return e.message;
@@ -205,11 +216,13 @@ class _SignUpPageState extends State<SignUpPage> {
             }
           },
           onGoogleSignIn: () async {
-            _submitGoogle();
+            await _submitGoogle();
             return null;
           },
           onCreateAccount: () => Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => SignUpPage(client: widget.client)),
+            MaterialPageRoute(
+              builder: (_) => SignUpPage(client: widget.client),
+            ),
           ),
         ),
       ),
@@ -219,10 +232,19 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget _buildRequirementRow(String text, bool met) {
     return Row(
       children: [
-        Icon(met ? Icons.check_circle : Icons.radio_button_unchecked, 
-             color: met ? Colors.green : Colors.grey, size: 16),
+        Icon(
+          met ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: met ? Colors.green : Colors.grey,
+          size: 16,
+        ),
         const SizedBox(width: 8),
-        Text(text, style: TextStyle(color: met ? Colors.green : Colors.grey, fontSize: 12)),
+        Text(
+          text,
+          style: TextStyle(
+            color: met ? Colors.green : Colors.grey,
+            fontSize: 12,
+          ),
+        ),
       ],
     );
   }
@@ -230,29 +252,31 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    
+
     final pass = _password.text;
     final hasLength = pass.length >= 8;
     final hasUpper = pass.contains(RegExp(r'[A-Z]'));
     final hasLower = pass.contains(RegExp(r'[a-z]'));
     final hasNumber = pass.contains(RegExp(r'[0-9]'));
-    final hasSpecial = pass.contains(RegExp(r'[!@#\$%\^&\*~`\(\)\-_\+=\[\]\{\}\|;:,.<>\/?]'));
-    
+    final hasSpecial = pass.contains(
+      RegExp(r'[!@#\$%\^&\*~`\(\)\-_\+=\[\]\{\}\|;:,.<>\/?]'),
+    );
+
     int strengthCount = 0;
     if (hasLength) strengthCount++;
     if (hasUpper) strengthCount++;
     if (hasLower) strengthCount++;
     if (hasNumber) strengthCount++;
     if (hasSpecial) strengthCount++;
-    
+
     String strengthLabel = 'Weak';
     Color strengthColor = Colors.red;
     if (strengthCount >= 3 && strengthCount < 5) {
-       strengthLabel = 'Medium';
-       strengthColor = Colors.orange;
+      strengthLabel = 'Medium';
+      strengthColor = Colors.orange;
     } else if (strengthCount == 5) {
-       strengthLabel = 'Strong';
-       strengthColor = Colors.green;
+      strengthLabel = 'Strong';
+      strengthColor = Colors.green;
     }
 
     return Scaffold(
@@ -304,7 +328,9 @@ class _SignUpPageState extends State<SignUpPage> {
                     const SizedBox(height: FurFeelTokens.space2),
                     Text(
                       'We sent a 6-digit verification code to ${_email.text.trim()}.',
-                      style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: context.ff.inkMuted,
+                      ),
                     ).entrance(context, index: 1),
                     const SizedBox(height: FurFeelTokens.space5),
                     TextField(
@@ -312,7 +338,11 @@ class _SignUpPageState extends State<SignUpPage> {
                       keyboardType: TextInputType.number,
                       maxLength: 6,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(letterSpacing: 8, fontSize: 24, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        letterSpacing: 8,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Verification Code',
                         counterText: '',
@@ -341,7 +371,9 @@ class _SignUpPageState extends State<SignUpPage> {
                     const SizedBox(height: FurFeelTokens.space2),
                     Text(
                       'Sign up to monitor your dog\'s wellbeing.',
-                      style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: context.ff.inkMuted,
+                      ),
                     ).entrance(context, index: 1),
                     const SizedBox(height: FurFeelTokens.space5),
 
@@ -375,7 +407,9 @@ class _SignUpPageState extends State<SignUpPage> {
                             controller: _phone,
                             keyboardType: TextInputType.phone,
                             textInputAction: TextInputAction.next,
-                            autofillHints: const [AutofillHints.telephoneNumber],
+                            autofillHints: const [
+                              AutofillHints.telephoneNumber,
+                            ],
                             decoration: const InputDecoration(
                               labelText: 'Phone Number',
                               prefixIcon: Icon(Icons.phone_outlined),
@@ -388,23 +422,28 @@ class _SignUpPageState extends State<SignUpPage> {
                             textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
                               labelText: 'Emergency Contact',
-                              prefixIcon: Icon(Icons.health_and_safety_outlined),
+                              prefixIcon: Icon(
+                                Icons.health_and_safety_outlined,
+                              ),
                             ),
                           ),
                           const SizedBox(height: FurFeelTokens.space3),
                           TextField(
                             controller: _password,
                             obscureText: _obscure,
-                            onChanged: (_) => setState((){}),
+                            onChanged: (_) => setState(() {}),
                             textInputAction: TextInputAction.next,
                             autofillHints: const [AutofillHints.newPassword],
                             decoration: InputDecoration(
                               labelText: 'Password *',
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
-                                onPressed: () => setState(() => _obscure = !_obscure),
+                                onPressed: () =>
+                                    setState(() => _obscure = !_obscure),
                                 icon: Icon(
-                                  _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                  _obscure
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
                                   color: context.ff.inkMuted,
                                 ),
                               ),
@@ -424,8 +463,15 @@ class _SignUpPageState extends State<SignUpPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Text(strengthLabel, style: TextStyle(color: strengthColor, fontWeight: FontWeight.bold, fontSize: 12)),
-                              ]
+                                Text(
+                                  strengthLabel,
+                                  style: TextStyle(
+                                    color: strengthColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             _buildRequirementRow('8+ characters', hasLength),
@@ -436,22 +482,29 @@ class _SignUpPageState extends State<SignUpPage> {
                             const SizedBox(height: 4),
                             _buildRequirementRow('Number', hasNumber),
                             const SizedBox(height: 4),
-                            _buildRequirementRow('Special character', hasSpecial),
+                            _buildRequirementRow(
+                              'Special character',
+                              hasSpecial,
+                            ),
                             const SizedBox(height: 16),
                           ],
                           TextField(
                             controller: _confirmPassword,
                             obscureText: _obscureConfirm,
-                            onChanged: (_) => setState((){}),
+                            onChanged: (_) => setState(() {}),
                             textInputAction: TextInputAction.done,
                             onSubmitted: (_) => _submit(),
                             decoration: InputDecoration(
                               labelText: 'Confirm Password *',
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
-                                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                                onPressed: () => setState(
+                                  () => _obscureConfirm = !_obscureConfirm,
+                                ),
                                 icon: Icon(
-                                  _obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                  _obscureConfirm
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
                                   color: context.ff.inkMuted,
                                 ),
                               ),
@@ -488,7 +541,9 @@ class _SignUpPageState extends State<SignUpPage> {
                       children: [
                         Text(
                           'Already have an account?',
-                          style: textTheme.bodyMedium?.copyWith(color: context.ff.inkMuted),
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: context.ff.inkMuted,
+                          ),
                         ),
                         TextButton(
                           onPressed: () => _openLogin(context),

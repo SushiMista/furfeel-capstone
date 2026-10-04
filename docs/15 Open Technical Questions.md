@@ -3,6 +3,7 @@ title: "Open Technical Questions"
 type: questions
 project: FurFeel
 created: 2026-07-09
+updated: 2026-10-04
 tags: [furfeel, questions, development]
 ---
 
@@ -15,7 +16,7 @@ These are the questions to answer before or during the first development sprint.
 - [x] What technology will be used for the web dashboard? Decision: React.
 - [x] What technology will be used for the backend API? Decision: Supabase.
 - [x] What database will be used? Decision: Supabase PostgreSQL.
-- [ ] Where will the rule-based classifier run: Supabase Edge Function, database function, or separate backend service?
+- [x] Where will the rule-based classifier run? Decision: synchronously inside the `telemetry-intake` Supabase Edge Function.
 
 ## Hardware
 - [x] Will the ESP32 send telemetry directly over Wi-Fi? Decision: yes, ESP32 sends through Wi-Fi.
@@ -26,8 +27,8 @@ These are the questions to answer before or during the first development sprint.
 
 ## AI and Data
 - [x] Where will labeled training data come from? Decision: not available yet; needs expert validation.
-- [ ] Who confirms stress labels?
-- [ ] Will there be dog-specific baselines?
+- [x] Who confirms stress labels? Decision: clinic `vet_staff`/`veterinarian`/`admin` through dashboard confirm/override; rows are stored in `stress_labels`.
+- [x] Will there be dog-specific baselines? Decision: yes, `dog_baselines` stores resting values plus nullable per-dog score and per-variable threshold overrides.
 - [ ] What metrics will prove model performance?
 - [x] What classifier will be used before expert-labeled data exists? Decision: rule-based stress classification using collected sensor data.
 
@@ -38,8 +39,9 @@ These are the questions to answer before or during the first development sprint.
 - [ ] What reports are required for Capstone 2?
 
 ## Remaining High-Priority Questions
-- [ ] Should the rule-based classifier live in Supabase Edge Functions?
-- [ ] What exact rules define Calm, Mild Stress, Moderate Stress, and High Stress?
+- [x] Should the rule-based classifier live in Supabase Edge Functions? Decision: yes, `telemetry-intake`.
+- [x] What exact rules define Calm, Mild Stress, Moderate Stress, and High Stress? Decision: `docs/08 AI Classification Pipeline` + `packages/shared/classifier_config.json`.
 - [ ] What telemetry sampling interval should the ESP32 use?
-- [ ] What Supabase tables and RLS policies should be built first?
+- [x] What Supabase tables and RLS policies should be built first? Decision: the vertical-slice schema is implemented in `supabase/migrations`; new modules add migrations without editing shipped ones.
 - [ ] What reports/screens are required for Capstone 2 defense evidence?
+- [ ] Resolve schema direction for dashboard ward/admission + `clinical_interventions`: dashboard code references them, but `20260830130001_rollback_ward_locations_and_interventions.sql` removes the table/columns after the add migration.

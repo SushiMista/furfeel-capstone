@@ -13,3 +13,11 @@ String friendlyTimestamp(DateTime time) {
   return '${time.year}-${time.month.toString().padLeft(2, '0')}-'
       '${time.day.toString().padLeft(2, '0')} $hh:$mm';
 }
+
+/// Plain 12-hour clock time for live status labels, e.g. "3:42 PM".
+String clockTime(DateTime time) {
+  final hour12 = time.hour % 12 == 0 ? 12 : time.hour % 12;
+  final minute = time.minute.toString().padLeft(2, '0');
+  final period = time.hour < 12 ? 'AM' : 'PM';
+  return '$hour12:$minute $period';
+}

@@ -3,7 +3,7 @@ title: "Technology Stack"
 type: stack
 project: FurFeel
 created: 2026-07-09
-updated: 2026-07-12
+updated: 2026-10-04
 tags: [furfeel, stack, development]
 ---
 
@@ -23,10 +23,11 @@ tags: [furfeel, stack, development]
 | Dashboard UI | React + Vite + Tailwind, shadcn-style primitives, **Tremor** charts, lucide icons |
 | Mobile UI | Flutter Material 3, `fl_chart`, `flutter_animate`, `google_fonts`, `shadcn_flutter` (scoped locally, not the app root — ADR-017) |
 | Design tokens | `packages/shared/design_tokens.json` → generates dashboard CSS vars + Tailwind theme and Flutter `ThemeData` (light + dark, AA-checked). Font **Inter**. Blue + white brand (see [[19 Design System]]) |
-| Edge Functions (Deno/TS) | `telemetry-intake` (validate → store → classify → alert → offline-recovery), `delete-account` (ADR-003-safe) |
-| Server-side logic | SQL RPCs: `stress_daily_summary`, `stress_hourly_pattern`, `vet_note_feed`, `set_dog_photo`, `pair_device`; pg_cron device-offline job |
+| Edge Functions (Deno/TS) | `telemetry-intake` (validate → store → classify → alert → offline-recovery), `delete-account`, `admin-create-user`, `admin-delete-user` |
+| Server-side logic | SQL RPCs: `stress_daily_summary`, `stress_hourly_pattern`, `clinic_stress_daily_summary`, `vet_note_feed`, `set_dog_photo`, `pair_device`, `unpair_device`, `dog_wellness_score`, `seed_dog_biotelemetry`; pg_cron device-offline job |
 | Storage | Private `avatars` (own-folder) + `media` (owner/clinic-scoped) buckets |
 | Shared code | `packages/shared` — types + classifier config + design tokens (one source of truth for both apps) |
+| Operational tables | `audit_logs` for append-only audit events; `bug_reports` for mobile/dashboard issue reports |
 
 ## Supabase Responsibilities
 PostgreSQL · Auth + user roles · Row Level Security (every table + storage) · Realtime (telemetry/classifications/alerts) · Storage (avatars, supplementary media) · Edge Functions for telemetry intake, classification, alerts, and account deletion.
