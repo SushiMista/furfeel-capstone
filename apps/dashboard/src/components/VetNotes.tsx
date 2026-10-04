@@ -14,6 +14,7 @@ import { Button } from "./ui/button.tsx";
 import { Textarea } from "./ui/input.tsx";
 import { EmptyState } from "./ui/empty-state.tsx";
 import { useToast } from "./ui/toast.tsx";
+import { formatPhilippineTime } from "../lib/time.ts";
 
 const STAFF_ROLES = ["vet_staff", "veterinarian", "admin"];
 
@@ -98,7 +99,7 @@ export function VetNotes({ dogId }: { dogId: string }) {
               <li key={n.id} className="rounded-md bg-surface-alt p-4">
                 <p className="m-0 mb-1 text-sm text-ink">{n.note}</p>
                 <p className="m-0 text-xs text-ink-muted">
-                  {n.author?.name ?? "Clinic staff"} · {new Date(n.created_at).toLocaleString()}
+                  {n.author?.name ?? "Clinic staff"} · {formatPhilippineTime(n.created_at)}
                 </p>
               </li>
             ))}
