@@ -501,17 +501,18 @@ export function PatientIntake() {
                 )}
               </div>
               <CardDescription>
-                Associate this patient with registered pet owner accounts for mobile app live sync.
+                Link registered pet owner accounts for mobile app live sync.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-4">
+            <CardContent className="flex flex-col gap-4 pt-5">
               {role === "admin" && (
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="intake-clinic" className="text-xs font-bold text-ink">Admitting Clinic</Label>
+                  <Label htmlFor="intake-clinic" className="text-xs font-semibold text-ink">Admitting Clinic</Label>
                   <Select
                     id="intake-clinic"
                     value={selectedClinicId}
                     onChange={(e) => setSelectedClinicId(e.target.value)}
+                    className="h-10 text-sm"
                   >
                     {clinics.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -522,21 +523,20 @@ export function PatientIntake() {
                 </div>
               )}
 
-              {/* Single Unified Smart Search for Owners */}
-              <div className="flex flex-col gap-3 p-4 rounded-xl border border-hairline bg-surface-alt/20">
+              {/* Owner Search & Selection */}
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="owner-search" className="text-xs font-bold text-ink flex items-center gap-1.5">
-                    <Users size={15} className="text-brand shrink-0" />
-                    <span>Registered Pet Owner(s)</span>
+                  <Label htmlFor="owner-search" className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                    <Users size={14} className="text-brand shrink-0" />
+                    <span>Registered Owner(s)</span>
                     <span className="text-high-fg">*</span>
                   </Label>
-                  <span className="text-[11px] text-ink-muted">
-                    {selectedOwners.length} owner{selectedOwners.length === 1 ? "" : "s"} selected
-                  </span>
+                  {selectedOwners.length > 0 && (
+                    <span className="text-xs text-ink-muted">
+                      {selectedOwners.length} selected
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-ink-muted m-0">
-                  Search and link registered owner accounts. All linked owners will be able to view and monitor this dog in the mobile app.
-                </p>
 
                 {/* Smart Search Combobox Input */}
                 <div className="relative" ref={ownerComboboxRef}>
@@ -546,14 +546,14 @@ export function PatientIntake() {
                       id="owner-search"
                       type="text"
                       autoComplete="off"
-                      placeholder="Type name, email, or phone to search and add owner..."
+                      placeholder="Search by owner name, email, or phone..."
                       value={ownerSearchQuery}
                       onChange={(e) => {
                         setOwnerSearchQuery(e.target.value);
                         setIsOwnerMenuOpen(true);
                       }}
                       onFocus={() => setIsOwnerMenuOpen(true)}
-                      className="pl-9 pr-9 h-11 text-sm bg-white dark:bg-surface"
+                      className="pl-9 pr-9 h-10 text-sm bg-white dark:bg-surface"
                     />
                     {ownerSearchQuery && (
                       <button
@@ -569,14 +569,14 @@ export function PatientIntake() {
 
                   {/* Suggestions Dropdown */}
                   {isOwnerMenuOpen && (
-                    <div className="absolute z-30 left-0 right-0 top-[calc(100%+4px)] max-h-64 overflow-y-auto rounded-xl border border-hairline bg-surface shadow-xl py-1 divide-y divide-hairline/40">
+                    <div className="absolute z-30 left-0 right-0 top-[calc(100%+4px)] max-h-60 overflow-y-auto rounded-xl border border-hairline bg-surface shadow-xl py-1 divide-y divide-hairline/40">
                       <div className="px-3 py-1.5 text-[11px] font-semibold text-ink-muted uppercase tracking-wider bg-surface-alt/40">
-                        {filteredAvailableOwners.length} Available Owner Account{filteredAvailableOwners.length === 1 ? "" : "s"}
+                        {filteredAvailableOwners.length} Available Account{filteredAvailableOwners.length === 1 ? "" : "s"}
                       </div>
                       {filteredAvailableOwners.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-ink-muted">
+                        <div className="p-3 text-center text-xs text-ink-muted">
                           {ownerSearchQuery ? (
-                            <span>No registered pet owners match <strong className="text-ink">&quot;{ownerSearchQuery}&quot;</strong></span>
+                            <span>No accounts match <strong className="text-ink">&quot;{ownerSearchQuery}&quot;</strong></span>
                           ) : (
                             <span>All registered owner accounts have been added.</span>
                           )}
@@ -606,7 +606,7 @@ export function PatientIntake() {
                               </div>
                             </div>
                             <span className="inline-flex items-center gap-1 text-[11px] text-brand font-semibold hover:underline shrink-0">
-                              <Plus size={13} /> Add Owner
+                              <Plus size={13} /> Add
                             </span>
                           </button>
                         ))
@@ -615,47 +615,35 @@ export function PatientIntake() {
                   )}
                 </div>
 
-                {/* Selected Owners Cards / Chips List */}
-                {selectedOwners.length > 0 ? (
-                  <div className="flex flex-col gap-2 pt-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-                      Linked Dog Owners ({selectedOwners.length})
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {selectedOwners.map((owner) => (
-                        <div
-                          key={owner.id}
-                          className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-brand/30 bg-brand-soft/20 text-xs text-ink shadow-2xs"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white font-bold text-xs shrink-0">
-                              {owner.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <span className="font-bold text-xs text-ink truncate">{owner.name}</span>
-                              <span className="text-[11px] text-ink-muted truncate">{owner.email}</span>
-                              {owner.phone && (
-                                <span className="text-[10px] text-ink-muted truncate">{owner.phone}</span>
-                              )}
-                            </div>
+                {/* Selected Owners Cards List */}
+                {selectedOwners.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                    {selectedOwners.map((owner) => (
+                      <div
+                        key={owner.id}
+                        className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-brand/30 bg-brand-soft/20 text-xs text-ink shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white font-bold text-xs shrink-0">
+                            {owner.name.charAt(0).toUpperCase()}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOwnerIds((prev) => prev.filter((id) => id !== owner.id))}
-                            className="text-ink-muted hover:text-high-fg p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-surface cursor-pointer shrink-0 transition-colors"
-                            aria-label={`Remove owner ${owner.name}`}
-                            title={`Remove ${owner.name}`}
-                          >
-                            <X size={15} />
-                          </button>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-semibold text-xs text-ink truncate">{owner.name}</span>
+                            <span className="text-[11px] text-ink-muted truncate">{owner.email}</span>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOwnerIds((prev) => prev.filter((id) => id !== owner.id))}
+                          className="text-ink-muted hover:text-high-fg p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-surface cursor-pointer shrink-0 transition-colors"
+                          aria-label={`Remove owner ${owner.name}`}
+                          title={`Remove ${owner.name}`}
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <p className="text-[11px] text-ink-muted italic m-0">
-                    No owners selected yet. Search above to add at least one registered pet owner account.
-                  </p>
                 )}
               </div>
             </CardContent>
