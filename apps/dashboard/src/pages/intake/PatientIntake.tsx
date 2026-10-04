@@ -74,9 +74,6 @@ export function PatientIntake() {
   const [newDeviceCode, setNewDeviceCode] = useState("");
   const [newDeviceFirmware, setNewDeviceFirmware] = useState("0.1.0");
 
-  // Form: Baselines (Optional)
-  const [restingHr, setRestingHr] = useState("");
-  const [restingRr, setRestingRr] = useState("");
 
   // Load reference datasets
   const loadData = useCallback(async () => {
@@ -244,23 +241,10 @@ export function PatientIntake() {
         await seedInitialBiotelemetry(supabase, {
           dogId: dog.id,
           deviceId: boundDeviceId,
-          baselineHr: restingHr ? parseInt(restingHr, 10) : 85,
-          baselineRr: restingRr ? parseInt(restingRr, 10) : 20,
+          baselineHr: 85,
+          baselineRr: 20,
           count: 6,
         });
-      }
-
-      // 4. Baseline Configuration if provided
-      if (restingHr || restingRr) {
-        try {
-          await supabase.from("dog_baselines").insert({
-            dog_id: dog.id,
-            resting_heart_rate_bpm: restingHr ? parseInt(restingHr, 10) : null,
-            resting_respiratory_rate_bpm: restingRr ? parseInt(restingRr, 10) : null,
-          });
-        } catch (baselineErr) {
-          console.warn("Baseline save warning:", baselineErr);
-        }
       }
 
       const totalOwners = selectedOwnerIds.length;
@@ -294,7 +278,6 @@ export function PatientIntake() {
     deviceMode === "none" ||
     (deviceMode === "existing" && Boolean(selectedDeviceId)) ||
     (deviceMode === "new" && Boolean(newDeviceCode.trim()));
-  const step4Complete = Boolean(restingHr || restingRr);
   const isFormReady = step1Complete && step2Complete;
 
   return (
@@ -649,7 +632,7 @@ export function PatientIntake() {
             </CardContent>
           </Card>
 
-          {/* STEP 3: DEVICE CREATION OR AVAILABLE DEVICE */}
+          {/* STEP 3: DEVICE TELEMETRY HARDWARE */}
           <Card className="border-hairline shadow-xs">
             <CardHeader className="pb-3 border-b border-hairline/60 bg-surface-alt/30">
               <div className="flex items-center justify-between">
@@ -665,17 +648,19 @@ export function PatientIntake() {
                   </span>
                 )}
               </div>
-              <CardDescription>Choose an available collar from fleet, build/register a new collar, or pair later.</CardDescription>
+              <CardDescription>
+                Link an available fleet collar, register a new device, or defer pairing.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-4">
+            <CardContent className="flex flex-col gap-4 pt-5">
               {/* Segmented Mode Selector */}
-              <div className="grid grid-cols-3 gap-1 rounded-xl border border-hairline bg-surface-alt p-1 text-xs font-bold">
+              <div className="grid grid-cols-3 gap-1 rounded-xl border border-hairline bg-surface-alt/60 p-1 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setDeviceMode("existing")}
-                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     deviceMode === "existing"
-                      ? "bg-surface shadow-xs text-brand border border-hairline font-extrabold"
+                      ? "bg-white dark:bg-surface shadow-xs text-brand border border-hairline font-bold"
                       : "text-ink-muted hover:text-ink"
                   }`}
                 >
@@ -685,9 +670,9 @@ export function PatientIntake() {
                 <button
                   type="button"
                   onClick={() => setDeviceMode("new")}
-                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     deviceMode === "new"
-                      ? "bg-surface shadow-xs text-brand border border-hairline font-extrabold"
+                      ? "bg-white dark:bg-surface shadow-xs text-brand border border-hairline font-bold"
                       : "text-ink-muted hover:text-ink"
                   }`}
                 >
@@ -697,9 +682,9 @@ export function PatientIntake() {
                 <button
                   type="button"
                   onClick={() => setDeviceMode("none")}
-                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     deviceMode === "none"
-                      ? "bg-surface shadow-xs text-ink border border-hairline font-extrabold"
+                      ? "bg-white dark:bg-surface shadow-xs text-ink border border-hairline font-bold"
                       : "text-ink-muted hover:text-ink"
                   }`}
                 >
@@ -710,15 +695,20 @@ export function PatientIntake() {
 
               {/* Mode 1: Select Available Fleet Collar */}
               {deviceMode === "existing" && (
-                <div className="flex flex-col gap-2 pt-1">
-                  <Label htmlFor="device-select" className="text-xs font-bold text-ink">
-                    Select Available Unassigned Collar
-                  </Label>
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="device-select" className="text-xs font-semibold text-ink">
+                      Select Available Collar
+                    </Label>
+                    <span className="text-xs text-ink-muted">
+                      {availableDevices.length} unassigned
+                    </span>
+                  </div>
                   <Select
                     id="device-select"
                     value={selectedDeviceId}
                     onChange={(e) => setSelectedDeviceId(e.target.value)}
-                    className="h-11 font-medium"
+                    className="h-10 text-sm"
                   >
                     <option value="">— Choose an unassigned collar —</option>
                     {availableDevices.map((d) => (
@@ -727,105 +717,49 @@ export function PatientIntake() {
                       </option>
                     ))}
                   </Select>
-                  <p className="text-xs text-ink-muted m-0">
-                    {availableDevices.length} unassigned collars ready in fleet inventory.
-                  </p>
                 </div>
               )}
 
               {/* Mode 2: Build / Register New Device On-The-Fly */}
               {deviceMode === "new" && (
-                <div className="flex flex-col gap-3 rounded-xl border border-brand/30 bg-brand-soft/30 p-4">
-                  <div className="flex items-center gap-2 text-xs font-black text-brand">
-                    <Sparkles size={15} />
-                    <span>Build & Register New Hardware Device</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="new-device-code" className="text-xs font-semibold text-ink">
+                      Collar Device Code <span className="text-high-fg">*</span>
+                    </Label>
+                    <Input
+                      id="new-device-code"
+                      placeholder="e.g. FF-DEV-008"
+                      value={newDeviceCode}
+                      onChange={(e) => setNewDeviceCode(e.target.value.toUpperCase())}
+                      required={deviceMode === "new"}
+                      className="font-mono uppercase h-10 text-sm"
+                    />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <Label htmlFor="new-device-code" className="text-xs font-bold text-ink">
-                        Collar Device Code <span className="text-high-fg">*</span>
-                      </Label>
-                      <Input
-                        id="new-device-code"
-                        placeholder="e.g. FF-DEV-008"
-                        value={newDeviceCode}
-                        onChange={(e) => setNewDeviceCode(e.target.value.toUpperCase())}
-                        required={deviceMode === "new"}
-                        className="font-mono uppercase font-bold"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Label htmlFor="new-device-fw" className="text-xs font-bold text-ink">
-                        Firmware Version
-                      </Label>
-                      <Input
-                        id="new-device-fw"
-                        placeholder="0.1.0"
-                        value={newDeviceFirmware}
-                        onChange={(e) => setNewDeviceFirmware(e.target.value)}
-                      />
-                    </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="new-device-fw" className="text-xs font-semibold text-ink">
+                      Firmware Version
+                    </Label>
+                    <Input
+                      id="new-device-fw"
+                      placeholder="0.1.0"
+                      value={newDeviceFirmware}
+                      onChange={(e) => setNewDeviceFirmware(e.target.value)}
+                      className="h-10 text-sm"
+                    />
                   </div>
                 </div>
               )}
 
               {/* Mode 3: Pair Later */}
               {deviceMode === "none" && (
-                <div className="flex items-center gap-2.5 p-3 rounded-lg bg-surface-alt text-xs text-ink-muted border border-hairline">
-                  <Info size={16} className="text-brand shrink-0" />
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-surface-alt/40 text-xs text-ink-muted border border-hairline/60">
+                  <Info size={15} className="text-brand shrink-0" />
                   <span>
-                    The patient will be admitted without live telemetry. You can attach a telemetry collar later in the Devices or Patient Detail screen.
+                    Patient will be admitted without live telemetry. You can attach a collar at any time later in Device Management or Patient Detail.
                   </span>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* STEP 4: OPTIONAL BASELINE */}
-          <Card className="border-hairline shadow-xs">
-            <CardHeader className="pb-3 border-b border-hairline/60 bg-surface-alt/30">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/30 text-ink text-xs font-bold">
-                    4
-                  </span>
-                  <CardTitle className="text-base font-bold text-ink">Optional Resting Baselines</CardTitle>
-                </div>
-                {step4Complete ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-calm-fg bg-calm-soft px-2 py-0.5 rounded-full">
-                    <CheckCircle2 size={13} /> Configured
-                  </span>
-                ) : (
-                  <span className="text-xs text-ink-muted font-medium">Optional</span>
-                )}
-              </div>
-              <CardDescription>
-                Calibrate custom baseline resting vitals for this dog. The AI model falls back to clinical defaults if omitted.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="resting-hr" className="text-xs font-bold text-ink">Resting Heart Rate (BPM)</Label>
-                  <Input
-                    id="resting-hr"
-                    type="number"
-                    placeholder="e.g. 75"
-                    value={restingHr}
-                    onChange={(e) => setRestingHr(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="resting-rr" className="text-xs font-bold text-ink">Resting Resp Rate (BrPM)</Label>
-                  <Input
-                    id="resting-rr"
-                    type="number"
-                    placeholder="e.g. 22"
-                    value={restingRr}
-                    onChange={(e) => setRestingRr(e.target.value)}
-                  />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -942,22 +876,6 @@ export function PatientIntake() {
                     </span>
                   </div>
 
-                  {/* Item 4 */}
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      {step4Complete ? (
-                        <CheckCircle2 size={16} className="text-calm-fg shrink-0" />
-                      ) : (
-                        <Circle size={16} className="text-ink-muted/50 shrink-0" />
-                      )}
-                      <span className={`font-semibold ${step4Complete ? "text-ink" : "text-ink-muted"}`}>
-                        4. Resting Baselines
-                      </span>
-                    </div>
-                    <span className="text-xs text-ink-muted font-medium">
-                      {step4Complete ? `${restingHr || "—"} BPM / ${restingRr || "—"} RR` : "Default"}
-                    </span>
-                  </div>
                 </div>
               </div>
 
