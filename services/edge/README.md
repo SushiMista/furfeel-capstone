@@ -6,4 +6,4 @@
 
 See `docs/10 API and Backend Services` and `docs/08 AI Classification Pipeline`.
 
-_No feature code yet — scaffold only._
+Implemented Edge Functions live here; deploy them through Supabase using the entrypoints in `supabase/config.toml`.
