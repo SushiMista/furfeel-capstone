@@ -267,19 +267,12 @@ export function PatientIntake() {
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand border border-brand/20 shadow-xs">
-              <PawPrint size={22} />
-            </div>
-            <div>
-              <h1 className="m-0 text-2xl font-black text-ink tracking-tight">
-                Patient Intake & Admission
-              </h1>
-              <p className="m-0 mt-0.5 text-xs text-ink-muted">
-                Complete clinical admission, link telemetry collar hardware, and associate pet owner account.
-              </p>
-            </div>
-          </div>
+          <h1 className="m-0 text-2xl font-black text-ink tracking-tight">
+            Patient Intake & Admission
+          </h1>
+          <p className="m-0 mt-0.5 text-xs text-ink-muted">
+            Complete clinical admission, link telemetry collar hardware, and associate pet owner account.
+          </p>
         </div>
         <Button variant="secondary" onClick={() => navigate("/board")}>
           View Active Board

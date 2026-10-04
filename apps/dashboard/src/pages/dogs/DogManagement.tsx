@@ -366,9 +366,8 @@ export function DogManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="m-0 text-2xl font-black text-ink tracking-tight flex items-center gap-2.5">
-            <PawPrint className="text-brand h-7 w-7" />
-            <span>Patient Dogs Directory</span>
+          <h1 className="m-0 text-2xl font-black text-ink tracking-tight">
+            Patient Dogs Directory
           </h1>
           <p className="text-sm text-ink-muted mt-1">
             Manage admitted canines, update physiological records, and bind telemetry hardware collars.
