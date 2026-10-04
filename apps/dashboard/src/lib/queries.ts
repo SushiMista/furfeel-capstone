@@ -222,11 +222,11 @@ export async function uploadDogPhoto(
   dogId: string,
   file: File,
 ): Promise<string> {
-  const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+  const extension = (file.name.includes(".") ? file.name.split(".").pop() : "jpg")?.toLowerCase() || "jpg";
   const path = `dogs/${dogId}/profile.${extension}`;
   const { error: uploadError } = await client.storage
     .from("media")
-    .upload(path, file, { upsert: true });
+    .upload(path, file, { upsert: true, contentType: file.type || undefined });
   if (uploadError) throw uploadError;
   const { error } = await client.rpc("set_dog_photo", {
     p_dog_id: dogId,

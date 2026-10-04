@@ -33,7 +33,7 @@ export function AdminOverviewTab({
   devices,
   dogs,
   bugReports,
-  inefficiencies,
+  inefficiencies: _inefficiencies,
 }: {
   users: User[];
   clinics: Clinic[];

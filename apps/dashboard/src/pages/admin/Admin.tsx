@@ -3191,7 +3191,7 @@ function AuditLogsTab() {
       return (
         <Button
           key={p}
-          variant={isActive ? "primary" : "ghost"}
+          variant={isActive ? "default" : "ghost"}
           size="sm"
           onClick={() => setPage(p)}
           disabled={loading}

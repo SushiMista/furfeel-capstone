@@ -61,6 +61,7 @@ import type {
 } from "../../../../../packages/shared/types/index.ts";
 
 import { formatPosture } from "../../lib/posture.ts";
+import { formatPhilippineTime } from "../../lib/time.ts";
 
 const HISTORY_LIMIT = 50;
 
@@ -401,7 +402,7 @@ export function DogDetail() {
           </div>
           {latestReading && (
             <p className="m-0 mt-3 text-xs text-ink-muted">
-              Last updated {new Date(latestReading.captured_at).toLocaleString()}
+              Last updated: {formatPhilippineTime(latestReading.captured_at)}
             </p>
           )}
         </CardContent>

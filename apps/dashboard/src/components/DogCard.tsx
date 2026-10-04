@@ -10,6 +10,7 @@ import {
   Camera,
   HeartPulse,
   MapPin,
+  RefreshCw,
   Thermometer,
   User,
   Wind,
@@ -20,6 +21,8 @@ import { formatPosture } from "../lib/posture.ts";
 import { StressLevelBadge } from "./StressLevelBadge.tsx";
 import { cn } from "../lib/cn.ts";
 import { dogTint } from "../lib/dogTint.ts";
+import { useToast } from "./ui/toast.tsx";
+import { friendlyError } from "../lib/errors.ts";
 
 function timeAgo(iso: string): string {
   const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -58,12 +61,14 @@ export function DogCard({
   onPhotoChanged,
 }: {
   row: MonitoringBoardRow;
-  onPhotoChanged: (dogId: string) => void;
+  onPhotoChanged: (dogId: string, newPhotoPath?: string) => void;
 }) {
   const navigate = useNavigate();
+  const toast = useToast();
   const { dog, device, latestReading, latestClassification, openAlertCount } = row;
   const level = latestClassification?.stress_level;
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoVersion, setPhotoVersion] = useState<number>(0);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -76,13 +81,63 @@ export function DogCard({
     let cancelled = false;
     getMediaSignedUrl(supabase, dog.photo_path)
       .then((url) => {
-        if (!cancelled) setPhotoUrl(url);
+        if (!cancelled) {
+          const separator = url.includes("?") ? "&" : "?";
+          const freshUrl = photoVersion > 0 ? `${url}${separator}t=${photoVersion}` : url;
+          setPhotoUrl(freshUrl);
+        }
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [dog.photo_path]);
+  }, [dog.photo_path, photoVersion]);
+
+  // Clean up blob object URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (photoUrl && photoUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(photoUrl);
+      }
+    };
+  }, [photoUrl]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // Clear file input so selecting the same file triggers change
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast("error", "Please select an image file (JPG, PNG, WebP).");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast("error", "Image must be under 10MB in size.");
+      return;
+    }
+
+    // Immediate optimistic preview so the user gets instant visual confirmation
+    const objectUrl = URL.createObjectURL(file);
+    setPhotoUrl(objectUrl);
+    setUploading(true);
+    setUploadError(false);
+
+    try {
+      const newPath = await uploadDogPhoto(supabase, dog.id, file);
+      const timestamp = Date.now();
+      setPhotoVersion(timestamp);
+      toast("success", `✨ Photo updated for ${dog.name}`);
+      onPhotoChanged(dog.id, newPath);
+    } catch (err) {
+      setUploadError(true);
+      // Revert optimistic preview back to previous saved signed URL
+      setPhotoVersion((v) => v + 1);
+      toast("error", friendlyError(err, `update photo for ${dog.name}`));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const hasReading = Boolean(latestReading);
   const isMaintenance = device?.status === "maintenance";
@@ -112,6 +167,7 @@ export function DogCard({
             src={photoUrl}
             alt={dog.name}
             loading="lazy"
+            onError={() => setPhotoUrl(null)}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
@@ -125,8 +181,16 @@ export function DogCard({
           </div>
         )}
 
+        {/* Uploading Overlay */}
+        {uploading && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] text-white">
+            <RefreshCw size={22} className="animate-spin text-white mb-1.5" />
+            <span className="text-[11px] font-bold text-white tracking-wide drop-shadow">Saving...</span>
+          </div>
+        )}
+
         {/* Top-Right Floating Action Badge (Overlay on Image like reference design) */}
-        <div className="absolute top-2 right-2 flex items-center gap-1">
+        <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
           {openAlertCount > 0 && (
             <span
               className="inline-flex items-center gap-0.5 rounded-full bg-high-fg text-white px-2 py-0.5 text-[10px] font-bold shadow-md"
@@ -141,14 +205,18 @@ export function DogCard({
             type="button"
             disabled={uploading}
             onClick={() => fileRef.current?.click()}
-            aria-label={dog.photo_path ? `Replace ${dog.name}'s photo` : `Add a photo of ${dog.name}`}
-            title={dog.photo_path ? "Replace photo" : "Add photo"}
+            aria-label={dog.photo_path ? `Replace ${dog.name}'s photo` : `Add photo of ${dog.name}`}
+            title={dog.photo_path ? `Change photo of ${dog.name}` : `Add photo of ${dog.name}`}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 backdrop-blur-md text-ink shadow-sm",
-              "transition-all duration-150 hover:bg-white hover:scale-110 active:scale-95 disabled:opacity-50",
+              "flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 backdrop-blur-md text-ink shadow-sm cursor-pointer",
+              "transition-all duration-150 hover:bg-white hover:scale-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed",
             )}
           >
-            <Camera size={13} aria-hidden="true" className={uploading ? "animate-pulse text-brand" : undefined} />
+            {uploading ? (
+              <RefreshCw size={13} aria-hidden="true" className="animate-spin text-brand" />
+            ) : (
+              <Camera size={13} aria-hidden="true" />
+            )}
           </button>
         </div>
 
@@ -157,21 +225,7 @@ export function DogCard({
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (!file) return;
-            setUploading(true);
-            setUploadError(false);
-            try {
-              await uploadDogPhoto(supabase, dog.id, file);
-              onPhotoChanged(dog.id);
-            } catch {
-              setUploadError(true);
-            } finally {
-              setUploading(false);
-            }
-          }}
+          onChange={handleFileChange}
         />
       </div>
 
