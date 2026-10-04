@@ -56,6 +56,15 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(
+      find.text('Health overview'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Health overview'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
