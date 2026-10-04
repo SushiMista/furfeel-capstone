@@ -13,6 +13,7 @@ import type {
   StressLabel,
   StressLevel,
   TelemetryReading,
+  User,
   UserRole,
   VetNote,
 } from "../../../../packages/shared/types/index.ts";
@@ -958,4 +959,43 @@ export async function updateDogWardAndAdmission(
     .eq("id", dogId);
   if (error) throw error;
 }
+
+/** Multi-owner support: links multiple user accounts to one dog profile as co-owners. */
+export async function assignDogOwners(
+  client: SupabaseClient,
+  dogId: string,
+  userIds: string[],
+): Promise<void> {
+  const uniqueUserIds = Array.from(new Set(userIds)).filter(Boolean);
+  if (uniqueUserIds.length === 0) return;
+
+  const rows = uniqueUserIds.map((userId) => ({
+    dog_id: dogId,
+    user_id: userId,
+  }));
+
+  const { error } = await client
+    .from("dog_owners")
+    .upsert(rows, { onConflict: "dog_id,user_id" });
+  if (error) {
+    console.warn("Could not sync dog_owners:", error);
+  }
+}
+
+export async function fetchDogOwners(
+  client: SupabaseClient,
+  dogId: string,
+): Promise<User[]> {
+  if (!client || typeof (client as any).from !== "function") return [];
+  const { data, error } = await client
+    .from("dog_owners")
+    .select("user:users(id, name, email, phone, role)")
+    .eq("dog_id", dogId);
+  if (error) {
+    console.warn("Could not fetch dog_owners:", error);
+    return [];
+  }
+  return (data ?? []).map((row: any) => row.user).filter(Boolean);
+}
+
 

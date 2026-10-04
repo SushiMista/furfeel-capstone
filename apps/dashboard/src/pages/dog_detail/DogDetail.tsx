@@ -15,6 +15,7 @@ import {
   SlidersHorizontal,
   Stethoscope,
   Thermometer,
+  Users,
   Wind,
   type LucideIcon,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import {
   fetchClinicalInterventions,
   fetchDailyStressSummary,
   fetchDog,
+  fetchDogOwners,
   fetchRecentAlerts,
   fetchTelemetryHistory,
   fetchStressLabels,
@@ -58,6 +60,7 @@ import type {
   StressClassification,
   TelemetryReading,
   MediaSubmission,
+  User,
 } from "../../../../../packages/shared/types/index.ts";
 
 import { formatPosture } from "../../lib/posture.ts";
@@ -133,6 +136,7 @@ export function DogDetail() {
   const [labels, setLabels] = useState<StressLabelWithVet[]>([]);
   const [media, setMedia] = useState<MediaSubmission[]>([]);
   const [interventions, setInterventions] = useState<ClinicalIntervention[]>([]);
+  const [owners, setOwners] = useState<User[]>([]);
   const [editingWard, setEditingWard] = useState(false);
   const [wardDraft, setWardDraft] = useState("");
   const [admissionDraft, setAdmissionDraft] = useState<string>("outpatient");
@@ -155,7 +159,7 @@ export function DogDetail() {
   const load = useCallback(async () => {
     if (!dogId) return;
     try {
-      const [dogRow, history, classHistory, recentAlerts, mixRows, labelRows, mediaRows, interventionRows] = await Promise.all([
+      const [dogRow, history, classHistory, recentAlerts, mixRows, labelRows, mediaRows, interventionRows, ownerList] = await Promise.all([
         fetchDog(supabase, dogId),
         fetchTelemetryHistory(supabase, dogId, HISTORY_LIMIT),
         fetchClassificationHistory(supabase, dogId, HISTORY_LIMIT),
@@ -164,6 +168,7 @@ export function DogDetail() {
         fetchStressLabels(supabase, dogId),
         fetchMediaSubmissions(supabase, dogId),
         fetchClinicalInterventions(supabase, dogId),
+        fetchDogOwners(supabase, dogId),
       ]);
       setDog(dogRow);
       if (dogRow) {
@@ -177,6 +182,7 @@ export function DogDetail() {
       setLabels(labelRows);
       setMedia(mediaRows);
       setInterventions(interventionRows);
+      setOwners(ownerList);
       setError(null);
     } catch (err) {
       setError(friendlyError(err, "load this dog"));
@@ -371,6 +377,28 @@ export function DogDetail() {
               </div>
             </div>
           )}
+
+          {/* Registered Owners Bar */}
+          {owners.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-hairline/70 bg-surface-alt/40 px-3 py-2 text-xs">
+              <span className="font-bold text-ink flex items-center gap-1.5 shrink-0">
+                <Users size={13} className="text-brand" />
+                <span>{owners.length > 1 ? `Registered Owners (${owners.length}):` : "Registered Owner:"}</span>
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {owners.map((o) => (
+                  <span
+                    key={o.id}
+                    className="inline-flex items-center gap-1 rounded-lg bg-surface px-2 py-0.5 border border-hairline font-medium text-ink shadow-2xs"
+                  >
+                    <span>{o.name}</span>
+                    <span className="text-[10px] text-ink-muted">({o.email})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Vital
               label="Heart rate"

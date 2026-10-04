@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -9,10 +9,12 @@ import {
   Dog as DogIcon,
   Info,
   PawPrint,
+  Plus,
   Radio,
+  Search,
   Sparkles,
   Upload,
-  UserCheck,
+  Users,
   X,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
@@ -31,7 +33,7 @@ import {
   registerDevice,
   updateDevice,
 } from "../../lib/adminQueries.ts";
-import { uploadDogPhoto } from "../../lib/queries.ts";
+import { assignDogOwners, uploadDogPhoto } from "../../lib/queries.ts";
 import { seedInitialBiotelemetry } from "../../lib/biotelemetrySeeder.ts";
 import type { Clinic, Device, DogSex, User } from "../../../../../packages/shared/types/index.ts";
 
@@ -58,10 +60,13 @@ export function PatientIntake() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  // Form: Clinic & Owner
+  // Form: Clinic & Owners (Unified Owners with Smart Search Combobox)
   const [selectedClinicId, setSelectedClinicId] = useState<string>("");
-  const [selectedOwnerId, setSelectedOwnerId] = useState<string>("");
-  const [ownerSearch, setOwnerSearch] = useState("");
+  const [selectedOwnerIds, setSelectedOwnerIds] = useState<string[]>([]);
+  const [ownerSearchQuery, setOwnerSearchQuery] = useState("");
+  const [isOwnerMenuOpen, setIsOwnerMenuOpen] = useState(false);
+
+  const ownerComboboxRef = useRef<HTMLDivElement>(null);
 
   // Form: Device Telemetry (Existing vs Build New)
   const [deviceMode, setDeviceMode] = useState<"existing" | "new" | "none">("existing");
@@ -104,27 +109,48 @@ export function PatientIntake() {
     loadData();
   }, [loadData]);
 
+  // Close floating suggestion popovers on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (ownerComboboxRef.current && !ownerComboboxRef.current.contains(event.target as Node)) {
+        setIsOwnerMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   // Filter owners
   const owners = useMemo(() => {
     return users.filter((u) => u.role === "owner" || !u.role);
   }, [users]);
 
-  const filteredOwners = useMemo(() => {
-    if (!ownerSearch.trim()) return owners;
-    const q = ownerSearch.toLowerCase();
-    return owners.filter(
-      (o) => o.name.toLowerCase().includes(q) || (o.email && o.email.toLowerCase().includes(q)),
+  // Available registered owners not yet selected
+  const availableOwners = useMemo(() => {
+    return owners.filter((o) => !selectedOwnerIds.includes(o.id));
+  }, [owners, selectedOwnerIds]);
+
+  const filteredAvailableOwners = useMemo(() => {
+    if (!ownerSearchQuery.trim()) return availableOwners;
+    const q = ownerSearchQuery.toLowerCase();
+    return availableOwners.filter(
+      (o) =>
+        o.name.toLowerCase().includes(q) ||
+        (o.email && o.email.toLowerCase().includes(q)) ||
+        (o.phone && o.phone.toLowerCase().includes(q)),
     );
-  }, [owners, ownerSearch]);
+  }, [availableOwners, ownerSearchQuery]);
 
   // Unassigned devices available for binding
   const availableDevices = useMemo(() => {
     return devices.filter((d) => !d.dog_id && d.status !== "maintenance");
   }, [devices]);
 
-  const selectedOwner = useMemo(() => {
-    return users.find((u) => u.id === selectedOwnerId) || null;
-  }, [users, selectedOwnerId]);
+  const selectedOwners = useMemo(() => {
+    return selectedOwnerIds.map((id) => users.find((u) => u.id === id)).filter(Boolean) as User[];
+  }, [selectedOwnerIds, users]);
 
   const selectedDevice = useMemo(() => {
     return devices.find((d) => d.id === selectedDeviceId) || null;
@@ -156,14 +182,14 @@ export function PatientIntake() {
       return;
     }
 
-    if (!selectedOwnerId) {
-      toast("error", "Please select a registered Pet Owner for this patient.");
+    if (selectedOwnerIds.length === 0) {
+      toast("error", "Please select at least one registered Pet Owner for this patient.");
       return;
     }
 
     setSubmitting(true);
     try {
-      // 1. Create Dog Profile
+      // 1. Create Dog Profile (store first owner in owner_user_id for column backward compatibility)
       const dog = await createDog(supabase, {
         name: name.trim(),
         breed: breed.trim() || null,
@@ -171,9 +197,12 @@ export function PatientIntake() {
         birthdate: birthdate || null,
         weight_kg: weightKg ? parseFloat(weightKg) : null,
         notes: notes.trim() || null,
-        owner_user_id: selectedOwnerId,
+        owner_user_id: selectedOwnerIds[0],
         clinic_id: selectedClinicId || userClinicId || null,
       });
+
+      // 1b. Register all selected owners in dog_owners
+      await assignDogOwners(supabase, dog.id, selectedOwnerIds);
 
       // 2. Upload photo if provided
       if (photoFile) {
@@ -234,7 +263,13 @@ export function PatientIntake() {
         }
       }
 
-      toast("success", `Patient ${dog.name} successfully admitted!`);
+      const totalOwners = selectedOwnerIds.length;
+      toast(
+        "success",
+        totalOwners > 1
+          ? `Patient ${dog.name} successfully admitted with ${totalOwners} registered owners!`
+          : `Patient ${dog.name} successfully admitted!`,
+      );
       // Redirect directly to Dog Detail telemetry
       navigate(`/dogs/${dog.id}`);
     } catch (err) {
@@ -254,7 +289,7 @@ export function PatientIntake() {
   }
 
   const step1Complete = Boolean(name.trim());
-  const step2Complete = Boolean(selectedOwnerId);
+  const step2Complete = selectedOwnerIds.length > 0;
   const step3Complete =
     deviceMode === "none" ||
     (deviceMode === "existing" && Boolean(selectedDeviceId)) ||
@@ -429,11 +464,13 @@ export function PatientIntake() {
                 </div>
                 {step2Complete && (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-calm-fg bg-calm-soft px-2 py-0.5 rounded-full">
-                    <CheckCircle2 size={13} /> Linked
+                    <CheckCircle2 size={13} /> {selectedOwnerIds.length === 1 ? "1 Owner Linked" : `${selectedOwnerIds.length} Owners Linked`}
                   </span>
                 )}
               </div>
-              <CardDescription>Associate this patient with their registered pet owner account for mobile app live sync.</CardDescription>
+              <CardDescription>
+                Associate this patient with registered pet owner accounts for mobile app live sync.
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4 pt-4">
               {role === "admin" && (
@@ -453,52 +490,142 @@ export function PatientIntake() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="owner-search" className="text-xs font-bold text-ink">
-                  Search Registered Pet Owner <span className="text-high-fg">*</span>
-                </Label>
-                <Input
-                  id="owner-search"
-                  placeholder="Type name or email to filter..."
-                  value={ownerSearch}
-                  onChange={(e) => setOwnerSearch(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Select
-                  id="owner-select"
-                  value={selectedOwnerId}
-                  onChange={(e) => setSelectedOwnerId(e.target.value)}
-                  required
-                  className="h-11 font-medium"
-                >
-                  <option value="">— Select Owner Account —</option>
-                  {filteredOwners.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name} ({o.email})
-                    </option>
-                  ))}
-                </Select>
-                <p className="text-xs text-ink-muted m-0">
-                  {owners.length} registered owner accounts available.
-                </p>
-              </div>
-
-              {selectedOwner && (
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-brand/25 bg-brand-soft/20 text-xs text-ink">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white font-bold shrink-0">
-                    {selectedOwner.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex flex-col flex-1">
-                    <span className="font-bold text-ink">{selectedOwner.name}</span>
-                    <span className="text-ink-muted">{selectedOwner.email}</span>
-                  </div>
-                  <span className="inline-flex items-center gap-1 font-semibold text-brand text-[11px] bg-white dark:bg-surface px-2 py-0.5 rounded-md border border-brand/20">
-                    <UserCheck size={12} /> Verified Owner
+              {/* Single Unified Smart Search for Owners */}
+              <div className="flex flex-col gap-3 p-4 rounded-xl border border-hairline bg-surface-alt/20">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="owner-search" className="text-xs font-bold text-ink flex items-center gap-1.5">
+                    <Users size={15} className="text-brand shrink-0" />
+                    <span>Registered Pet Owner(s)</span>
+                    <span className="text-high-fg">*</span>
+                  </Label>
+                  <span className="text-[11px] text-ink-muted">
+                    {selectedOwners.length} owner{selectedOwners.length === 1 ? "" : "s"} selected
                   </span>
                 </div>
-              )}
+                <p className="text-xs text-ink-muted m-0">
+                  Search and link registered owner accounts. All linked owners will be able to view and monitor this dog in the mobile app.
+                </p>
+
+                {/* Smart Search Combobox Input */}
+                <div className="relative" ref={ownerComboboxRef}>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted pointer-events-none" />
+                    <Input
+                      id="owner-search"
+                      type="text"
+                      autoComplete="off"
+                      placeholder="Type name, email, or phone to search and add owner..."
+                      value={ownerSearchQuery}
+                      onChange={(e) => {
+                        setOwnerSearchQuery(e.target.value);
+                        setIsOwnerMenuOpen(true);
+                      }}
+                      onFocus={() => setIsOwnerMenuOpen(true)}
+                      className="pl-9 pr-9 h-11 text-sm bg-white dark:bg-surface"
+                    />
+                    {ownerSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setOwnerSearchQuery("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink p-1 rounded-sm cursor-pointer"
+                        aria-label="Clear search"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Suggestions Dropdown */}
+                  {isOwnerMenuOpen && (
+                    <div className="absolute z-30 left-0 right-0 top-[calc(100%+4px)] max-h-64 overflow-y-auto rounded-xl border border-hairline bg-surface shadow-xl py-1 divide-y divide-hairline/40">
+                      <div className="px-3 py-1.5 text-[11px] font-semibold text-ink-muted uppercase tracking-wider bg-surface-alt/40">
+                        {filteredAvailableOwners.length} Available Owner Account{filteredAvailableOwners.length === 1 ? "" : "s"}
+                      </div>
+                      {filteredAvailableOwners.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-ink-muted">
+                          {ownerSearchQuery ? (
+                            <span>No registered pet owners match <strong className="text-ink">&quot;{ownerSearchQuery}&quot;</strong></span>
+                          ) : (
+                            <span>All registered owner accounts have been added.</span>
+                          )}
+                        </div>
+                      ) : (
+                        filteredAvailableOwners.map((owner) => (
+                          <button
+                            key={owner.id}
+                            type="button"
+                            className="w-full text-left flex items-center justify-between gap-3 px-3.5 py-2.5 hover:bg-brand-soft/30 transition-colors text-ink focus:bg-brand-soft/40 focus:outline-none cursor-pointer"
+                            onClick={() => {
+                              setSelectedOwnerIds((prev) => [...prev, owner.id]);
+                              setOwnerSearchQuery("");
+                              setIsOwnerMenuOpen(false);
+                            }}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/15 text-brand font-bold text-xs shrink-0">
+                                {owner.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-semibold text-xs text-ink truncate">{owner.name}</span>
+                                <span className="text-[11px] text-ink-muted truncate">{owner.email}</span>
+                                {owner.phone && (
+                                  <span className="text-[10px] text-ink-muted/80">{owner.phone}</span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="inline-flex items-center gap-1 text-[11px] text-brand font-semibold hover:underline shrink-0">
+                              <Plus size={13} /> Add Owner
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Owners Cards / Chips List */}
+                {selectedOwners.length > 0 ? (
+                  <div className="flex flex-col gap-2 pt-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                      Linked Dog Owners ({selectedOwners.length})
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {selectedOwners.map((owner) => (
+                        <div
+                          key={owner.id}
+                          className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-brand/30 bg-brand-soft/20 text-xs text-ink shadow-2xs"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white font-bold text-xs shrink-0">
+                              {owner.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-bold text-xs text-ink truncate">{owner.name}</span>
+                              <span className="text-[11px] text-ink-muted truncate">{owner.email}</span>
+                              {owner.phone && (
+                                <span className="text-[10px] text-ink-muted truncate">{owner.phone}</span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOwnerIds((prev) => prev.filter((id) => id !== owner.id))}
+                            className="text-ink-muted hover:text-high-fg p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-surface cursor-pointer shrink-0 transition-colors"
+                            aria-label={`Remove owner ${owner.name}`}
+                            title={`Remove ${owner.name}`}
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-ink-muted italic m-0">
+                    No owners selected yet. Search above to add at least one registered pet owner account.
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -762,11 +889,15 @@ export function PatientIntake() {
                         <Circle size={16} className="text-ink-muted/50 shrink-0" />
                       )}
                       <span className={`font-semibold ${step2Complete ? "text-ink" : "text-ink-muted"}`}>
-                        2. Pet Owner
+                        2. Pet Owner(s)
                       </span>
                     </div>
                     <span className="text-xs text-ink-muted font-medium truncate max-w-[150px]">
-                      {selectedOwner ? selectedOwner.name : "Required"}
+                      {selectedOwners.length > 0
+                        ? selectedOwners.length === 1
+                          ? selectedOwners[0].name
+                          : `${selectedOwners[0].name} + ${selectedOwners.length - 1}`
+                        : "Required"}
                     </span>
                   </div>
 
