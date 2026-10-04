@@ -337,49 +337,63 @@ export function PatientIntake() {
               </div>
               <CardDescription>Primary identification, breed, physiological characteristics, and photo.</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-4">
-              {/* Photo Picker */}
-              <div className="flex items-center gap-4 p-3 rounded-lg border border-hairline bg-surface-alt/40">
-                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-hairline bg-surface shadow-xs">
-                  {photoPreview ? (
-                    <img src={photoPreview} alt="Dog Avatar Preview" className="h-full w-full object-cover" />
-                  ) : (
-                    <Camera size={26} className="text-ink-muted/70" />
-                  )}
+            <CardContent className="flex flex-col gap-5 pt-5">
+              {/* Sleek Photo Avatar & Upload */}
+              <div className="flex items-center gap-4">
+                <div className="relative group shrink-0">
+                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-hairline bg-surface-alt/60 shadow-xs transition-all group-hover:border-brand/70">
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Dog Avatar Preview" className="h-full w-full object-cover" />
+                    ) : (
+                      <Camera size={22} className="text-ink-muted/70 group-hover:text-brand transition-colors" />
+                    )}
+                  </div>
+                  <label
+                    htmlFor="dog-photo"
+                    className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    {photoPreview ? "Change" : "Upload"}
+                  </label>
+                  <input
+                    id="dog-photo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
                 </div>
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-                    Patient Photo (Optional)
-                  </span>
+
+                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 rounded-md border border-hairline bg-surface px-3 py-1.5 text-xs font-semibold text-ink shadow-xs hover:bg-surface-alt transition-colors">
-                      <Upload size={14} className="text-brand" />
-                      <span>{photoPreview ? "Change Photo" : "Upload Picture"}</span>
-                      <input
-                        id="dog-photo"
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePhotoChange}
-                        className="hidden"
-                      />
-                    </label>
+                    <span className="text-xs font-semibold text-ink">Patient Photo</span>
+                    <span className="text-[11px] text-ink-muted">(Optional)</span>
                     {photoPreview && (
                       <button
                         type="button"
                         onClick={removePhoto}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-high-fg hover:underline px-2 py-1"
+                        className="text-[11px] font-medium text-high-fg hover:underline ml-2 cursor-pointer"
                       >
-                        <X size={13} /> Remove
+                        Remove photo
                       </button>
                     )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <label
+                      htmlFor="dog-photo"
+                      className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium text-brand hover:underline"
+                    >
+                      <Upload size={12} />
+                      <span>{photoPreview ? "Replace picture" : "Upload picture"}</span>
+                    </label>
+                    <span className="text-[11px] text-ink-muted">• JPG or PNG</span>
                   </div>
                 </div>
               </div>
 
-              {/* Name & Breed */}
+              {/* Name & Breed (Comfortable 2 Columns) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-name" className="text-xs font-bold text-ink">
+                  <Label htmlFor="dog-name" className="text-xs font-semibold text-ink">
                     Patient Name <span className="text-high-fg">*</span>
                   </Label>
                   <Input
@@ -388,27 +402,34 @@ export function PatientIntake() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
+                    className="h-10 text-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-breed" className="text-xs font-bold text-ink">Breed</Label>
+                  <Label htmlFor="dog-breed" className="text-xs font-semibold text-ink">
+                    Breed
+                  </Label>
                   <Input
                     id="dog-breed"
                     placeholder="e.g. Aspin, Golden Retriever, Beagle"
                     value={breed}
                     onChange={(e) => setBreed(e.target.value)}
+                    className="h-10 text-sm"
                   />
                 </div>
               </div>
 
-              {/* Sex, Weight, Birthdate */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Biological Characteristics (Balanced 2 Columns + 1) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-sex" className="text-xs font-bold text-ink">Biological Sex</Label>
+                  <Label htmlFor="dog-sex" className="text-xs font-semibold text-ink">
+                    Biological Sex
+                  </Label>
                   <Select
                     id="dog-sex"
                     value={sex}
                     onChange={(e) => setSex(e.target.value as DogSex)}
+                    className="h-10 text-sm"
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -416,7 +437,9 @@ export function PatientIntake() {
                   </Select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-weight" className="text-xs font-bold text-ink">Weight (kg)</Label>
+                  <Label htmlFor="dog-weight" className="text-xs font-semibold text-ink">
+                    Weight (kg)
+                  </Label>
                   <Input
                     id="dog-weight"
                     type="number"
@@ -424,26 +447,35 @@ export function PatientIntake() {
                     placeholder="e.g. 14.5"
                     value={weightKg}
                     onChange={(e) => setWeightKg(e.target.value)}
+                    className="h-10 text-sm"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-birthdate" className="text-xs font-bold text-ink">Birthdate / Est.</Label>
+                  <Label htmlFor="dog-birthdate" className="text-xs font-semibold text-ink">
+                    Birthdate / Estimated
+                  </Label>
                   <Input
                     id="dog-birthdate"
                     type="date"
                     value={birthdate}
                     onChange={(e) => setBirthdate(e.target.value)}
+                    className="h-10 text-sm"
                   />
                 </div>
               </div>
 
               {/* Clinical Admission Notes */}
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="dog-notes" className="text-xs font-bold text-ink">Clinical Admission & Triage Notes</Label>
+                <Label htmlFor="dog-notes" className="text-xs font-semibold text-ink">
+                  Clinical Admission & Triage Notes
+                </Label>
                 <textarea
                   id="dog-notes"
-                  rows={2}
-                  className="w-full rounded-md border border-hairline bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-hidden focus:ring-2 focus:ring-brand"
+                  rows={3}
+                  className="w-full rounded-lg border border-hairline bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-hidden focus:ring-2 focus:ring-brand leading-relaxed"
                   placeholder="e.g. Post-operative observation, mild dehydration, calm temperament..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
