@@ -269,7 +269,7 @@ class _ImmersiveHeroState extends State<_ImmersiveHero> {
         if (widget.latestUpdatedAt != null)
           HeaderChip(
             icon: Icons.schedule,
-            label: 'Updated ${clockTime(widget.latestUpdatedAt!)}',
+            label: 'Last vitals ${clockTime(widget.latestUpdatedAt!)}',
           ),
         HeaderChip(
           icon: widget.openAlerts == 0
@@ -522,10 +522,12 @@ class _VitalBentoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final darkColor = Color.lerp(color, Colors.black, 0.4) ?? color;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final scaleExtra = (textScale - 1).clamp(0.0, 1.0);
 
     return PressScale(
       child: Container(
-        height: 160,
+        height: 160 + (scaleExtra * 64),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
           boxShadow: FurFeelTokens.shadowCard,
