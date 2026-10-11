@@ -54,7 +54,7 @@ class _WelcomePageState extends State<WelcomePage> {
           await widget.client.auth.resend(
             type: OtpType.signup,
             email: email,
-            emailRedirectTo: authRedirectUrl(currentOrigin: Uri.base.origin),
+            emailRedirectTo: authRedirectUrl(),
           );
           return 'Email not verified. We sent a new code to your inbox.';
         } catch (_) {}
@@ -80,12 +80,12 @@ class _WelcomePageState extends State<WelcomePage> {
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Could not start Google sign-in. Check your connection.',
+              'Could not start Google sign-in ($e). Check your connection.',
             ),
           ),
         );

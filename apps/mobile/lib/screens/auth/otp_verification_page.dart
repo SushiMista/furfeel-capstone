@@ -96,7 +96,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       await widget.client.auth.resend(
         type: OtpType.signup,
         email: widget.email,
-        emailRedirectTo: authRedirectUrl(currentOrigin: Uri.base.origin),
+        emailRedirectTo: authRedirectUrl(),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

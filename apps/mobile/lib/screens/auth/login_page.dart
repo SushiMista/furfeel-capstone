@@ -64,7 +64,7 @@ class _LoginPageState extends State<LoginPage> {
       // Assuming SupabaseClient is available globally or we can use Supabase.instance.client
       await Supabase.instance.client.auth.resetPasswordForEmail(
         email,
-        redirectTo: authRedirectUrl(currentOrigin: Uri.base.origin),
+        redirectTo: authRedirectUrl(),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
