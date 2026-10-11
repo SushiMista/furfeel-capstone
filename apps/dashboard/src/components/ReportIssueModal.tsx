@@ -266,14 +266,15 @@ export function ReportIssueModal({ open, onOpenChange, onToast }: ReportIssueMod
     <Dialog
       open={open}
       onClose={() => onOpenChange(false)}
-      title="Help &amp; Issue Reporting"
+      title="Help & Issue Reporting"
+      className="max-w-2xl"
     >
       <p className="text-xs text-ink-muted -mt-2 mb-4">
         Communicate bugs, collar anomalies, or system feedback directly to FurFeel platform administrators.
       </p>
 
       {/* Top Tab Bar */}
-      <div className="flex border-b border-hairline mb-4">
+      <div className="flex flex-wrap border-b border-hairline mb-4">
         <button
           type="button"
           onClick={() => {
@@ -325,7 +326,7 @@ export function ReportIssueModal({ open, onOpenChange, onToast }: ReportIssueMod
             <p className="text-sm text-ink-muted max-w-md mx-auto mb-4">
               Your ticket <span className="font-mono font-bold text-brand">{submittedTicketId}</span> has been dispatched to the platform operations and engineering team.
             </p>
-            <div className="flex justify-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -367,7 +368,7 @@ export function ReportIssueModal({ open, onOpenChange, onToast }: ReportIssueMod
               <Label className="mb-2 block text-xs font-bold uppercase tracking-wider text-ink-muted">
                 1. Select Issue Category
               </Label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3">
                 {CATEGORIES.map((cat) => {
                   const Icon = cat.icon;
                   const isSelected = category === cat.id;
@@ -384,7 +385,7 @@ export function ReportIssueModal({ open, onOpenChange, onToast }: ReportIssueMod
                       )}
                     >
                       <div className="flex items-center gap-1.5 font-bold text-xs text-ink">
-                        <Icon size={14} className={isSelected ? "text-brand" : "text-ink-muted"} />
+                        <Icon size={14} className={cn("shrink-0", isSelected ? "text-brand" : "text-ink-muted")} />
                         <span>{cat.label}</span>
                       </div>
                       <span className="text-[10px] text-ink-muted leading-tight line-clamp-2">
@@ -510,7 +511,7 @@ export function ReportIssueModal({ open, onOpenChange, onToast }: ReportIssueMod
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-hairline bg-surface py-3">
               <Button
                 type="button"
                 variant="secondary"
