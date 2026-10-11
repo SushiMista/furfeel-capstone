@@ -74,9 +74,6 @@ export function PatientIntake() {
   const [newDeviceCode, setNewDeviceCode] = useState("");
   const [newDeviceFirmware, setNewDeviceFirmware] = useState("0.1.0");
 
-  // Form: Baselines (Optional)
-  const [restingHr, setRestingHr] = useState("");
-  const [restingRr, setRestingRr] = useState("");
 
   // Load reference datasets
   const loadData = useCallback(async () => {
@@ -244,23 +241,10 @@ export function PatientIntake() {
         await seedInitialBiotelemetry(supabase, {
           dogId: dog.id,
           deviceId: boundDeviceId,
-          baselineHr: restingHr ? parseInt(restingHr, 10) : 85,
-          baselineRr: restingRr ? parseInt(restingRr, 10) : 20,
+          baselineHr: 85,
+          baselineRr: 20,
           count: 6,
         });
-      }
-
-      // 4. Baseline Configuration if provided
-      if (restingHr || restingRr) {
-        try {
-          await supabase.from("dog_baselines").insert({
-            dog_id: dog.id,
-            resting_heart_rate_bpm: restingHr ? parseInt(restingHr, 10) : null,
-            resting_respiratory_rate_bpm: restingRr ? parseInt(restingRr, 10) : null,
-          });
-        } catch (baselineErr) {
-          console.warn("Baseline save warning:", baselineErr);
-        }
       }
 
       const totalOwners = selectedOwnerIds.length;
@@ -294,7 +278,6 @@ export function PatientIntake() {
     deviceMode === "none" ||
     (deviceMode === "existing" && Boolean(selectedDeviceId)) ||
     (deviceMode === "new" && Boolean(newDeviceCode.trim()));
-  const step4Complete = Boolean(restingHr || restingRr);
   const isFormReady = step1Complete && step2Complete;
 
   return (
@@ -337,49 +320,63 @@ export function PatientIntake() {
               </div>
               <CardDescription>Primary identification, breed, physiological characteristics, and photo.</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-4">
-              {/* Photo Picker */}
-              <div className="flex items-center gap-4 p-3 rounded-lg border border-hairline bg-surface-alt/40">
-                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-hairline bg-surface shadow-xs">
-                  {photoPreview ? (
-                    <img src={photoPreview} alt="Dog Avatar Preview" className="h-full w-full object-cover" />
-                  ) : (
-                    <Camera size={26} className="text-ink-muted/70" />
-                  )}
+            <CardContent className="flex flex-col gap-5 pt-5">
+              {/* Sleek Photo Avatar & Upload */}
+              <div className="flex items-center gap-4">
+                <div className="relative group shrink-0">
+                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-hairline bg-surface-alt/60 shadow-xs transition-all group-hover:border-brand/70">
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Dog Avatar Preview" className="h-full w-full object-cover" />
+                    ) : (
+                      <Camera size={22} className="text-ink-muted/70 group-hover:text-brand transition-colors" />
+                    )}
+                  </div>
+                  <label
+                    htmlFor="dog-photo"
+                    className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    {photoPreview ? "Change" : "Upload"}
+                  </label>
+                  <input
+                    id="dog-photo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
                 </div>
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-                    Patient Photo (Optional)
-                  </span>
+
+                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 rounded-md border border-hairline bg-surface px-3 py-1.5 text-xs font-semibold text-ink shadow-xs hover:bg-surface-alt transition-colors">
-                      <Upload size={14} className="text-brand" />
-                      <span>{photoPreview ? "Change Photo" : "Upload Picture"}</span>
-                      <input
-                        id="dog-photo"
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePhotoChange}
-                        className="hidden"
-                      />
-                    </label>
+                    <span className="text-xs font-semibold text-ink">Patient Photo</span>
+                    <span className="text-[11px] text-ink-muted">(Optional)</span>
                     {photoPreview && (
                       <button
                         type="button"
                         onClick={removePhoto}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-high-fg hover:underline px-2 py-1"
+                        className="text-[11px] font-medium text-high-fg hover:underline ml-2 cursor-pointer"
                       >
-                        <X size={13} /> Remove
+                        Remove photo
                       </button>
                     )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <label
+                      htmlFor="dog-photo"
+                      className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium text-brand hover:underline"
+                    >
+                      <Upload size={12} />
+                      <span>{photoPreview ? "Replace picture" : "Upload picture"}</span>
+                    </label>
+                    <span className="text-[11px] text-ink-muted">• JPG or PNG</span>
                   </div>
                 </div>
               </div>
 
-              {/* Name & Breed */}
+              {/* Name & Breed (Comfortable 2 Columns) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-name" className="text-xs font-bold text-ink">
+                  <Label htmlFor="dog-name" className="text-xs font-semibold text-ink">
                     Patient Name <span className="text-high-fg">*</span>
                   </Label>
                   <Input
@@ -388,27 +385,34 @@ export function PatientIntake() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
+                    className="h-10 text-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-breed" className="text-xs font-bold text-ink">Breed</Label>
+                  <Label htmlFor="dog-breed" className="text-xs font-semibold text-ink">
+                    Breed
+                  </Label>
                   <Input
                     id="dog-breed"
                     placeholder="e.g. Aspin, Golden Retriever, Beagle"
                     value={breed}
                     onChange={(e) => setBreed(e.target.value)}
+                    className="h-10 text-sm"
                   />
                 </div>
               </div>
 
-              {/* Sex, Weight, Birthdate */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Biological Characteristics (Balanced 2 Columns + 1) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-sex" className="text-xs font-bold text-ink">Biological Sex</Label>
+                  <Label htmlFor="dog-sex" className="text-xs font-semibold text-ink">
+                    Biological Sex
+                  </Label>
                   <Select
                     id="dog-sex"
                     value={sex}
                     onChange={(e) => setSex(e.target.value as DogSex)}
+                    className="h-10 text-sm"
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -416,7 +420,9 @@ export function PatientIntake() {
                   </Select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-weight" className="text-xs font-bold text-ink">Weight (kg)</Label>
+                  <Label htmlFor="dog-weight" className="text-xs font-semibold text-ink">
+                    Weight (kg)
+                  </Label>
                   <Input
                     id="dog-weight"
                     type="number"
@@ -424,26 +430,35 @@ export function PatientIntake() {
                     placeholder="e.g. 14.5"
                     value={weightKg}
                     onChange={(e) => setWeightKg(e.target.value)}
+                    className="h-10 text-sm"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="dog-birthdate" className="text-xs font-bold text-ink">Birthdate / Est.</Label>
+                  <Label htmlFor="dog-birthdate" className="text-xs font-semibold text-ink">
+                    Birthdate / Estimated
+                  </Label>
                   <Input
                     id="dog-birthdate"
                     type="date"
                     value={birthdate}
                     onChange={(e) => setBirthdate(e.target.value)}
+                    className="h-10 text-sm"
                   />
                 </div>
               </div>
 
               {/* Clinical Admission Notes */}
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="dog-notes" className="text-xs font-bold text-ink">Clinical Admission & Triage Notes</Label>
+                <Label htmlFor="dog-notes" className="text-xs font-semibold text-ink">
+                  Clinical Admission & Triage Notes
+                </Label>
                 <textarea
                   id="dog-notes"
-                  rows={2}
-                  className="w-full rounded-md border border-hairline bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-hidden focus:ring-2 focus:ring-brand"
+                  rows={3}
+                  className="w-full rounded-lg border border-hairline bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-hidden focus:ring-2 focus:ring-brand leading-relaxed"
                   placeholder="e.g. Post-operative observation, mild dehydration, calm temperament..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -469,17 +484,18 @@ export function PatientIntake() {
                 )}
               </div>
               <CardDescription>
-                Associate this patient with registered pet owner accounts for mobile app live sync.
+                Link registered pet owner accounts for mobile app live sync.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-4">
+            <CardContent className="flex flex-col gap-4 pt-5">
               {role === "admin" && (
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="intake-clinic" className="text-xs font-bold text-ink">Admitting Clinic</Label>
+                  <Label htmlFor="intake-clinic" className="text-xs font-semibold text-ink">Admitting Clinic</Label>
                   <Select
                     id="intake-clinic"
                     value={selectedClinicId}
                     onChange={(e) => setSelectedClinicId(e.target.value)}
+                    className="h-10 text-sm"
                   >
                     {clinics.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -490,21 +506,20 @@ export function PatientIntake() {
                 </div>
               )}
 
-              {/* Single Unified Smart Search for Owners */}
-              <div className="flex flex-col gap-3 p-4 rounded-xl border border-hairline bg-surface-alt/20">
+              {/* Owner Search & Selection */}
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="owner-search" className="text-xs font-bold text-ink flex items-center gap-1.5">
-                    <Users size={15} className="text-brand shrink-0" />
-                    <span>Registered Pet Owner(s)</span>
+                  <Label htmlFor="owner-search" className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                    <Users size={14} className="text-brand shrink-0" />
+                    <span>Registered Owner(s)</span>
                     <span className="text-high-fg">*</span>
                   </Label>
-                  <span className="text-[11px] text-ink-muted">
-                    {selectedOwners.length} owner{selectedOwners.length === 1 ? "" : "s"} selected
-                  </span>
+                  {selectedOwners.length > 0 && (
+                    <span className="text-xs text-ink-muted">
+                      {selectedOwners.length} selected
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-ink-muted m-0">
-                  Search and link registered owner accounts. All linked owners will be able to view and monitor this dog in the mobile app.
-                </p>
 
                 {/* Smart Search Combobox Input */}
                 <div className="relative" ref={ownerComboboxRef}>
@@ -514,14 +529,14 @@ export function PatientIntake() {
                       id="owner-search"
                       type="text"
                       autoComplete="off"
-                      placeholder="Type name, email, or phone to search and add owner..."
+                      placeholder="Search by owner name, email, or phone..."
                       value={ownerSearchQuery}
                       onChange={(e) => {
                         setOwnerSearchQuery(e.target.value);
                         setIsOwnerMenuOpen(true);
                       }}
                       onFocus={() => setIsOwnerMenuOpen(true)}
-                      className="pl-9 pr-9 h-11 text-sm bg-white dark:bg-surface"
+                      className="pl-9 pr-9 h-10 text-sm bg-white dark:bg-surface"
                     />
                     {ownerSearchQuery && (
                       <button
@@ -537,14 +552,14 @@ export function PatientIntake() {
 
                   {/* Suggestions Dropdown */}
                   {isOwnerMenuOpen && (
-                    <div className="absolute z-30 left-0 right-0 top-[calc(100%+4px)] max-h-64 overflow-y-auto rounded-xl border border-hairline bg-surface shadow-xl py-1 divide-y divide-hairline/40">
+                    <div className="absolute z-30 left-0 right-0 top-[calc(100%+4px)] max-h-60 overflow-y-auto rounded-xl border border-hairline bg-surface shadow-xl py-1 divide-y divide-hairline/40">
                       <div className="px-3 py-1.5 text-[11px] font-semibold text-ink-muted uppercase tracking-wider bg-surface-alt/40">
-                        {filteredAvailableOwners.length} Available Owner Account{filteredAvailableOwners.length === 1 ? "" : "s"}
+                        {filteredAvailableOwners.length} Available Account{filteredAvailableOwners.length === 1 ? "" : "s"}
                       </div>
                       {filteredAvailableOwners.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-ink-muted">
+                        <div className="p-3 text-center text-xs text-ink-muted">
                           {ownerSearchQuery ? (
-                            <span>No registered pet owners match <strong className="text-ink">&quot;{ownerSearchQuery}&quot;</strong></span>
+                            <span>No accounts match <strong className="text-ink">&quot;{ownerSearchQuery}&quot;</strong></span>
                           ) : (
                             <span>All registered owner accounts have been added.</span>
                           )}
@@ -574,7 +589,7 @@ export function PatientIntake() {
                               </div>
                             </div>
                             <span className="inline-flex items-center gap-1 text-[11px] text-brand font-semibold hover:underline shrink-0">
-                              <Plus size={13} /> Add Owner
+                              <Plus size={13} /> Add
                             </span>
                           </button>
                         ))
@@ -583,53 +598,41 @@ export function PatientIntake() {
                   )}
                 </div>
 
-                {/* Selected Owners Cards / Chips List */}
-                {selectedOwners.length > 0 ? (
-                  <div className="flex flex-col gap-2 pt-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-                      Linked Dog Owners ({selectedOwners.length})
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {selectedOwners.map((owner) => (
-                        <div
-                          key={owner.id}
-                          className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-brand/30 bg-brand-soft/20 text-xs text-ink shadow-2xs"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white font-bold text-xs shrink-0">
-                              {owner.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <span className="font-bold text-xs text-ink truncate">{owner.name}</span>
-                              <span className="text-[11px] text-ink-muted truncate">{owner.email}</span>
-                              {owner.phone && (
-                                <span className="text-[10px] text-ink-muted truncate">{owner.phone}</span>
-                              )}
-                            </div>
+                {/* Selected Owners Cards List */}
+                {selectedOwners.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                    {selectedOwners.map((owner) => (
+                      <div
+                        key={owner.id}
+                        className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-brand/30 bg-brand-soft/20 text-xs text-ink shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white font-bold text-xs shrink-0">
+                            {owner.name.charAt(0).toUpperCase()}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOwnerIds((prev) => prev.filter((id) => id !== owner.id))}
-                            className="text-ink-muted hover:text-high-fg p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-surface cursor-pointer shrink-0 transition-colors"
-                            aria-label={`Remove owner ${owner.name}`}
-                            title={`Remove ${owner.name}`}
-                          >
-                            <X size={15} />
-                          </button>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-semibold text-xs text-ink truncate">{owner.name}</span>
+                            <span className="text-[11px] text-ink-muted truncate">{owner.email}</span>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOwnerIds((prev) => prev.filter((id) => id !== owner.id))}
+                          className="text-ink-muted hover:text-high-fg p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-surface cursor-pointer shrink-0 transition-colors"
+                          aria-label={`Remove owner ${owner.name}`}
+                          title={`Remove ${owner.name}`}
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <p className="text-[11px] text-ink-muted italic m-0">
-                    No owners selected yet. Search above to add at least one registered pet owner account.
-                  </p>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* STEP 3: DEVICE CREATION OR AVAILABLE DEVICE */}
+          {/* STEP 3: DEVICE TELEMETRY HARDWARE */}
           <Card className="border-hairline shadow-xs">
             <CardHeader className="pb-3 border-b border-hairline/60 bg-surface-alt/30">
               <div className="flex items-center justify-between">
@@ -645,17 +648,19 @@ export function PatientIntake() {
                   </span>
                 )}
               </div>
-              <CardDescription>Choose an available collar from fleet, build/register a new collar, or pair later.</CardDescription>
+              <CardDescription>
+                Link an available fleet collar, register a new device, or defer pairing.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-4">
+            <CardContent className="flex flex-col gap-4 pt-5">
               {/* Segmented Mode Selector */}
-              <div className="grid grid-cols-3 gap-1 rounded-xl border border-hairline bg-surface-alt p-1 text-xs font-bold">
+              <div className="grid grid-cols-3 gap-1 rounded-xl border border-hairline bg-surface-alt/60 p-1 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setDeviceMode("existing")}
-                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     deviceMode === "existing"
-                      ? "bg-surface shadow-xs text-brand border border-hairline font-extrabold"
+                      ? "bg-white dark:bg-surface shadow-xs text-brand border border-hairline font-bold"
                       : "text-ink-muted hover:text-ink"
                   }`}
                 >
@@ -665,9 +670,9 @@ export function PatientIntake() {
                 <button
                   type="button"
                   onClick={() => setDeviceMode("new")}
-                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     deviceMode === "new"
-                      ? "bg-surface shadow-xs text-brand border border-hairline font-extrabold"
+                      ? "bg-white dark:bg-surface shadow-xs text-brand border border-hairline font-bold"
                       : "text-ink-muted hover:text-ink"
                   }`}
                 >
@@ -677,9 +682,9 @@ export function PatientIntake() {
                 <button
                   type="button"
                   onClick={() => setDeviceMode("none")}
-                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     deviceMode === "none"
-                      ? "bg-surface shadow-xs text-ink border border-hairline font-extrabold"
+                      ? "bg-white dark:bg-surface shadow-xs text-ink border border-hairline font-bold"
                       : "text-ink-muted hover:text-ink"
                   }`}
                 >
@@ -690,15 +695,20 @@ export function PatientIntake() {
 
               {/* Mode 1: Select Available Fleet Collar */}
               {deviceMode === "existing" && (
-                <div className="flex flex-col gap-2 pt-1">
-                  <Label htmlFor="device-select" className="text-xs font-bold text-ink">
-                    Select Available Unassigned Collar
-                  </Label>
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="device-select" className="text-xs font-semibold text-ink">
+                      Select Available Collar
+                    </Label>
+                    <span className="text-xs text-ink-muted">
+                      {availableDevices.length} unassigned
+                    </span>
+                  </div>
                   <Select
                     id="device-select"
                     value={selectedDeviceId}
                     onChange={(e) => setSelectedDeviceId(e.target.value)}
-                    className="h-11 font-medium"
+                    className="h-10 text-sm"
                   >
                     <option value="">— Choose an unassigned collar —</option>
                     {availableDevices.map((d) => (
@@ -707,105 +717,49 @@ export function PatientIntake() {
                       </option>
                     ))}
                   </Select>
-                  <p className="text-xs text-ink-muted m-0">
-                    {availableDevices.length} unassigned collars ready in fleet inventory.
-                  </p>
                 </div>
               )}
 
               {/* Mode 2: Build / Register New Device On-The-Fly */}
               {deviceMode === "new" && (
-                <div className="flex flex-col gap-3 rounded-xl border border-brand/30 bg-brand-soft/30 p-4">
-                  <div className="flex items-center gap-2 text-xs font-black text-brand">
-                    <Sparkles size={15} />
-                    <span>Build & Register New Hardware Device</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="new-device-code" className="text-xs font-semibold text-ink">
+                      Collar Device Code <span className="text-high-fg">*</span>
+                    </Label>
+                    <Input
+                      id="new-device-code"
+                      placeholder="e.g. FF-DEV-008"
+                      value={newDeviceCode}
+                      onChange={(e) => setNewDeviceCode(e.target.value.toUpperCase())}
+                      required={deviceMode === "new"}
+                      className="font-mono uppercase h-10 text-sm"
+                    />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <Label htmlFor="new-device-code" className="text-xs font-bold text-ink">
-                        Collar Device Code <span className="text-high-fg">*</span>
-                      </Label>
-                      <Input
-                        id="new-device-code"
-                        placeholder="e.g. FF-DEV-008"
-                        value={newDeviceCode}
-                        onChange={(e) => setNewDeviceCode(e.target.value.toUpperCase())}
-                        required={deviceMode === "new"}
-                        className="font-mono uppercase font-bold"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Label htmlFor="new-device-fw" className="text-xs font-bold text-ink">
-                        Firmware Version
-                      </Label>
-                      <Input
-                        id="new-device-fw"
-                        placeholder="0.1.0"
-                        value={newDeviceFirmware}
-                        onChange={(e) => setNewDeviceFirmware(e.target.value)}
-                      />
-                    </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="new-device-fw" className="text-xs font-semibold text-ink">
+                      Firmware Version
+                    </Label>
+                    <Input
+                      id="new-device-fw"
+                      placeholder="0.1.0"
+                      value={newDeviceFirmware}
+                      onChange={(e) => setNewDeviceFirmware(e.target.value)}
+                      className="h-10 text-sm"
+                    />
                   </div>
                 </div>
               )}
 
               {/* Mode 3: Pair Later */}
               {deviceMode === "none" && (
-                <div className="flex items-center gap-2.5 p-3 rounded-lg bg-surface-alt text-xs text-ink-muted border border-hairline">
-                  <Info size={16} className="text-brand shrink-0" />
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-surface-alt/40 text-xs text-ink-muted border border-hairline/60">
+                  <Info size={15} className="text-brand shrink-0" />
                   <span>
-                    The patient will be admitted without live telemetry. You can attach a telemetry collar later in the Devices or Patient Detail screen.
+                    Patient will be admitted without live telemetry. You can attach a collar at any time later in Device Management or Patient Detail.
                   </span>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* STEP 4: OPTIONAL BASELINE */}
-          <Card className="border-hairline shadow-xs">
-            <CardHeader className="pb-3 border-b border-hairline/60 bg-surface-alt/30">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/30 text-ink text-xs font-bold">
-                    4
-                  </span>
-                  <CardTitle className="text-base font-bold text-ink">Optional Resting Baselines</CardTitle>
-                </div>
-                {step4Complete ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-calm-fg bg-calm-soft px-2 py-0.5 rounded-full">
-                    <CheckCircle2 size={13} /> Configured
-                  </span>
-                ) : (
-                  <span className="text-xs text-ink-muted font-medium">Optional</span>
-                )}
-              </div>
-              <CardDescription>
-                Calibrate custom baseline resting vitals for this dog. The AI model falls back to clinical defaults if omitted.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="resting-hr" className="text-xs font-bold text-ink">Resting Heart Rate (BPM)</Label>
-                  <Input
-                    id="resting-hr"
-                    type="number"
-                    placeholder="e.g. 75"
-                    value={restingHr}
-                    onChange={(e) => setRestingHr(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="resting-rr" className="text-xs font-bold text-ink">Resting Resp Rate (BrPM)</Label>
-                  <Input
-                    id="resting-rr"
-                    type="number"
-                    placeholder="e.g. 22"
-                    value={restingRr}
-                    onChange={(e) => setRestingRr(e.target.value)}
-                  />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -922,22 +876,6 @@ export function PatientIntake() {
                     </span>
                   </div>
 
-                  {/* Item 4 */}
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      {step4Complete ? (
-                        <CheckCircle2 size={16} className="text-calm-fg shrink-0" />
-                      ) : (
-                        <Circle size={16} className="text-ink-muted/50 shrink-0" />
-                      )}
-                      <span className={`font-semibold ${step4Complete ? "text-ink" : "text-ink-muted"}`}>
-                        4. Resting Baselines
-                      </span>
-                    </div>
-                    <span className="text-xs text-ink-muted font-medium">
-                      {step4Complete ? `${restingHr || "—"} BPM / ${restingRr || "—"} RR` : "Default"}
-                    </span>
-                  </div>
                 </div>
               </div>
 
