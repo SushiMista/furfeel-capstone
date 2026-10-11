@@ -5,13 +5,14 @@ import { friendlyError } from "../../lib/errors.ts";
 import { timed } from "../../lib/perf.ts";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
+  fetchDog,
   fetchMonitoringBoard,
   fetchMonitoringBoardRowForDog,
   sortBoardRows,
   type BoardSortKey,
   type MonitoringBoardRow,
 } from "../../lib/queries.ts";
-import { useRealtimeInsert } from "../../lib/useRealtimeInsert.ts";
+import { useRealtimeInsert, useRealtimeUpdate } from "../../lib/useRealtimeInsert.ts";
 import { DogCard } from "../../components/DogCard.tsx";
 import { StressLevelBadge } from "../../components/StressLevelBadge.tsx";
 import { Card } from "../../components/ui/card.tsx";
@@ -23,8 +24,10 @@ import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { cn } from "../../lib/cn.ts";
 import { formatPosture } from "../../lib/posture.ts";
+import { formatPhilippineTime } from "../../lib/time.ts";
 import type {
   Alert,
+  Dog,
   StressClassification,
   StressLevel,
   TelemetryReading,
@@ -138,15 +141,46 @@ export function MonitoringBoard() {
     load();
   }, [load]);
 
-  const refreshDog = useCallback((dogId: string) => {
+  const refreshDog = useCallback((dogId: string, updateOrPath?: Partial<Dog> | string) => {
+    const updatedDogData: Partial<Dog> | undefined =
+      typeof updateOrPath === "string" ? { photo_path: updateOrPath } : updateOrPath;
+
     setRows((prev) => {
-      const dog = prev.find((r) => r.dog.id === dogId)?.dog;
-      if (dog) {
-        fetchMonitoringBoardRowForDog(supabase, dog).then((updated) => {
-          setRows((current) => current.map((r) => (r.dog.id === dogId ? updated : r)));
-        });
-      } else {
+      const existing = prev.find((r) => r.dog.id === dogId);
+      if (!existing) {
         load();
+        return prev;
+      }
+
+      const targetDog = updatedDogData ? { ...existing.dog, ...updatedDogData } : existing.dog;
+
+      // Re-fetch fresh dog record and row data from DB, keeping owner and clinic context
+      Promise.all([
+        fetchDog(supabase, dogId),
+        fetchMonitoringBoardRowForDog(supabase, targetDog, existing.ownerName, existing.clinicName),
+      ])
+        .then(([freshDog, updatedRow]) => {
+          setRows((current) =>
+            current.map((r) =>
+              r.dog.id === dogId
+                ? {
+                    ...updatedRow,
+                    dog: freshDog ? { ...freshDog, ...updatedDogData } : updatedRow.dog,
+                    ownerName: existing.ownerName,
+                    clinicName: existing.clinicName,
+                  }
+                : r,
+            ),
+          );
+        })
+        .catch(() => {});
+
+      if (updatedDogData) {
+        return prev.map((r) =>
+          r.dog.id === dogId
+            ? { ...r, dog: targetDog }
+            : r,
+        );
       }
       return prev;
     });
@@ -155,6 +189,15 @@ export function MonitoringBoard() {
   useRealtimeInsert<TelemetryReading>("telemetry_readings", (row) => refreshDog(row.dog_id));
   useRealtimeInsert<StressClassification>("stress_classifications", (row) => refreshDog(row.dog_id));
   useRealtimeInsert<Alert>("alerts", (row) => refreshDog(row.dog_id));
+  useRealtimeUpdate<Dog>("dogs", (dog) =>
+    refreshDog(dog.id, {
+      photo_path: dog.photo_path,
+      name: dog.name,
+      breed: dog.breed,
+      ward_location: dog.ward_location,
+      admission_status: dog.admission_status,
+    }),
+  );
 
   const visible = useMemo(() => {
     let filtered = sortBoardRows(rows, sortBy);
@@ -309,7 +352,7 @@ export function MonitoringBoard() {
                 </Td>
                 <Td className="text-xs text-ink-muted">
                   {row.latestReading
-                    ? new Date(row.latestReading.captured_at).toLocaleString()
+                    ? formatPhilippineTime(row.latestReading.captured_at)
                     : "—"}
                 </Td>
                 <Td className="text-right">

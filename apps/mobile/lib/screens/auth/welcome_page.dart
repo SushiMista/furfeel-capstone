@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:furfeel_mobile/data/google_oauth.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
+import 'package:furfeel_mobile/data/mobile_access.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
 import 'package:furfeel_mobile/widgets/auth_pattern_background.dart';
@@ -28,21 +30,33 @@ class _WelcomePageState extends State<WelcomePage> {
 
   Future<String?> _signIn(String email, String password) async {
     try {
-      final res = await widget.client.auth.signInWithPassword(email: email, password: password);
+      final res = await widget.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
       final user = res.user;
       if (user != null) {
-        final userRow = await widget.client.from('users').select('role').eq('id', user.id).maybeSingle();
+        final userRow = await widget.client
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
         final role = userRow?['role'] as String?;
-        if (role != null && role != 'owner') {
+        final accessError = mobileAccessErrorForRole(role);
+        if (accessError != null) {
           await widget.client.auth.signOut();
-          return 'Access Denied: Clinic staff & admin accounts must log in via the FurFeel Web Dashboard.';
+          return accessError;
         }
       }
       return null;
     } on AuthException catch (e) {
       if (e.message.toLowerCase().contains('email not confirmed')) {
         try {
-          await widget.client.auth.resend(type: OtpType.signup, email: email);
+          await widget.client.auth.resend(
+            type: OtpType.signup,
+            email: email,
+            emailRedirectTo: authRedirectUrl(),
+          );
           return 'Email not verified. We sent a new code to your inbox.';
         } catch (_) {}
       }
@@ -63,11 +77,19 @@ class _WelcomePageState extends State<WelcomePage> {
       await performGoogleSignIn(widget.client);
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google sign-in error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not start Google sign-in ($e). Check your connection.',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _googleBusy = false);
@@ -78,7 +100,10 @@ class _WelcomePageState extends State<WelcomePage> {
     final route = MaterialPageRoute<void>(
       builder: (_) => LoginPage(
         signIn: _signIn,
-        onGoogleSignIn: () async { _signInWithGoogle(); return null; },
+        onGoogleSignIn: () async {
+          await _signInWithGoogle();
+          return null;
+        },
         onCreateAccount: () => _openSignUp(context, replace: true),
       ),
     );
@@ -113,7 +138,9 @@ class _WelcomePageState extends State<WelcomePage> {
         color: context.ff.hairline,
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: FurFeelTokens.space5),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FurFeelTokens.space5,
+            ),
             child: Column(
               children: [
                 const Spacer(),
@@ -129,7 +156,9 @@ class _WelcomePageState extends State<WelcomePage> {
                 const SizedBox(height: FurFeelTokens.space5),
                 staggered(
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: FurFeelTokens.space3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FurFeelTokens.space3,
+                    ),
                     child: Text(
                       'Know how your dog is feeling, at home or\nwith your clinic, in real time.',
                       textAlign: TextAlign.center,
@@ -148,15 +177,22 @@ class _WelcomePageState extends State<WelcomePage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: context.ff.brand,
                       foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(FurFeelTokens.touchTargetMin),
+                      minimumSize: const Size.fromHeight(
+                        FurFeelTokens.touchTargetMin,
+                      ),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          FurFeelTokens.radiusSm,
+                        ),
                       ),
                     ),
                     child: const Text(
                       'Create account',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                   2,
@@ -168,24 +204,28 @@ class _WelcomePageState extends State<WelcomePage> {
                       backgroundColor: context.ff.surfaceAlt,
                       foregroundColor: context.ff.ink,
                       elevation: 0,
-                      minimumSize: const Size.fromHeight(FurFeelTokens.touchTargetMin),
+                      minimumSize: const Size.fromHeight(
+                        FurFeelTokens.touchTargetMin,
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(FurFeelTokens.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          FurFeelTokens.radiusSm,
+                        ),
                       ),
                     ),
                     onPressed: _googleBusy ? null : () => _openLogin(context),
                     child: const Text(
                       'I already have an account',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                   3,
                 ),
                 const SizedBox(height: FurFeelTokens.space4),
-                staggered(
-                  const OrDivider(),
-                  4,
-                ),
+                staggered(const OrDivider(), 4),
                 const SizedBox(height: FurFeelTokens.space4),
                 staggered(
                   GoogleSignInButton(
@@ -197,7 +237,9 @@ class _WelcomePageState extends State<WelcomePage> {
                 const Spacer(),
                 staggered(
                   Padding(
-                    padding: const EdgeInsets.only(bottom: FurFeelTokens.space4),
+                    padding: const EdgeInsets.only(
+                      bottom: FurFeelTokens.space4,
+                    ),
                     child: Text(
                       'Decision support for you and your care team, never a\ndiagnosis.',
                       textAlign: TextAlign.center,
