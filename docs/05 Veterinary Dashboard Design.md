@@ -77,3 +77,6 @@ As-built: Board, Dog detail, Alerts queue, Vet notes, Reports, Vet Review media 
 - [[07 Sensor Data Pipeline]]
 - [[11 Alerts and Notifications]]
 - [[09 Database Schema]]
+
+## Existing patient: add registered owners
+On the dog detail page, Manage owners beside Registered Owners opens an editor for existing patients. Display current linked owners, search registered active owner accounts by name/email, select one or more additional accounts, and save to dog_owners. Preserve existing links and the compatibility owner_user_id field. Owner accounts must already exist. Only show success after writes and a refreshed owner list confirm the additions. Supabase RLS and foreign keys remain enforced; rejected writes stay visible for retry.

@@ -121,3 +121,6 @@ As-built: User Dashboard, Alerts + acknowledge, History/Trends/Detailed Log, Pet
 - [[11 Alerts and Notifications]]
 - [[10 API and Backend Services]]
 - [[09 Database Schema]]
+
+## Wi-Fi setup update (ADR-025)
+In Settings → Harness & Hardware, select a nearby harness, then select a 2.4 GHz network scanned by that ESP32. Display signal strength and whether a password is required. Offer refresh and hidden-network entry. Require only the password for a visible secured network; open networks require none. Preserve passwords exactly as entered. Keep the setup sheet scrollable while the keyboard is open. Confirm Connected only after the ESP32 reports a successful Wi-Fi join; telemetry delivery is verified separately. Show retryable scan, Bluetooth, firmware-version and connection errors.
