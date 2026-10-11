@@ -121,12 +121,15 @@ export async function bulkDeleteUserAccounts(
 
 /** Admin reactivates a soft-deleted / deactivated user account. */
 export async function reactivateUserAccount(client: SupabaseClient, userId: string): Promise<void> {
-  const { error } = await client.functions.invoke("admin-delete-user", {
-    body: { userId, reactivate: true },
+  const { data, error } = await client.functions.invoke("admin-reactivate-user", {
+    body: { userId },
   });
   if (error) {
     const body = await error.context?.json?.().catch(() => null);
     throw new Error(body?.error ?? error.message ?? "Failed to reactivate the user");
+  }
+  if (data?.ok !== true || data?.action !== "reactivated") {
+    throw new Error("The server did not confirm reactivation. Refresh and try again.");
   }
 }
 

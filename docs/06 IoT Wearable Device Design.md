@@ -38,3 +38,6 @@ The wearable harness collects physiological, behavioral, and environmental data 
 ## Related
 - [[07 Sensor Data Pipeline]]
 - [[09 Database Schema]]
+
+## BLE Wi-Fi provisioning (ADR-025)
+The ESP32 scans nearby 2.4 GHz networks for the Flutter setup screen and exposes individual scan results over BLE. Keep BLE active during the Wi-Fi join so the app can read success or failure. Store credentials in NVS only after a successful join; retain setup access on failure. Reopen BLE when Wi-Fi is lost. Direct Wi-Fi telemetry remains the device link. See firmware/esp32/WIFI_SETUP.md for the protocol verification checklist.

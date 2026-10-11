@@ -19,6 +19,7 @@
 
 #define SERVICE_UUID           "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHAR_CREDENTIALS_UUID  "a3c87500-8ed3-4bdf-8a39-a01bebede295"
+#define CHAR_CONTROL_UUID      "f58dc8aa-6f17-4ef2-96bc-b359187d0021"
 #define CHAR_STATUS_UUID       "cba1d466-344c-4be3-ab3f-189f80dd7518"
 
 Preferences preferences;
@@ -26,8 +27,11 @@ BLEServer* pServer = NULL;
 BLECharacteristic* pCredsCharacteristic = NULL;
 BLECharacteristic* pStatusCharacteristic = NULL;
 
+volatile bool scanRequested = false;
+unsigned long bleCloseAt = 0;
+int networkCount = 0;
 bool bleActive = false;
-bool shouldConnectWifi = false;
+volatile bool shouldConnectWifi = false;
 String pendingSSID = "";
 String pendingPass = "";
 
@@ -102,19 +106,80 @@ void printReadings();
 void computeStats(float *arr, int n, float &mean, float &stdDev, float &mn, float &mx);
 void sendTelemetry();
 
-//================ BLE CALLBACKS ============
+// Setup commands are handled in loop; never scan or join Wi-Fi in a BLE callback.
+void setupStatus(String value) {
+    if (pStatusCharacteristic) pStatusCharacteristic->setValue(value.c_str());
+}
+String hexText(String value) {
+    const char* digits = "0123456789abcdef";
+    String encoded;
+    for (unsigned int i = 0; i < value.length(); i++) {
+        uint8_t c = value[i]; encoded += digits[c >> 4]; encoded += digits[c & 15];
+    }
+    return encoded;
+}
+int hexDigit(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    return -1;
+}
+bool decodeText(String hex, String &decoded) {
+    decoded = "";
+    if (hex.length() % 2) return false;
+    for (unsigned int i = 0; i < hex.length(); i += 2) {
+        int a = hexDigit(hex[i]), b = hexDigit(hex[i + 1]);
+        if (a < 0 || b < 0 || (a == 0 && b == 0)) return false;
+        decoded += char((a << 4) | b);
+    }
+    return true;
+}
+class SetupServerCallbacks: public BLEServerCallbacks {
+    void onDisconnect(BLEServer*) {
+        if (WiFi.status() != WL_CONNECTED) BLEDevice::startAdvertising();
+    }
+};
+class ControlCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *characteristic) {
+        String command = characteristic->getValue().c_str();
+        if (shouldConnectWifi || scanRequested) { setupStatus("ERROR:Harness is busy. Retry shortly."); return; }
+        if (command == "SCAN") {
+            setupStatus("SCANNING"); scanRequested = true;
+        } else if (command.startsWith("NETWORK:")) {
+            String indexText = command.substring(8);
+            if (indexText.length() == 0) { setupStatus("ERROR:Invalid network index"); return; }
+            for (unsigned int i = 0; i < indexText.length(); i++) {
+                if (!isDigit(indexText[i])) { setupStatus("ERROR:Invalid network index"); return; }
+            }
+            int i = indexText.toInt();
+            if (i < 0 || i >= networkCount) { setupStatus("ERROR:Refresh the Wi-Fi list"); return; }
+            setupStatus("N:" + String(i) + ":" + String(WiFi.RSSI(i)) + ":" +
+                String(WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? 0 : 1) + ":" + hexText(WiFi.SSID(i)));
+        } else { setupStatus("ERROR:Unknown setup command"); }
+    }
+};
 class CredsCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) {
-        String value = pCharacteristic->getValue().c_str();
-        // Format: SSID;PASSWORD
-        int delim = value.indexOf(';');
-        if (delim != -1) {
-            pendingSSID = value.substring(0, delim);
-            pendingPass = value.substring(delim + 1);
-            shouldConnectWifi = true;
-            Serial.println("📥 Received Wi-Fi credentials from phone:");
-            Serial.println("   SSID: " + pendingSSID);
+    void onWrite(BLECharacteristic *characteristic) {
+        String value = characteristic->getValue().c_str();
+        if (shouldConnectWifi || scanRequested) { setupStatus("ERROR:Harness is busy. Retry shortly."); return; }
+        String ssid, password;
+        if (value.startsWith("C:")) {
+            int delim = value.indexOf(':', 2);
+            if (delim < 0 || !decodeText(value.substring(2, delim), ssid) ||
+                !decodeText(value.substring(delim + 1), password)) {
+                setupStatus("ERROR:Invalid Wi-Fi credentials"); return;
+            }
+        } else {
+            // Compatibility with the previous mobile app.
+            int delim = value.indexOf(';');
+            if (delim < 0) { setupStatus("ERROR:Invalid Wi-Fi credentials"); return; }
+            ssid = value.substring(0, delim); password = value.substring(delim + 1);
         }
+        if (ssid.length() == 0 || ssid.length() > 32 || password.length() > 63 ||
+            (password.length() > 0 && password.length() < 8)) {
+            setupStatus("ERROR:Invalid Wi-Fi name or password length"); return;
+        }
+        pendingSSID = ssid; pendingPass = password;
+        setupStatus("CONNECTING"); shouldConnectWifi = true;
     }
 };
 
@@ -122,6 +187,7 @@ class CredsCallbacks: public BLECharacteristicCallbacks {
 void setup()
 {
     Serial.begin(115200);
+    WiFi.persistent(false); // Save only verified credentials in our own NVS namespace.
     delay(1000);
 
     dht.begin();
@@ -163,26 +229,34 @@ void setup()
 //================ LOOP ====================
 void loop()
 {
-    // Handle Wi-Fi credentials received from phone app
+    if (scanRequested) {
+        WiFi.mode(WIFI_STA);
+        WiFi.scanDelete();
+        networkCount = WiFi.scanNetworks(false, false);
+        if (networkCount < 0) { networkCount = 0; setupStatus("ERROR:Wi-Fi scan failed. Refresh to retry."); }
+        else setupStatus("SCAN_DONE:" + String(networkCount));
+        scanRequested = false;
+    }
     if (shouldConnectWifi) {
-        shouldConnectWifi = false;
         wifiSSID = pendingSSID;
         wifiPassword = pendingPass;
-        saveWifiCredentials(wifiSSID, wifiPassword);
-
-        delay(600);
-
-        // Turn OFF Bluetooth to prevent radio conflict
-        stopBLE();
-
-        Serial.println("🌐 Connecting to received Wi-Fi...");
+        // Keep BLE alive until the phone reads the actual connection result.
         if (connectWifi()) {
+            saveWifiCredentials(wifiSSID, wifiPassword);
+            setupStatus("CONNECTED");
+            bleCloseAt = millis() + 30000;
             syncTime();
         } else {
-            Serial.println("⚠️ Could not connect to Wi-Fi. Restarting Bluetooth...");
-            startBLE();
+            WiFi.disconnect();
+            setupStatus("ERROR:Could not join Wi-Fi. Check the password and signal, then retry.");
         }
+        pendingPass = "";
+        shouldConnectWifi = false;
     }
+    if (bleCloseAt && (long)(millis() - bleCloseAt) >= 0) {
+        bleCloseAt = 0; stopBLE();
+    }
+    if (!bleActive && WiFi.status() != WL_CONNECTED) startBLE();
 
     capturePostureWindow();
 
@@ -211,6 +285,7 @@ void startBLE()
     String devName = "FurFeel-" + String(DEVICE_CODE);
     BLEDevice::init(devName.c_str());
     pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new SetupServerCallbacks());
 
     BLEService *pService = pServer->createService(SERVICE_UUID);
 
@@ -226,6 +301,10 @@ void startBLE()
     );
     pStatusCharacteristic->addDescriptor(new BLE2902());
 
+    BLECharacteristic *control = pService->createCharacteristic(
+        CHAR_CONTROL_UUID, BLECharacteristic::PROPERTY_WRITE);
+    control->setCallbacks(new ControlCallbacks());
+    setupStatus("READY");
     pService->start();
 
     BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
@@ -241,7 +320,7 @@ void startBLE()
 void stopBLE()
 {
     if (!bleActive) return;
-    BLEDevice::deinit(true);
+    BLEDevice::deinit(false); // Keep BLE memory available for later setup after Wi-Fi loss.
     bleActive = false;
     pServer = NULL;
     pCredsCharacteristic = NULL;

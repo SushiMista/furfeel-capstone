@@ -69,8 +69,11 @@ Deno.serve(async (req) => {
 
   // Handle account Reactivation
   if (reactivate === true) {
-    await admin.from("users").update({ is_active: true, deactivated_at: null }).eq("id", userId);
-    await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+    const { error: unbanError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+    if (unbanError) return json(500, { error: "Could not restore sign-in access. No profile status was changed." });
+    const { data: restored, error: updateError } = await admin.from("users")
+      .update({ is_active: true, deactivated_at: null }).eq("id", userId).select("id").single();
+    if (updateError || !restored) return json(500, { error: "Could not activate the profile. Please retry." });
 
     await logAuditEvent(admin, {
       actorId: callerData.user.id,

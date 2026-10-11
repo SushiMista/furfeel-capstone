@@ -978,7 +978,7 @@ export async function assignDogOwners(
     .from("dog_owners")
     .upsert(rows, { onConflict: "dog_id,user_id" });
   if (error) {
-    console.warn("Could not sync dog_owners:", error);
+    throw error;
   }
 }
 
@@ -992,8 +992,7 @@ export async function fetchDogOwners(
     .select("user:users(id, name, email, phone, role)")
     .eq("dog_id", dogId);
   if (error) {
-    console.warn("Could not fetch dog_owners:", error);
-    return [];
+    throw error;
   }
   return (data ?? []).map((row: any) => row.user).filter(Boolean);
 }

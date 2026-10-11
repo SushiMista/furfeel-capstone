@@ -318,3 +318,14 @@ Deliberately overridden: the **monochrome-chart rule** (ADR-022 / docs/22). Heal
 Linked notes:
 - [[22 Redesign Style Prompt]] (v1–v7 iterations)
 - [[02 Architecture Decisions]] (ADR-002, ADR-021, ADR-022)
+
+## ADR-025: Harness-scanned Wi-Fi setup over BLE
+Status: Accepted (2026-10-11, requested by project owner)
+
+The ESP32 scans nearby 2.4 GHz Wi-Fi networks and the Flutter app displays the results over BLE. Owners select a harness and network, entering only the password; hidden SSIDs remain available through manual entry. BLE is used for setup only. Telemetry still travels directly over Wi-Fi to Supabase.
+
+The existing service UUID is retained. A new control characteristic (`f58dc8aa-6f17-4ef2-96bc-b359187d0021`) accepts `SCAN` and `NETWORK:<index>`. The readable status characteristic returns `SCANNING`, `SCAN_DONE:<count>`, `N:<index>:<rssi>:<secured 0/1>:<UTF-8 SSID hex>`, `CONNECTING`, `CONNECTED`, or `ERROR:<message>`. Network records are read individually so a large scan does not overflow a BLE packet. The credential characteristic accepts `C:<UTF-8 SSID hex>:<UTF-8 password hex>`; legacy `SSID;PASSWORD` writes remain supported. Passwords are preserved without trimming and are never logged.
+
+The firmware keeps BLE active while joining Wi-Fi and saves credentials only after a successful join. It retains the result for 30 seconds, then disables BLE. Failed joins retain BLE for retry. Lost Wi-Fi reopens BLE setup. A successful Wi-Fi join does not establish successful telemetry delivery. The mobile app explicitly distinguishes those states. Older firmware must be flashed before the new network selector can work.
+
+BLE setup currently uses the existing unpaired GATT service. Physical-device validation and authenticated provisioning remain required before production distribution; this change does not claim that the BLE credential channel is encrypted.

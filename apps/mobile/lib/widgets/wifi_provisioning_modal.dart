@@ -1,373 +1,330 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:furfeel_mobile/data/ble_provisioning_service.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 
-enum ProvisioningStep {
-  form,
-  sending,
-  success,
-  error,
-}
-
 class WifiProvisioningModal extends StatefulWidget {
-  const WifiProvisioningModal({super.key});
-
-  static Future<void> show(BuildContext context) {
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const WifiProvisioningModal(),
-    );
-  }
-
+  const WifiProvisioningModal({super.key, this.service});
+  final BleProvisioningService? service;
+  static Future<void> show(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (_) => const WifiProvisioningModal(),
+  );
   @override
   State<WifiProvisioningModal> createState() => _WifiProvisioningModalState();
 }
 
 class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
-  final _bleService = BleProvisioningService();
-  final _ssidController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  ProvisioningStep _step = ProvisioningStep.form;
-  BleDiscoveredCollar? _selectedCollar;
-  String _errorMessage = '';
-  bool _obscurePassword = true;
-
+  late final _service = widget.service ?? BleProvisioningService();
+  final _ssid = TextEditingController(), _password = TextEditingController();
+  List<BleDiscoveredCollar> _collars = [];
+  List<WifiNetwork> _networks = [];
+  BleDiscoveredCollar? _collar;
+  WifiNetwork? _network;
+  bool _busy = false,
+      _manual = false,
+      _hiddenPassword = true,
+      _connected = false;
+  String _message = '', _error = '';
   @override
   void initState() {
     super.initState();
-    _startScan();
+    _find();
   }
 
   @override
   void dispose() {
-    _bleService.stopScan();
-    _ssidController.dispose();
-    _passwordController.dispose();
+    unawaited(_service.stopScan());
+    unawaited(_service.disconnect());
+    _ssid.dispose();
+    _password.dispose();
     super.dispose();
   }
 
-  void _startScan() {
-    _bleService.scanForCollars().listen((collars) {
+  Future<void> _run(String message, Future<void> Function() action) async {
+    setState(() {
+      _busy = true;
+      _message = message;
+      _error = '';
+    });
+    try {
+      await action();
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
       if (mounted) {
         setState(() {
-          if (_selectedCollar == null && collars.isNotEmpty) {
-            _selectedCollar = collars.first;
-          }
+          _busy = false;
+          _message = '';
         });
       }
-    });
+    }
   }
 
-  Future<void> _submit() async {
-    final ssid = _ssidController.text.trim();
-    final pass = _passwordController.text.trim();
-
-    if (ssid.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your home Wi-Fi name (SSID).');
-      return;
-    }
-
-    if (_selectedCollar == null) {
-      setState(() => _errorMessage = 'No FurFeel collar detected. Make sure it is powered on.');
-      return;
-    }
-
+  Future<void> _find() => _run('Finding nearby harnesses…', () async {
+    final collars = await _service.findCollars();
+    if (!mounted) return;
     setState(() {
-      _step = ProvisioningStep.sending;
-      _errorMessage = '';
+      _collars = collars;
+      _collar = null;
+      _network = null;
+      _networks = [];
     });
-
-    try {
-      await _bleService.sendCredentialsToCollar(
-        device: _selectedCollar!.device,
-        ssid: ssid,
-        password: pass,
+    if (collars.isEmpty) {
+      throw const BleException(
+        'No harness found. Turn it on and move closer, then retry.',
       );
-
-      if (!mounted) return;
-      setState(() => _step = ProvisioningStep.success);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _step = ProvisioningStep.error;
-        _errorMessage = 'Failed to transmit Wi-Fi credentials: $e';
-      });
     }
+    if (collars.length == 1) await _select(collars.first);
+  });
+  Future<void> _select(BleDiscoveredCollar collar) async {
+    setState(() {
+      _collar = collar;
+      _network = null;
+      _networks = [];
+      _password.clear();
+      _message = 'Scanning Wi-Fi near the harness…';
+    });
+    await _service.connect(collar.device);
+    if (!mounted) {
+      await _service.disconnect();
+      return;
+    }
+    await _scan();
   }
 
+  Future<void> _scan() async {
+    final networks = await _service.scanNetworks();
+    if (!mounted) return;
+    setState(() {
+      _networks = networks;
+      _network = null;
+      _password.clear();
+    });
+  }
+
+  Future<void> _submit() => _run('Connecting harness to Wi-Fi…', () async {
+    final name = _manual ? _ssid.text : _network?.ssid ?? '';
+    if (_collar == null || name.isEmpty) {
+      throw const BleException('Select a harness and Wi-Fi network first.');
+    }
+    final password = !_manual && _network?.secured == false
+        ? ''
+        : _password.text;
+    if ((_manual || _network?.secured == true) &&
+        password.isNotEmpty &&
+        password.length < 8) {
+      throw const BleException(
+        'Use at least 8 characters for the Wi-Fi password.',
+      );
+    }
+    if (!_manual && _network?.secured == true && password.isEmpty) {
+      throw const BleException('Enter this network’s Wi-Fi password.');
+    }
+    await _service.sendCredentialsToCollar(
+      device: _collar!.device,
+      ssid: name,
+      password: password,
+    );
+    if (mounted) setState(() => _connected = true);
+    await _service.disconnect();
+  });
   @override
   Widget build(BuildContext context) {
     final ff = context.ff;
-
-    return Container(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 28,
-      ),
-      decoration: BoxDecoration(
-        color: ff.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: ff.hairline,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
+    return PopScope(
+      canPop: !_busy,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * .9,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            MediaQuery.viewInsetsOf(context).bottom + 24,
           ),
-          const SizedBox(height: 20),
-          Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: ff.brandSoft,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.wifi_tethering, color: ff.brand, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Connect Collar to Wi-Fi',
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Connect harness to Wi-Fi',
                       style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 18,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: ff.ink,
                       ),
                     ),
-                    Text(
-                      'Direct Bluetooth Push',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 13,
-                        color: ff.inkMuted,
+                  ),
+                  IconButton(
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const Text('Choose a 2.4 GHz network near your harness.'),
+              const SizedBox(height: 16),
+              if (_connected) ...[
+                Icon(Icons.check_circle_outline, color: ff.brand, size: 48),
+                const Text(
+                  'Harness connected to Wi-Fi',
+                  textAlign: TextAlign.center,
+                ),
+                const Text(
+                  'Connection confirmed by the harness. Live readings appear when telemetry reaches FurFeel.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Done'),
+                ),
+              ] else ...[
+                if (_collars.isNotEmpty)
+                  DropdownButtonFormField<BleDiscoveredCollar>(
+                    initialValue: _collar,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Harness'),
+                    items: _collars
+                        .map(
+                          (c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(
+                              c.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: _busy
+                        ? null
+                        : (c) {
+                            if (c != null) {
+                              _run('Connecting to harness…', () => _select(c));
+                            }
+                          },
+                  ),
+                TextButton.icon(
+                  onPressed: _busy ? null : _find,
+                  icon: const Icon(Icons.bluetooth_searching),
+                  label: const Text('Find harnesses again'),
+                ),
+                if (_collar != null) ...[
+                  Row(
+                    children: [
+                      const Expanded(child: Text('Available Wi-Fi networks')),
+                      IconButton(
+                        tooltip: 'Refresh networks',
+                        onPressed: _busy
+                            ? null
+                            : () => _run('Scanning Wi-Fi…', () async {
+                                await _service.connect(_collar!.device);
+                                await _scan();
+                              }),
+                        icon: const Icon(Icons.refresh),
+                      ),
+                    ],
+                  ),
+                  if (_networks.isEmpty && !_busy)
+                    const Text(
+                      'No visible networks found. Refresh or enter a hidden network.',
+                    ),
+                  for (final n in _networks)
+                    ListTile(
+                      selected: !_manual && _network == n,
+                      leading: Icon(
+                        !_manual && _network == n
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                      ),
+                      onTap: _busy
+                          ? null
+                          : () => setState(() {
+                              _network = n;
+                              _manual = false;
+                              _password.clear();
+                            }),
+                      title: Text(n.ssid),
+                      subtitle: Text(
+                        '${n.rssi} dBm · ${n.secured ? "Password required" : "Open network"}',
+                      ),
+                      trailing: Icon(n.secured ? Icons.wifi_lock : Icons.wifi),
+                    ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Enter a hidden network'),
+                    value: _manual,
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() {
+                            _manual = value;
+                            _password.clear();
+                          }),
+                  ),
+                  if (_manual)
+                    TextField(
+                      controller: _ssid,
+                      enabled: !_busy,
+                      decoration: const InputDecoration(
+                        labelText: 'Hidden Wi-Fi name (SSID)',
                       ),
                     ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.close, color: ff.inkMuted),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildBody(ff),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBody(FurFeelPalette ff) {
-    switch (_step) {
-      case ProvisioningStep.form:
-        return _buildFormView(ff);
-      case ProvisioningStep.sending:
-        return _buildSendingView(ff);
-      case ProvisioningStep.success:
-        return _buildSuccessView(ff);
-      case ProvisioningStep.error:
-        return _buildErrorView(ff);
-    }
-  }
-
-  Widget _buildFormView(FurFeelPalette ff) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Collar selection indicator
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: ff.surfaceAlt,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ff.hairline),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.bluetooth_connected, color: ff.brand, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _selectedCollar != null
-                      ? 'Detected: ${_selectedCollar!.name}'
-                      : 'Searching for collar nearby...',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _selectedCollar != null ? ff.ink : ff.inkMuted,
+                  if (_manual || _network?.secured == true)
+                    TextField(
+                      controller: _password,
+                      enabled: !_busy,
+                      obscureText: _hiddenPassword,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      decoration: InputDecoration(
+                        labelText: _manual
+                            ? 'Password (leave empty for an open network)'
+                            : 'Wi-Fi password',
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(
+                            () => _hiddenPassword = !_hiddenPassword,
+                          ),
+                          icon: Icon(
+                            _hiddenPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _busy ? null : _submit,
+                    child: const Text('Connect harness'),
                   ),
-                ),
-              ),
-              if (_selectedCollar == null)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                ],
+                if (_busy) ...[
+                  const SizedBox(height: 12),
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 8),
+                  Text(_message),
+                ],
+                if (_error.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+              ],
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _ssidController,
-          decoration: InputDecoration(
-            labelText: 'Home Wi-Fi Name (SSID)',
-            hintText: 'e.g. MyHomeWiFi',
-            prefixIcon: const Icon(Icons.wifi),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: _passwordController,
-          obscureText: _obscurePassword,
-          decoration: InputDecoration(
-            labelText: 'Wi-Fi Password',
-            prefixIcon: const Icon(Icons.lock_outline),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            suffixIcon: IconButton(
-              icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-            ),
-          ),
-        ),
-        if (_errorMessage.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Text(_errorMessage, style: const TextStyle(color: Colors.red, fontSize: 13)),
-        ],
-        const SizedBox(height: 20),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: ff.brand,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onPressed: _submit,
-          child: const Text('Send to Collar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSendingView(FurFeelPalette ff) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 36),
-      alignment: Alignment.center,
-      child: Column(
-        children: [
-          CircularProgressIndicator(color: ff.brand),
-          const SizedBox(height: 20),
-          Text(
-            'Connecting to collar and transmitting credentials...',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: ff.ink),
-          ),
-        ],
       ),
-    );
-  }
-
-  Widget _buildSuccessView(FurFeelPalette ff) {
-    final ssid = _ssidController.text.trim();
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.green.shade200),
-          ),
-          child: Column(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 50),
-              const SizedBox(height: 12),
-              const Text(
-                'Wi-Fi Credentials Sent!',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'The collar is now connecting to "$ssid" and will begin streaming telemetry.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: ff.brand,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildErrorView(FurFeelPalette ff) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.red.shade50,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.red.shade200),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(_errorMessage, style: const TextStyle(fontSize: 13, color: Colors.red)),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: ff.brand,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onPressed: () => setState(() => _step = ProvisioningStep.form),
-          child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.w600)),
-        ),
-      ],
     );
   }
 }

@@ -1,0 +1,30 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { createServiceRoleClient } from "../_shared/supabase-client.ts";
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { logAuditEvent } from "../_shared/audit.ts";
+const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: {...corsHeaders, "Content-Type": "application/json"} });
+Deno.serve(async (req) => {
+  const cors = handleCors(req); if (cors) return cors;
+  if (req.method !== "POST") return json(405, {error: "Method not allowed."});
+  const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) return json(401, {error: "Not signed in."});
+  const auth = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
+  const {data: callerData, error: authError} = await auth.auth.getUser(token);
+  if (authError || !callerData.user) return json(401, {error: "Not signed in."});
+  const admin = createServiceRoleClient();
+  const {data: caller, error: callerError} = await admin.from("users").select("role,is_active").eq("id", callerData.user.id).single();
+  if (callerError || caller?.role !== "admin" || caller.is_active === false) return json(403, {error: "Only active admins can reactivate accounts."});
+  let body;
+  try { body = await req.json(); } catch { return json(400, {error: "Invalid JSON."}); }
+  const userId = body?.userId;
+  if (typeof userId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) return json(400, {error: "A valid userId is required."});
+  if (userId === callerData.user.id) return json(400, {error: "You cannot change your own status here."});
+  const {data: target, error: targetError} = await admin.from("users").select("name").eq("id", userId).single();
+  if (targetError || !target) return json(404, {error: "That account no longer exists."});
+  const {error: unbanError} = await admin.auth.admin.updateUserById(userId, {ban_duration: "none"});
+  if (unbanError) return json(500, {error: "Could not restore sign-in access. No profile status was changed."});
+  const {data: restored, error: updateError} = await admin.from("users").update({is_active: true, deactivated_at: null}).eq("id", userId).select("id").single();
+  if (updateError || !restored) return json(500, {error: "Could not activate the profile. Please retry."});
+  await logAuditEvent(admin, {actorId: callerData.user.id, actorEmail: callerData.user.email ?? "", actorRole: "admin", surface: "edge_function", action: "user.reactivate", targetResource: "users", targetId: userId, details: {target_name: target.name}, severity: "info"});
+  return json(200, {ok: true, action: "reactivated"});
+});
