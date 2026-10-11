@@ -39,7 +39,6 @@ const NULL_OVERRIDES = {
   motion_elevated_min: null,
   motion_high_min: null,
   ambient_heat_c: null,
-  humidity_heat_pct: null,
 };
 
 describe("fetchDogBaselines", () => {

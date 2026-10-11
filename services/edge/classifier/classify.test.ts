@@ -29,7 +29,6 @@ function reading(overrides: Partial<TelemetryFeatures> = {}): TelemetryFeatures 
     motion_activity: null,
     posture: null,
     ambient_temperature_c: null,
-    humidity_percent: null,
     ...overrides,
   };
 }
@@ -159,14 +158,21 @@ Deno.test("posture rule does not fire when posture is not 'moving'", () => {
   assertArrayEqual(result.reasons, ["motion 0.6-0.8"]);
 });
 
-Deno.test("environmental amplifier fires once even if both ambient and humidity exceed thresholds", () => {
+Deno.test("environmental amplifier fires for elevated ambient temperature", () => {
   const result = classifyStress(
-    reading({ ambient_temperature_c: 35, humidity_percent: 85 }),
+    reading({ ambient_temperature_c: 35 }),
     GLOBAL_BASELINES,
   );
 
   assertEqual(result.score, 1);
   assertArrayEqual(result.reasons, ["environmental heat stress context"]);
+});
+
+Deno.test("legacy humidity alone does not add environmental heat points", () => {
+  const legacy = { ...reading({ ambient_temperature_c: 24 }), humidity_percent: 99 };
+  const result = classifyStress(legacy, GLOBAL_BASELINES);
+  assertEqual(result.score, 0);
+  assertEqual(result.stress_level, "calm");
 });
 
 Deno.test("rising trend adds +1 when the last 3 prior scores strictly increase", () => {

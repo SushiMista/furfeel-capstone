@@ -17,7 +17,6 @@ export interface DogBaselinesRow {
   motion_elevated_min: number | null;
   motion_high_min: number | null;
   ambient_heat_c: number | null;
-  humidity_heat_pct: number | null;
 }
 
 /**
@@ -64,7 +63,7 @@ export function resolveLevelThresholds(
  * Resolve per-dog scoring-rule tier floors, same fallback shape as
  * [resolveLevelThresholds] but one level finer: this overrides where each
  * individual SIGNAL (heart rate, respiratory rate, motion, ambient
- * heat/humidity) starts scoring, as opposed to how many total points
+ * heat) starts scoring, as opposed to how many total points
  * it takes to reach a stress level. Both are vet-tunable independently.
  *
  * Only each tier's `min` (and posture_moving_with_high_motion's inferred
@@ -91,7 +90,6 @@ export function resolveScoringRules(
   const motion2 = row?.motion_high_min ?? g.motion_restlessness.tiers[1].min;
 
   const ambientAbove = row?.ambient_heat_c ?? g.environmental_amplifier.ambient_temperature_c_above;
-  const humidityAbove = row?.humidity_heat_pct ?? g.environmental_amplifier.humidity_percent_above;
 
   return {
     ...g,
@@ -126,7 +124,6 @@ export function resolveScoringRules(
     environmental_amplifier: {
       ...g.environmental_amplifier,
       ambient_temperature_c_above: ambientAbove,
-      humidity_percent_above: humidityAbove,
     },
   };
 }

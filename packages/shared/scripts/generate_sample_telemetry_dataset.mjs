@@ -80,8 +80,7 @@ function scoreReading(reading, baseline, prior3Scores) {
     }
   }
   const ea = cfg.scoring_rules.environmental_amplifier;
-  if (reading.ambient_temperature_c > ea.ambient_temperature_c_above ||
-      reading.humidity_percent > ea.humidity_percent_above) {
+  if (reading.ambient_temperature_c > ea.ambient_temperature_c_above) {
     score += ea.points; reasons.push(ea.reason);
   }
   if (prior3Scores.length === 3 && prior3Scores[0] < prior3Scores[1] && prior3Scores[1] < prior3Scores[2]) {
@@ -115,7 +114,6 @@ function buildSweepRows(dog, rng, startTick) {
       captured_at: new Date(Date.UTC(2026, 6, 20, 8, 0, 0) + (startTick + i) * 10_000).toISOString(),
       heart_rate_bpm, respiratory_rate_bpm, motion_activity, posture,
       ambient_temperature_c: round(jitter(26, 1.5, rng), 1),
-      humidity_percent: round(jitter(60, 4, rng), 1),
       battery_percent: Math.max(20, 96 - (startTick + i)),
     };
     const { score, level, reasons } = scoreReading(reading, dog.baseline, recentScores.slice(-3));
@@ -131,7 +129,7 @@ function buildSweepRows(dog, rng, startTick) {
 // itself is left as the true received value (raw_payload is always kept
 // verbatim, ADR-003) -- these rows show the INPUT, not the stored/flagged output.
 function buildEdgeCaseRows(dog, rng) {
-  const base = { device_code: `FURFEEL-DEV-${dog.size_class.toUpperCase()}`, posture: "standing", ambient_temperature_c: 24, humidity_percent: 55, battery_percent: 40 };
+  const base = { device_code: `FURFEEL-DEV-${dog.size_class.toUpperCase()}`, posture: "standing", ambient_temperature_c: 24, battery_percent: 40 };
   return [
     {
       dog, valid: false, note: "heart_rate_bpm 310 > validation max 300 -> flagged is_valid=false, field stored null",
@@ -149,8 +147,8 @@ function buildEdgeCaseRows(dog, rng) {
         heart_rate_bpm: 92, respiratory_rate_bpm: 22, motion_activity: 0.25 },
     },
     {
-      dog, valid: true, note: "environmental_amplifier: ambient 34C AND humidity 85% -> heat-stress context +1",
-      reading: { ...base, ambient_temperature_c: 34, humidity_percent: 85, captured_at: new Date(Date.UTC(2026, 6, 20, 14, 0, 0)).toISOString(),
+      dog, valid: true, note: "environmental_amplifier: ambient 34C -> heat-stress context +1",
+      reading: { ...base, ambient_temperature_c: 34, captured_at: new Date(Date.UTC(2026, 6, 20, 14, 0, 0)).toISOString(),
         heart_rate_bpm: 100, respiratory_rate_bpm: 30, motion_activity: 0.4 },
     },
     {
@@ -172,7 +170,7 @@ function buildEdgeCaseRows(dog, rng) {
 const HEADER = [
   "dog_name", "breed", "size_class", // context only -- not part of the device payload
   "device_code", "captured_at", "heart_rate_bpm", "respiratory_rate_bpm",
-  "motion_activity", "posture", "ambient_temperature_c", "humidity_percent", "battery_percent", // <- exact docs/07 payload fields
+  "motion_activity", "posture", "ambient_temperature_c", "battery_percent", // <- exact docs/07 payload fields
   "is_valid", "expected_score", "expected_level", "fired_rules", "note", // reference/annotation only
 ];
 
@@ -193,7 +191,7 @@ for (const dog of DOGS) {
       heart_rate_bpm: row.reading.heart_rate_bpm,
       respiratory_rate_bpm: row.reading.respiratory_rate_bpm, motion_activity: row.reading.motion_activity,
       posture: row.reading.posture, ambient_temperature_c: row.reading.ambient_temperature_c,
-      humidity_percent: row.reading.humidity_percent, battery_percent: row.reading.battery_percent,
+      battery_percent: row.reading.battery_percent,
       is_valid: true, expected_score: row.score, expected_level: row.level,
       fired_rules: row.reasons.join(" | ") || "(none)", note: "",
     }[h])).join(","));
@@ -206,7 +204,7 @@ for (const dog of DOGS) {
       heart_rate_bpm: row.reading.heart_rate_bpm,
       respiratory_rate_bpm: row.reading.respiratory_rate_bpm, motion_activity: row.reading.motion_activity,
       posture: row.reading.posture, ambient_temperature_c: row.reading.ambient_temperature_c,
-      humidity_percent: row.reading.humidity_percent, battery_percent: row.reading.battery_percent,
+      battery_percent: row.reading.battery_percent,
       is_valid: row.valid, expected_score: row.score, expected_level: row.level,
       fired_rules: row.reasons.join(" | ") || "(none)", note: row.note,
     }[h])).join(","));

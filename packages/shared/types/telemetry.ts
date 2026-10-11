@@ -13,7 +13,6 @@ export interface TelemetryPayload {
   motion_activity?: number;
   posture?: Posture;
   ambient_temperature_c?: number;
-  humidity_percent?: number;
   /** 0-100; device health only, never a classifier input (docs/07). */
   battery_percent?: number;
 }
@@ -30,7 +29,6 @@ export interface TelemetryReading {
   motion_activity: number | null;
   posture: Posture;
   ambient_temperature_c: number | null;
-  humidity_percent: number | null;
   battery_percent: number | null;
   is_valid: boolean;
   raw_payload: unknown;

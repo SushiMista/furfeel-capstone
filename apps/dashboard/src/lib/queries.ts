@@ -23,7 +23,7 @@ export type { Dog };
 const DEVICE_COLUMNS = "id, dog_id, device_code, status, last_seen_at, firmware_version, created_at";
 const READING_COLUMNS =
   "id, device_id, dog_id, captured_at, received_at, heart_rate_bpm, " +
-  "respiratory_rate_bpm, motion_activity, posture, ambient_temperature_c, humidity_percent, " +
+  "respiratory_rate_bpm, motion_activity, posture, ambient_temperature_c, " +
   "is_valid, raw_payload";
 const CLASSIFICATION_COLUMNS =
   "id, dog_id, telemetry_reading_id, stress_level, score, confidence, reasons, model_version, created_at";
@@ -60,7 +60,7 @@ const DOG_BASELINES_COLUMNS =
   "threshold_mild_min, threshold_moderate_min, threshold_high_min, " +
   "hr_ratio_elevated_min, hr_ratio_moderate_min, hr_ratio_high_min, " +
   "rr_ratio_elevated_min, rr_ratio_high_min, " +
-  "motion_elevated_min, motion_high_min, ambient_heat_c, humidity_heat_pct, updated_at";
+  "motion_elevated_min, motion_high_min, ambient_heat_c, updated_at";
 
 /** 0-or-1 row per dog (docs/08); null means every field falls back to the
  * global defaults in classifier_config.json. */
@@ -95,7 +95,6 @@ export interface DogThresholdOverrides {
   motion_elevated_min: number | null;
   motion_high_min: number | null;
   ambient_heat_c: number | null;
-  humidity_heat_pct: number | null;
 }
 
 /** Per-dog threshold override (docs/08, step 2): a vet-only write in practice —

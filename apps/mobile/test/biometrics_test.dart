@@ -7,7 +7,6 @@ TelemetryReading reading({
   int? rr,
   double? motion,
   double? ambient,
-  double? humidity,
 }) =>
     TelemetryReading(
       id: 'r1',
@@ -17,7 +16,6 @@ TelemetryReading reading({
       respiratoryRateBpm: rr,
       motionActivity: motion,
       ambientTemperatureC: ambient,
-      humidityPercent: humidity,
     );
 
 void main() {

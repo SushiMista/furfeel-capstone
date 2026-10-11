@@ -15,7 +15,6 @@ export interface TelemetryFeatures {
   motion_activity: number | null;
   posture: Posture | null;
   ambient_temperature_c: number | null;
-  humidity_percent: number | null;
 }
 
 /** Resolved per-dog (or global-default) resting reference values. */
@@ -53,7 +52,6 @@ export interface PostureRule {
 
 export interface EnvironmentalRule {
   ambient_temperature_c_above: number;
-  humidity_percent_above: number;
   points: number;
   reason: string;
 }
@@ -112,7 +110,6 @@ export interface ClassifierConfig {
     respiratory_rate_bpm: ValidationRange;
     motion_activity: ValidationRange;
     ambient_temperature_c: ValidationRange;
-    humidity_percent: ValidationRange;
     battery_percent: ValidationRange;
     captured_at_max_skew_hours: number;
   };

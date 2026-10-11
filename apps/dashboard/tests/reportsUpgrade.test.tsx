@@ -33,7 +33,6 @@ vi.mock("../src/lib/queries.ts", async () => {
         respiratory_rate_brpm: 22,
         temperature_celsius: 38.4,
         ambient_temperature_celsius: 24.5,
-        humidity_percent: 55,
         motion_index: 0.15,
         captured_at: new Date().toISOString(),
       },

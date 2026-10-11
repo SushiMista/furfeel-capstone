@@ -27,7 +27,7 @@ tags: [furfeel, telemetry, data]
 | Heart rate | MAX30102 | 1 Hz internal | aggregated every 10 s |
 | Respiratory rate | Flex sensor | 1 Hz internal | every 10 s |
 | Motion / posture | MPU9250 | 20 Hz internal | summarized every 10 s |
-| Ambient temp / humidity | DHT22 | 0.1 Hz | every 10 s |
+| Ambient temp | DHT22 | 0.1 Hz | every 10 s |
 
 **Default transmit interval: one aggregated payload every 10 seconds.** The device computes `motion_activity` (0–1 normalized) and a posture label on-board so the payload stays small. Sampling rates are engineering defaults pending battery/thermal testing; keep them in device config.
 
@@ -41,7 +41,6 @@ tags: [furfeel, telemetry, data]
   "motion_activity": 0.62,
   "posture": "standing",
   "ambient_temperature_c": 29.1,
-  "humidity_percent": 68,
   "battery_percent": 87
 }
 ```
@@ -56,7 +55,6 @@ tags: [furfeel, telemetry, data]
 | respiratory_rate_bpm | 3–200 | flag |
 | motion_activity | 0.0–1.0 | clamp/flag |
 | ambient_temperature_c | -10–60 | flag |
-| humidity_percent | 0–100 | flag |
 | battery_percent | 0–100 | flag |
 | captured_at | within ±1 h of server time | flag |
 

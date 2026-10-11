@@ -99,9 +99,7 @@ export function classifyStress(
   const envRule = rules.environmental_amplifier;
   const ambientHot = reading.ambient_temperature_c !== null &&
     reading.ambient_temperature_c > envRule.ambient_temperature_c_above;
-  const humid = reading.humidity_percent !== null &&
-    reading.humidity_percent > envRule.humidity_percent_above;
-  if (ambientHot || humid) {
+  if (ambientHot) {
     score += envRule.points;
     reasons.push(envRule.reason);
   }

@@ -51,7 +51,6 @@ abstract final class StatusCache {
         'motion_activity': r.motionActivity,
         'posture': r.posture,
         'ambient_temperature_c': r.ambientTemperatureC,
-        'humidity_percent': r.humidityPercent,
         'battery_percent': r.batteryPercent,
       };
 

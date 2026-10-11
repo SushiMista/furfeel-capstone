@@ -40,6 +40,13 @@ function minimalBody(overrides: Partial<TelemetryRequestBody> = {}): TelemetryRe
 // sanitizeNumericField boundary tests, one block per docs/07 field
 // ---------------------------------------------------------------------------
 
+Deno.test("legacy humidity is ignored even when out of range", () => {
+  const body = { ...minimalBody(), humidity_percent: 999 };
+  const result = sanitizeTelemetry(body, NOW, defaultConfig);
+  assertEqual(result.is_valid, true);
+  assertEqual("humidity_percent" in result.features, false);
+});
+
 Deno.test("heart_rate_bpm: 500 is invalid (flagged, nulled)", () => {
   const result = sanitizeNumericField(500, ranges.heart_rate_bpm);
   assertEqual(result.invalid, true);
@@ -86,15 +93,7 @@ Deno.test("ambient_temperature_c: 60 valid, 60.1 invalid", () => {
   assertEqual(sanitizeNumericField(60.1, ranges.ambient_temperature_c).invalid, true);
 });
 
-Deno.test("humidity_percent: 0 valid, -1 invalid", () => {
-  assertEqual(sanitizeNumericField(0, ranges.humidity_percent).invalid, false);
-  assertEqual(sanitizeNumericField(-1, ranges.humidity_percent).invalid, true);
-});
 
-Deno.test("humidity_percent: 100 valid, 101 invalid", () => {
-  assertEqual(sanitizeNumericField(100, ranges.humidity_percent).invalid, false);
-  assertEqual(sanitizeNumericField(101, ranges.humidity_percent).invalid, true);
-});
 
 Deno.test("sanitizeNumericField: missing (undefined/null) is allowed, not flagged", () => {
   const undef = sanitizeNumericField(undefined, ranges.heart_rate_bpm);
@@ -172,7 +171,6 @@ Deno.test("sanitizeTelemetry: all fields missing -> is_valid true, all features 
   assertEqual(result.features.motion_activity, null);
   assertEqual(result.features.posture, null);
   assertEqual(result.features.ambient_temperature_c, null);
-  assertEqual(result.features.humidity_percent, null);
   assertEqual(result.posture_db, "unknown");
 });
 

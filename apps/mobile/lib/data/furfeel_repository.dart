@@ -208,7 +208,7 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
   static const _readingColumns =
       'id, dog_id, captured_at, heart_rate_bpm, '
       'respiratory_rate_bpm, motion_activity, posture, '
-      'ambient_temperature_c, humidity_percent, battery_percent';
+      'ambient_temperature_c, battery_percent';
   static const _classificationColumns =
       'id, dog_id, stress_level, score, model_version, reasons, created_at';
   static const _alertColumns =

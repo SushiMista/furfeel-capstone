@@ -14,7 +14,7 @@ export function alertTypeForStressLevel(level: StressLevel): AlertType | null {
  * what the sensors see, never why medically. */
 export function friendlyReasonPhrase(reasons: string[]): string | null {
   const has = (needle: string) => reasons.some((r) => r.includes(needle));
-  if (has("environmental heat")) return "it's warm and humid";
+  if (has("environmental heat")) return "it's warm";
   if (has("rr panting") || has("rr_ratio")) return "they're breathing fast";
   if (has("hr_ratio")) return "their heart rate is up";
   if (has("temp")) return "their temperature is a little high";

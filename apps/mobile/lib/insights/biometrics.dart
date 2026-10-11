@@ -67,8 +67,7 @@ String vitalStatusPhrase(String vitalLabel, String value, VitalStatus status, St
     '$vitalLabel $value — ${status.label} for $dogName';
 
 bool _isHot(TelemetryReading r) =>
-    (r.ambientTemperatureC != null && r.ambientTemperatureC! > kHotAmbientAboveC) ||
-    (r.humidityPercent != null && r.humidityPercent! > kHotHumidityAbovePercent);
+    r.ambientTemperatureC != null && r.ambientTemperatureC! > kHotAmbientAboveC;
 
 bool _isCold(TelemetryReading r) =>
     r.ambientTemperatureC != null && r.ambientTemperatureC! < kColdAmbientBelowC;

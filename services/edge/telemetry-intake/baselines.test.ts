@@ -29,7 +29,6 @@ function row(overrides: Partial<DogBaselinesRow>): DogBaselinesRow {
     motion_elevated_min: null,
     motion_high_min: null,
     ambient_heat_c: null,
-    humidity_heat_pct: null,
     ...overrides,
   };
 }
@@ -63,12 +62,18 @@ Deno.test("resolveBaselines: partial row -> per-field fallback to global default
 
 Deno.test("resolveLevelThresholds: no row -> reproduces the global config exactly", () => {
   const result = resolveLevelThresholds(null);
-  assertEqual(JSON.stringify(result), JSON.stringify(levelGlobals));
+  assertEqual(JSON.stringify(result), JSON.stringify({
+    calm: levelGlobals.calm, mild: levelGlobals.mild,
+    moderate: levelGlobals.moderate, high: levelGlobals.high,
+  }));
 });
 
 Deno.test("resolveLevelThresholds: no threshold columns set -> reproduces the global config", () => {
   const result = resolveLevelThresholds(row({ resting_heart_rate_bpm: 110 }));
-  assertEqual(JSON.stringify(result), JSON.stringify(levelGlobals));
+  assertEqual(JSON.stringify(result), JSON.stringify({
+    calm: levelGlobals.calm, mild: levelGlobals.mild,
+    moderate: levelGlobals.moderate, high: levelGlobals.high,
+  }));
 });
 
 Deno.test("resolveLevelThresholds: full override -> a small, easily-stressed dog's cut points", () => {
@@ -151,10 +156,9 @@ Deno.test("resolveScoringRules: motion override also moves the posture-rule floo
   assertEqual(result.posture_moving_with_high_motion.motion_activity_min, 0.5);
 });
 
-Deno.test("resolveScoringRules: environmental amplifier ambient/humidity overrides", () => {
-  const result = resolveScoringRules(row({ ambient_heat_c: 30, humidity_heat_pct: 75 }));
+Deno.test("resolveScoringRules: environmental amplifier ambient override", () => {
+  const result = resolveScoringRules(row({ ambient_heat_c: 30 }));
   assertEqual(result.environmental_amplifier.ambient_temperature_c_above, 30);
-  assertEqual(result.environmental_amplifier.humidity_percent_above, 75);
   // Points/reason for the amplifier rule itself are untouched.
   assertEqual(result.environmental_amplifier.points, scoringGlobals.environmental_amplifier.points);
 });

@@ -40,7 +40,7 @@ Per-dog values in `dog_baselines` override these when available.
 
 **Vet-tunable per-dog overrides (2026-07-24):** beyond the resting values above, clinic staff can override two independent, complementary things per dog from the dashboard's Dog detail → Thresholds tab, each falling back to the clinic-wide default in `classifier_config.json` when left blank — dogs vary by size, so a small dog's normal heart rate can be a large dog's elevated one:
 - **Score cutoffs** (`threshold_mild_min` / `threshold_moderate_min` / `threshold_high_min`): how many total points reach each level (ADR-015).
-- **Per-variable tiers** (`hr_ratio_*`, `rr_ratio_*`, `motion_*`, `ambient_heat_c`, `humidity_heat_pct`): when each individual signal in the Scoring Rules table below starts contributing points in the first place, independent of the score cutoffs (ADR-016).
+- **Per-variable tiers** (`hr_ratio_*`, `rr_ratio_*`, `motion_*`, `ambient_heat_c`): when each individual signal in the Scoring Rules table below starts contributing points in the first place, independent of the score cutoffs (ADR-016).
 
 Both live as nullable columns on `dog_baselines` (schema: [[09 Database Schema]]); see `services/edge/telemetry-intake/baselines.ts` for the resolver the classifier actually calls.
 
@@ -58,7 +58,7 @@ Each rule adds points. `hr_ratio = heart_rate / baseline_hr`, `rr_ratio = respir
 | Motion / restlessness | `motion_activity` 0.6–0.8 | +1 |
 |  | `motion_activity` > 0.8 | +2 |
 | Posture | `posture = 'moving'` sustained with high motion | +1 |
-| Environmental amplifier | ambient > 32 °C **or** humidity > 80% (heat stress context) | +1 |
+| Environmental amplifier | ambient > 32 °C (heat stress context) | +1 |
 | Rising trend | stress score rose across last 3 readings | +1 |
 
 **Score → level mapping:**
@@ -77,7 +77,7 @@ Each rule emits a stable `code` plus the raw detail. Classifications also expose
 
 | reason code | owner-facing phrase |
 |---|---|
-| `environmental_heat` | "Feeling the heat — it's warm and humid" |
+| `environmental_heat` | "Feeling the heat — it's warm" |
 | `environmental_cold` | "It's chilly out — worth a warm spot" (context only, see below) |
 | `heart_rate_elevated` | "Heart rate is higher than usual" |
 | `respiratory_elevated` | "Breathing fast / panting" |
@@ -114,7 +114,7 @@ Baseline HR 90, RR 24. Reading: HR 150 (`hr_ratio`=1.67 → +3), RR 46 (`rr_rati
 After expert validation and labeled-data collection, add a Random Forest trained on the structured features below. It **replaces the score→level step**, not the ingestion/storage/alert steps. Keep `rule-v1` available as a fallback and for comparison. Bump `model_version` (e.g. `rf-v1`).
 
 ### Candidate Features
-Current heart rate · HR change from baseline · respiratory rate · motion intensity · posture category · ambient temperature · humidity · recent trend over the time window.
+Current heart rate · HR change from baseline · respiratory rate · motion intensity · posture category · ambient temperature · recent trend over the time window.
 
 ## Evaluation Metrics
 Accuracy · precision/recall per class · confusion matrix · false-alert rate · classification latency.

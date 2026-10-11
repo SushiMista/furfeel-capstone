@@ -304,6 +304,12 @@ Linked notes:
 - [[21 Redesign Plan]] §5 (imagery is the largest open item)
 - [[02 Architecture Decisions]] (ADR-002)
 
+## ADR-025: Ambient temperature as the sole active environmental feature
+Status: Accepted (2026-10-11). User-requested scope reduction: humidity is retired
+from active telemetry, classification and client controls; ambient thresholds
+remain unchanged. Historical columns and raw telemetry are preserved.
+Full decision and rollout: [ADR-025](adr/025-ambient-only-environment.md).
+
 ## ADR-024: Immersive Status Hero + Per-Metric Chart Colour (owner Home)
 Status: Accepted (2026-08-02)
 

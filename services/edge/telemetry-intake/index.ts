@@ -102,7 +102,7 @@ async function handleTelemetry(req: Request): Promise<Response> {
           "threshold_mild_min, threshold_moderate_min, threshold_high_min, " +
           "hr_ratio_elevated_min, hr_ratio_moderate_min, hr_ratio_high_min, " +
           "rr_ratio_elevated_min, rr_ratio_high_min, " +
-          "motion_elevated_min, motion_high_min, ambient_heat_c, humidity_heat_pct",
+          "motion_elevated_min, motion_high_min, ambient_heat_c",
       )
       .eq("dog_id", device.dog_id)
       .maybeSingle();
@@ -155,7 +155,6 @@ async function handleTelemetry(req: Request): Promise<Response> {
         motion_activity: sanitized.features.motion_activity,
         posture: sanitized.posture_db,
         ambient_temperature_c: sanitized.features.ambient_temperature_c,
-        humidity_percent: sanitized.features.humidity_percent,
         battery_percent: sanitized.battery_percent,
         is_valid: sanitized.is_valid,
         raw_payload: rawBody,
