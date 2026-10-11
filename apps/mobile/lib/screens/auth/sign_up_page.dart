@@ -94,7 +94,7 @@ class _SignUpPageState extends State<SignUpPage> {
       final response = await widget.client.auth.signUp(
         email: email,
         password: password,
-        emailRedirectTo: authRedirectUrl(currentOrigin: Uri.base.origin),
+        emailRedirectTo: authRedirectUrl(),
         data: {
           'name': name,
           'phone': phone.isEmpty ? null : phone,

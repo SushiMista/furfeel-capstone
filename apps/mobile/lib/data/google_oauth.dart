@@ -29,7 +29,19 @@ String authRedirectUrl({
   final configured = configuredWebRedirectUrl.trim();
   if (configured.isNotEmpty && !_isDashboardUrl(configured)) return configured;
 
-  final origin = currentOrigin.isNotEmpty ? currentOrigin : Uri.base.origin;
+  String origin = currentOrigin.trim();
+  if (origin.isEmpty && isWeb) {
+    try {
+      if (Uri.base.scheme == 'http' || Uri.base.scheme == 'https') {
+        origin = Uri.base.origin;
+      }
+    } catch (_) {
+      // Ignore if Uri.base is not http/https
+    }
+  }
+  if (origin.isEmpty) {
+    origin = mobileWebGoogleOAuthRedirectUrl;
+  }
   return _isDashboardUrl(origin) ? mobileWebGoogleOAuthRedirectUrl : origin;
 }
 
@@ -48,10 +60,11 @@ String googleOAuthRedirectUrl({
 Future<void> startGoogleOAuth(SupabaseClient client) {
   return client.auth.signInWithOAuth(
     OAuthProvider.google,
-    redirectTo: authRedirectUrl(currentOrigin: Uri.base.origin),
+    redirectTo: authRedirectUrl(),
     authScreenLaunchMode: kIsWeb
         ? LaunchMode.platformDefault
         : LaunchMode.externalApplication,
     queryParams: {'prompt': 'select_account'},
   );
 }
+
