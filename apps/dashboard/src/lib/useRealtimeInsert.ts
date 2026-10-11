@@ -24,3 +24,25 @@ export function useRealtimeInsert<T>(table: string, onInsert: (row: T) => void):
     };
   }, [table]);
 }
+
+/** Subscribes to UPDATE events on `table` for the lifetime of the calling component. */
+export function useRealtimeUpdate<T>(table: string, onUpdate: (row: T) => void): void {
+  const handlerRef = useRef(onUpdate);
+  handlerRef.current = onUpdate;
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`${table}-updates-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table },
+        (payload) => handlerRef.current(payload.new as T),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [table]);
+}
+

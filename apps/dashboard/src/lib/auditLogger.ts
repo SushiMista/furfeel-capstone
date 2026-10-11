@@ -58,25 +58,21 @@ export async function recordAuditLog(entry: NewAuditLogEntry): Promise<void> {
 }
 
 /**
- * Fetches audit logs for the Admin Audit Logs panel.
+ * Fetches audit logs for the Admin Audit Logs panel with total count support.
  */
-export async function fetchAuditLogs(options?: {
+export async function fetchAuditLogsWithCount(options?: {
   surface?: string;
   role?: string;
   severity?: string;
   search?: string;
+  page?: number;
+  pageSize?: number;
   limit?: number;
-}): Promise<AuditLogRecord[]> {
+}): Promise<{ data: AuditLogRecord[]; count: number }> {
   let query = supabase
     .from("audit_logs")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("created_at", { ascending: false });
-
-  if (options?.limit) {
-    query = query.limit(options.limit);
-  } else {
-    query = query.limit(200);
-  }
 
   if (options?.surface && options.surface !== "all") {
     query = query.eq("surface", options.surface);
@@ -95,13 +91,42 @@ export async function fetchAuditLogs(options?: {
     query = query.or(`actor_email.ilike.${term},action.ilike.${term},target_resource.ilike.${term}`);
   }
 
-  const { data, error } = await query;
-  if (error) {
-    console.error("Error fetching audit logs:", error);
-    return [];
+  if (options?.page && options?.pageSize) {
+    const from = (options.page - 1) * options.pageSize;
+    const to = from + options.pageSize - 1;
+    query = query.range(from, to);
+  } else if (options?.limit) {
+    query = query.limit(options.limit);
+  } else {
+    query = query.limit(200);
   }
 
-  return (data ?? []) as AuditLogRecord[];
+  const { data, error, count } = await query;
+  if (error) {
+    console.error("Error fetching audit logs:", error);
+    return { data: [], count: 0 };
+  }
+
+  return {
+    data: (data ?? []) as AuditLogRecord[],
+    count: count ?? data?.length ?? 0,
+  };
+}
+
+/**
+ * Fetches audit logs for the Admin Audit Logs panel.
+ */
+export async function fetchAuditLogs(options?: {
+  surface?: string;
+  role?: string;
+  severity?: string;
+  search?: string;
+  limit?: number;
+  page?: number;
+  pageSize?: number;
+}): Promise<AuditLogRecord[]> {
+  const res = await fetchAuditLogsWithCount(options);
+  return res.data;
 }
 
 /**

@@ -25,11 +25,11 @@ class FloatingNavDestination {
 /// brand-tinted shadow that hovers above the page background instead of a
 /// bar flush with the screen edges.
 ///
-/// Labels explicitly shown for clarity. Selection never rides on colour alone: the selected
-/// item swaps to its *filled* glyph and gains a soft brand pill behind it, so
-/// it is distinguishable without colour vision. Labels are still carried on
-/// every destination and exposed through [Semantics], so screen readers
-/// announce the same words the bar no longer draws.
+/// Selection never rides on colour alone: the selected item swaps to its
+/// *filled* glyph and gains a soft brand pill behind it, so it is
+/// distinguishable without colour vision. Labels are carried on every
+/// destination and exposed through [Semantics], while the visual bar stays
+/// icon-only so it does not overflow at large text scales.
 class FloatingNavBar extends StatelessWidget {
   const FloatingNavBar({
     super.key,
@@ -51,8 +51,9 @@ class FloatingNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pillDestinations =
-        detachLast ? destinations.sublist(0, destinations.length - 1) : destinations;
+    final pillDestinations = detachLast
+        ? destinations.sublist(0, destinations.length - 1)
+        : destinations;
 
     return SafeArea(
       minimum: const EdgeInsets.only(bottom: FurFeelTokens.space2),
@@ -178,33 +179,19 @@ class _FloatingNavItem extends StatelessWidget {
             height: double.infinity,
             child: Center(
               child: AnimatedContainer(
-                duration:
-                    context.reduceMotion ? Duration.zero : FurFeelTokens.motionFast,
+                duration: context.reduceMotion
+                    ? Duration.zero
+                    : FurFeelTokens.motionFast,
                 curve: Curves.easeOut,
                 padding: const EdgeInsets.symmetric(
                   horizontal: FurFeelTokens.space3,
-                  vertical: 6,
+                  vertical: FurFeelTokens.space2,
                 ),
                 decoration: BoxDecoration(
                   color: selected ? context.ff.brandSoft : Colors.transparent,
                   borderRadius: BorderRadius.circular(FurFeelTokens.radiusLg),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    icon,
-                    const SizedBox(height: 2),
-                    Text(
-                      destination.label,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                        color: color,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                  ],
-                ),
+                child: icon,
               ),
             ),
           ),

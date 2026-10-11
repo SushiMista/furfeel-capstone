@@ -3,13 +3,13 @@ title: "Database Schema"
 type: schema
 project: FurFeel
 created: 2026-07-09
-updated: 2026-07-10
+updated: 2026-10-04
 tags: [furfeel, database, backend]
 ---
 
 # Database Schema
 
-Build-ready schema for Supabase PostgreSQL. Tables are plural `snake_case`. Every table has a `uuid` primary key (`id uuid primary key default gen_random_uuid()`) and, where noted, `created_at timestamptz not null default now()`. All timestamps are UTC. This note is the source of truth for the first migration.
+Build-ready schema for Supabase PostgreSQL. Tables are plural `snake_case`. Every table has a `uuid` primary key (`id uuid primary key default gen_random_uuid()`) and, where noted, `created_at timestamptz not null default now()`. All timestamps are UTC. Shipped migrations remain the executable source of truth; this note is the human-readable schema reference.
 
 ## Enum Types
 
@@ -38,6 +38,8 @@ Mirrors `auth.users` (Supabase Auth owns credentials; do **not** store `password
 | avatar_path | text | null (Supabase Storage — user profile photo) |
 | phone | text | null (owner contact; clinic staff can read via existing select policies) |
 | emergency_contact | text | null (free text "name and number") |
+| is_active | boolean | not null, default true (false when admin/self deactivated) |
+| deactivated_at | timestamptz | null |
 | created_at | timestamptz | not null, default now() |
 
 ### user_settings
@@ -45,8 +47,9 @@ Per-user preferences (a "full app" needs these; sync across devices). One row pe
 | column | type | constraints |
 |---|---|---|
 | user_id | uuid | PK, FK → users(id) |
-| theme | text | check in ('system','light','dark'), default 'system' |
+| theme | text | check in ('system','light','dark'), default 'light' |
 | temperature_unit | text | check in ('c','f'), default 'c' |
+| weight_unit | text | check in ('kg','lbs'), default 'kg' |
 | notifications_enabled | boolean | not null, default true |
 | muted_alert_types | text[] | not null, default `'{}'` (per-type push mute, e.g. `{high_stress,device_offline}`) |
 | quiet_hours_start | time | null (mute non-critical push) |
@@ -89,9 +92,12 @@ RLS: a user reads/writes only their own tokens (`user_id = auth.uid()`).
 | sex | text | check in ('male','female','unknown') |
 | weight_kg | numeric(5,2) | null |
 | notes | text | null |
+| photo_path | text | null (private Storage path in `media`, resolved via signed URL) |
 | created_at | timestamptz | not null, default now() |
 
 **Dog ↔ clinic linkage:** `owner_user_id` = who owns the dog; `clinic_id` = which clinic monitors it (nullable). A clinic's dashboard board = all dogs where `clinic_id` = that clinic. So an owner-created dog only appears on a clinic board once `clinic_id` is set (owner selects a clinic at Pet Creation / Device Pairing, or Admin assigns). `clinic_id = null` = home-only. Many dogs per clinic is the normal case. (A future `enrollments` table could model repeated boarding visits; MVP uses a single `clinic_id`.)
+
+**Known schema caveat (2026-10-04):** dashboard code currently references `dogs.ward_location`, `dogs.admission_status`, and `clinical_interventions`, but `20260830130001_rollback_ward_locations_and_interventions.sql` drops those columns/table after the add migration. Treat ward/admission/intervention features as unresolved until the schema direction is confirmed and a new forward migration is added.
 
 ### dog_baselines
 Per-dog resting reference values used by the classifier. Optional; classifier falls back to global defaults (see `08 AI Classification Pipeline`). Also carries this dog's **classifier threshold overrides**, editable by clinic staff from the dashboard's Dog detail → Thresholds tab (`ThresholdEditor`) — see [[05 Veterinary Dashboard Design]] and ADR-015/ADR-016 in [[02 Architecture Decisions]]. Every override column is nullable; `null` means "use the clinic-wide default from `packages/shared/classifier_config.json`".
@@ -135,6 +141,8 @@ Two check constraints enforce "null-safe strictly increasing" ordering per rule:
 
 > **`devices` uses COLUMN-level select grants**, not table-wide (table select was revoked so `ingest_key_hash` is never client-readable). **Any new client-readable column must be added to that grant list**, or every client query naming it fails with a permission error. This bit us once: `battery_percent` was missing from the grant and Home couldn't load (fixed in `20260718090000_grant_devices_battery_select`). Currently granted to `authenticated`: `id, dog_id, device_code, status, last_seen_at, firmware_version, created_at, battery_percent`.
 
+Only one device may be assigned to a dog at a time (`idx_devices_unique_dog_id` where `dog_id is not null`). Older automatic dummy-device pairing was removed; explicit pairing goes through `pair_device`.
+
 ### telemetry_readings
 High-volume table. Index on `(dog_id, captured_at desc)` and `(device_id, captured_at desc)`.
 
@@ -175,7 +183,7 @@ High-volume table. Index on `(dog_id, captured_at desc)` and `(device_id, captur
 | dog_id | uuid | not null, FK → dogs(id) |
 | classification_id | uuid | null, FK → stress_classifications(id) |
 | severity | alert_severity | not null |
-| type | text | not null (e.g. 'high_stress','device_offline','out_of_range') |
+| type | text | not null (e.g. 'high_stress','moderate_stress','device_offline','low_battery','out_of_range') |
 | message | text | not null |
 | status | alert_status | not null, default `'open'` |
 | acknowledged_by | uuid | null, FK → users(id) |
@@ -239,6 +247,15 @@ RLS: select + insert for the dog's owner and clinic staff of the dog (via the pa
 ### dog_wellness_score(dog_id, day) — RPC
 SECURITY INVOKER function returning a daily 0–100 wellness snapshot (score, calm/active/rest percents, alert count, sample count). RLS on the underlying tables scopes it; formula documented in `08 AI Classification Pipeline` (provisional engineering metric, not clinical).
 
+### stress_daily_summary / stress_hourly_pattern — RPCs
+SECURITY INVOKER aggregation functions for owner Trends and reports. They summarize the signed-in user's visible `stress_classifications`/`telemetry_readings` by local day/hour; they do not classify.
+
+### clinic_stress_daily_summary — RPC
+SECURITY INVOKER clinic-wide daily stress mix for the dashboard Overview. This replaced client-side fan-out over each dog and avoids the PostgREST row cap/statement-timeout problem.
+
+### seed_dog_biotelemetry — RPC
+Clinic-staff/admin helper used by patient intake and demo workflows to create a short calm baseline series for a newly created dog/device. It inserts telemetry/classifications and updates the device battery/last-seen fields.
+
 ### vet_notes
 | column | type | constraints |
 |---|---|---|
@@ -264,6 +281,47 @@ Supplementary only. **Not** a classifier input (ADR-010).
 | review_note | text | null (clinician's note when reviewing owner media) |
 | created_at | timestamptz | not null, default now() |
 
+### audit_logs
+Append-only operational/security audit log. Written by dashboard/mobile helpers, Edge Functions, and selected database triggers.
+| column | type | constraints |
+|---|---|---|
+| id | uuid | PK |
+| created_at | timestamptz | not null, default now() |
+| actor_id | uuid | null, FK → users(id) on delete set null |
+| actor_email | text | not null |
+| actor_role | user_role | not null |
+| surface | text | check in ('dashboard','mobile','edge_function','system') |
+| action | text | not null |
+| target_resource | text | not null |
+| target_id | text | null |
+| clinic_id | uuid | null, FK → clinics(id) on delete set null |
+| details | jsonb | default `{}` |
+| severity | text | check in ('info','warning','critical'), default 'info' |
+
+RLS: admin can read all; clinic staff/vets can read permitted clinic/device-deletion-request rows; authenticated users may insert their own audit events. No update/delete policies.
+
+### bug_reports
+User-submitted bug, crash, UI, device-connection, and telemetry-error reports for admin triage.
+| column | type | constraints |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | null, FK → users(id) on delete set null |
+| reporter_name | text | not null |
+| reporter_email | text | not null |
+| title | text | not null |
+| description | text | not null |
+| category | text | check in ('bug','ui_issue','device_connection','telemetry_error','crash','other') |
+| severity | text | check in ('low','medium','high','critical'), default 'medium' |
+| status | text | check in ('open','in_progress','resolved','dismissed'), default 'open' |
+| app_version | text | not null, default '1.0.0' |
+| platform | text | not null, default 'Mobile App' |
+| stack_trace | text | null |
+| admin_notes | text | null |
+| created_at | timestamptz | not null, default now() |
+| updated_at | timestamptz | not null, default now() |
+
+RLS: authenticated users can insert; users can read their own reports; admins can read/update/delete all.
+
 ## Row Level Security (RLS)
 
 Enable RLS on every table. Policy intent (implement as Supabase policies):
@@ -273,6 +331,12 @@ Enable RLS on every table. Policy intent (implement as Supabase policies):
 - **devices / telemetry_readings / stress_classifications / alerts / vet_notes:** readable by the dog's owner and by clinic staff of the dog's `clinic_id`. Telemetry **insert** is done by the service role / Edge Function (device ingest), not by end users. Only vet_staff/veterinarian/admin can insert `vet_notes`; author must equal `auth.uid()`.
 - **alerts update (acknowledge):** owner or clinic staff of that dog; sets `acknowledged_by = auth.uid()`.
 - **media_submissions:** owner can insert/read their dog's media; clinic staff/vets can read and set review fields.
+- **stress_labels:** clinic staff/vets/admin can insert/select for their clinic's dogs; owners can read confirmed labels for their own dogs only.
+- **care_guidance:** authenticated users can read global rows and rows for their dog's clinic; vets/admin manage clinic/global rows.
+- **consents / user_settings / push_tokens:** own-row only for normal users.
+- **media_messages:** owner and clinic staff of the parent submission can read/insert; authors can edit/delete their own messages.
+- **audit_logs:** append-only; admin/clinic-scoped reads as above.
+- **bug_reports:** authenticated insert; own read for users; admin triage.
 
 Helper: a SQL function `is_clinic_member(dog_id uuid)` returning boolean simplifies policies. Telemetry ingestion uses the **service role key** inside the Edge Function, which bypasses RLS by design — never expose that key to clients.
 
@@ -283,6 +347,8 @@ create index on telemetry_readings (dog_id, captured_at desc);
 create index on telemetry_readings (device_id, captured_at desc);
 create index on stress_classifications (dog_id, created_at desc);
 create index on alerts (dog_id, status, created_at desc);
+create index idx_audit_logs_created_at on audit_logs (created_at desc);
+create index idx_bug_reports_created_at on bug_reports (created_at desc);
 ```
 
 ## Note

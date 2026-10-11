@@ -24,6 +24,7 @@ import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { useToast } from "../../components/ui/toast.tsx";
 import { cn } from "../../lib/cn.ts";
+import { formatPhilippineTime } from "../../lib/time.ts";
 import type {
   Dog,
   MediaSubmission,
@@ -97,7 +98,7 @@ export function ConfirmOverridePanel({
           <p className="m-0 flex flex-wrap items-center gap-2 text-sm text-ink">
             Latest model output: <StressLevelBadge level={latest.stress_level} />
             <span className="text-xs text-ink-muted">
-              score {latest.score ?? "n/a"} · {new Date(latest.created_at).toLocaleString()}
+              score {latest.score ?? "n/a"} · {formatPhilippineTime(latest.created_at)}
             </span>
           </p>
         ) : (
@@ -175,7 +176,7 @@ export function ConfirmOverridePanel({
                     </Badge>
                   )}
                   <span className="text-xs text-ink-muted">
-                    {l.vet?.name ?? "Clinic staff"} · {new Date(l.created_at).toLocaleString()}
+                    {l.vet?.name ?? "Clinic staff"} · {formatPhilippineTime(l.created_at)}
                   </span>
                   {l.note && <span className="w-full text-sm text-ink">{l.note}</span>}
                 </li>
@@ -240,7 +241,7 @@ export function MediaItem({ media, onReviewed }: { media: MediaSubmission; onRev
     <li className="flex flex-col gap-3 rounded-md border border-hairline p-4">
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs text-ink-muted">
-          Submitted {new Date(media.created_at).toLocaleString()}
+          Submitted {formatPhilippineTime(media.created_at)}
         </span>
         {reviewed ? (
           <Badge variant="neutral">

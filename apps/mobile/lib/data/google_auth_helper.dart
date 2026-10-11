@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:furfeel_mobile/data/google_oauth.dart';
 
 const _googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
 const _googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
@@ -9,13 +10,7 @@ const _googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
 Future<AuthResponse?> performGoogleSignIn(SupabaseClient client) async {
   // 1. On Web: Use standard browser OAuth redirect flow
   if (kIsWeb || _googleWebClientId.isEmpty) {
-    await client.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: kIsWeb ? Uri.base.origin : 'io.furfeel.app://login-callback',
-      authScreenLaunchMode:
-          kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
-      queryParams: {'prompt': 'select_account'},
-    );
+    await startGoogleOAuth(client);
     return null;
   }
 

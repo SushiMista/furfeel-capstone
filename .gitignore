@@ -23,6 +23,7 @@ apps/mobile/.pub-cache/
 apps/mobile/.pub/
 **/ios/Flutter/.last_build_id
 **/android/.gradle/
+**/android/.kotlin/
 
 # Deno / Supabase Edge Functions
 services/edge/**/.deno/
@@ -37,9 +38,17 @@ apps/dashboard/.vite/
 firmware/esp32/.pio/
 firmware/esp32/build/
 
+# Temporary build tools and output artifacts
+tmp/
+output/
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
 
 # Editors
 .vscode/

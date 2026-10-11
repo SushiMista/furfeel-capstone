@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'data/furfeel_repository.dart';
+import 'data/mobile_access.dart';
 import 'data/settings_controller.dart';
 import 'data/status_cache.dart';
 import 'package:furfeel_mobile/screens/home/root_shell.dart';
@@ -52,7 +54,10 @@ Future<void> main() async {
   }
 
   // publishableKey also accepts a legacy anon key; both are client-safe.
-  await Supabase.initialize(url: _supabaseUrl, publishableKey: _supabaseAnonKey);
+  await Supabase.initialize(
+    url: _supabaseUrl,
+    publishableKey: _supabaseAnonKey,
+  );
   runApp(const FurFeelApp());
 }
 
@@ -68,23 +73,32 @@ class FurFeelApp extends StatefulWidget {
 }
 
 class _FurFeelAppState extends State<FurFeelApp> {
-
   late final SupabaseClient _client = Supabase.instance.client;
-  late final SupabaseFurFeelRepository _repository = SupabaseFurFeelRepository(_client);
+  late final SupabaseFurFeelRepository _repository = SupabaseFurFeelRepository(
+    _client,
+  );
   late final SettingsController _settings = SettingsController(_repository);
   final _navigatorKey = GlobalKey<NavigatorState>();
 
   // Cold-start gate: splash holds until the seen-flag is read AND the brand
   // beat has had a moment on screen, so the splash never just flickers.
   bool _splashDone = false;
+  String? _mobileAccessUserId;
+  bool _mobileAccessGranted = false;
+  bool _mobileAccessChecking = false;
+  int _mobileAccessRun = 0;
+
+  static const _confirmedOwnerUserKey = 'furfeel_confirmed_owner_user_id';
 
   @override
   void initState() {
     super.initState();
-    if (_client.auth.currentSession != null) _settings.load();
+    final session = _client.auth.currentSession;
+    if (session != null) _verifyMobileAccess(session.user.id);
     _client.auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedIn) {
-        _settings.load();
+        final userId = state.session?.user.id ?? _client.auth.currentUser?.id;
+        if (userId != null) _verifyMobileAccess(userId);
         if (!FurFeelApp.isProgressiveOnboarding) {
           _navigatorKey.currentState?.popUntil((route) => route.isFirst);
         }
@@ -92,6 +106,10 @@ class _FurFeelAppState extends State<FurFeelApp> {
       if (state.event == AuthChangeEvent.signedOut) {
         _settings.clear();
         StatusCache.clear(); // cached readings belong to the signed-out account
+        _mobileAccessRun++;
+        _mobileAccessUserId = null;
+        _mobileAccessGranted = false;
+        _mobileAccessChecking = false;
         // Sign-out can fire while AccountPage (or another screen) is pushed
         // on top of the home StreamBuilder -- pop back so the freshly
         // signed-out Welcome screen is actually visible, not a half-cleared
@@ -100,6 +118,65 @@ class _FurFeelAppState extends State<FurFeelApp> {
       }
     });
     _bootstrap();
+  }
+
+  Future<void> _verifyMobileAccess(String userId) async {
+    final run = ++_mobileAccessRun;
+    setState(() {
+      _mobileAccessUserId = userId;
+      _mobileAccessGranted = false;
+      _mobileAccessChecking = true;
+    });
+
+    try {
+      final row = await _client
+          .from('users')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle();
+      if (!mounted || run != _mobileAccessRun) return;
+
+      final error = mobileAccessErrorForRole(row?['role'] as String?);
+      if (error == null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_confirmedOwnerUserKey, userId);
+        if (!mounted || run != _mobileAccessRun) return;
+        setState(() {
+          _mobileAccessGranted = true;
+          _mobileAccessChecking = false;
+        });
+        await _settings.load();
+        return;
+      }
+
+      await _denyMobileAccess(error, run);
+    } catch (_) {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedOwnerUserId = prefs.getString(_confirmedOwnerUserKey);
+      if (!mounted || run != _mobileAccessRun) return;
+      if (cachedOwnerUserId == userId) {
+        setState(() {
+          _mobileAccessGranted = true;
+          _mobileAccessChecking = false;
+        });
+        await _settings.load();
+        return;
+      }
+      await _denyMobileAccess(mobileAccessUnconfirmedMessage, run);
+    }
+  }
+
+  Future<void> _denyMobileAccess(String message, int run) async {
+    if (!mounted || run != _mobileAccessRun) return;
+    setState(() => _mobileAccessChecking = false);
+    await _client.auth.signOut();
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    });
   }
 
   /// Minimum time the brand splash stays up. Short on purpose: it exists only
@@ -115,8 +192,6 @@ class _FurFeelAppState extends State<FurFeelApp> {
       _splashDone = true;
     });
   }
-
-
 
   @override
   void dispose() {
@@ -147,24 +222,31 @@ class _FurFeelAppState extends State<FurFeelApp> {
             home: AnimatedSwitcher(
               duration: const Duration(milliseconds: 320),
               child: !_splashDone
-                ? const SplashPage()
-                : StreamBuilder<AuthState>(
-                    stream: _client.auth.onAuthStateChange,
-                    builder: (context, snapshot) {
-                      final session = _client.auth.currentSession;
-                      if (session == null) {
-                        return WelcomePage(client: _client);
-                      }
-                      // A real network wait, unlike the cold-start beat, so
-                      // this one earns a loader.
-                      if (!_settings.loaded) return const SplashPage.loading();
-                      return RootShell(
-                        repository: _repository,
-                        userEmail: session.user.email,
-                        onSignOut: () => _client.auth.signOut(),
-                      );
-                    },
-                  ),
+                  ? const SplashPage()
+                  : StreamBuilder<AuthState>(
+                      stream: _client.auth.onAuthStateChange,
+                      builder: (context, snapshot) {
+                        final session = _client.auth.currentSession;
+                        if (session == null) {
+                          return WelcomePage(client: _client);
+                        }
+                        if (_mobileAccessChecking ||
+                            !_mobileAccessGranted ||
+                            _mobileAccessUserId != session.user.id) {
+                          return const SplashPage.loading();
+                        }
+                        // A real network wait, unlike the cold-start beat, so
+                        // this one earns a loader.
+                        if (!_settings.loaded) {
+                          return const SplashPage.loading();
+                        }
+                        return RootShell(
+                          repository: _repository,
+                          userEmail: session.user.email,
+                          onSignOut: () => _client.auth.signOut(),
+                        );
+                      },
+                    ),
             ),
           ),
         );

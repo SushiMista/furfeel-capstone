@@ -44,3 +44,12 @@ export interface DogBaselines {
   humidity_heat_pct: number | null;
   updated_at: string;
 }
+
+/** dog_owners junction row shape for multi-owner dog registration. */
+export interface DogOwner {
+  id: string;
+  dog_id: string;
+  user_id: string;
+  created_at: string;
+}
+
