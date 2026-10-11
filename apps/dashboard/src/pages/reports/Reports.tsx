@@ -465,7 +465,6 @@ export function Reports() {
                         summary={report.ambientTemperature}
                         decimals={1}
                       />
-                      <MetricRow label="Humidity" unit="%" summary={report.humidity} />
                     </TBody>
                   </Table>
                 </div>

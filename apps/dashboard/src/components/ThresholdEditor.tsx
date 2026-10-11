@@ -90,7 +90,6 @@ const MEDICAL_PRESETS: Preset[] = [
       hr_ratio_moderate_min: 1.35,
       hr_ratio_high_min: 1.6,
       ambient_heat_c: 28.0,
-      humidity_heat_pct: 65.0,
     },
   },
   {
@@ -231,20 +230,7 @@ const VARIABLE_GROUPS: VariableGroup[] = [
         key: "ambient_heat_c",
         label: "Heat-stress context above",
         globalDefault: ENV.ambient_temperature_c_above,
-        help: "Combines with humidity below (either counts).",
-        step: "0.1",
-      },
-    ],
-  },
-  {
-    title: "Humidity",
-    unit: "%",
-    fields: [
-      {
-        key: "humidity_heat_pct",
-        label: "Heat-stress context above",
-        globalDefault: ENV.humidity_percent_above,
-        help: "",
+        help: "Adds environmental context when ambient temperature exceeds this value.",
         step: "0.1",
       },
     ],
@@ -278,7 +264,7 @@ function draftFromBaselines(baselines: Partial<Record<Key, number | null>> | nul
  * falling back to the clinic-wide default when left blank:
  *  - score cutoffs: how many total points reach mild/moderate/high.
  *  - per-variable thresholds: when each individual signal (heart rate,
- *    respiratory rate, motion, ambient heat, humidity) starts contributing
+ *    respiratory rate, motion, ambient heat) starts contributing
  *    points in the first place.
  *
  * Writes go through dog_baselines_insert/update RLS

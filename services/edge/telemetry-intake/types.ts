@@ -8,6 +8,5 @@ export interface TelemetryRequestBody {
   motion_activity?: unknown;
   posture?: unknown;
   ambient_temperature_c?: unknown;
-  humidity_percent?: unknown;
   battery_percent?: unknown;
 }

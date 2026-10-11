@@ -21,7 +21,7 @@ export interface Dog {
  * when absent or when an individual field is null (docs/08). threshold_ columns
  * override the score->level cut points the same way; NULL means "use
  * packages/shared/classifier_config.json.level_thresholds". The hr_ratio_,
- * rr_ratio_, motion_, ambient_heat_c, and humidity_heat_pct columns
+ * rr_ratio_, motion_, ambient_heat_c columns
  * are one level finer: they override where each individual SIGNAL starts
  * scoring (classifier_config.json.scoring_rules tier floors), independent of
  * the threshold_ score-level cutoffs above. */
@@ -41,7 +41,6 @@ export interface DogBaselines {
   motion_elevated_min: number | null;
   motion_high_min: number | null;
   ambient_heat_c: number | null;
-  humidity_heat_pct: number | null;
   updated_at: string;
 }
 

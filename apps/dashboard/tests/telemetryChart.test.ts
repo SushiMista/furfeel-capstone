@@ -18,7 +18,6 @@ function reading(overrides: Partial<TelemetryReading>): TelemetryReading {
     motion_activity: 0.3,
     posture: "standing",
     ambient_temperature_c: 24,
-    humidity_percent: 55,
     battery_percent: null,
     is_valid: true,
     raw_payload: {},

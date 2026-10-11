@@ -130,8 +130,6 @@ export function sanitizeTelemetry(
   const ambient = sanitizeNumericField(body.ambient_temperature_c, ranges.ambient_temperature_c);
   if (ambient.invalid) invalidFields.push("ambient_temperature_c");
 
-  const humidity = sanitizeNumericField(body.humidity_percent, ranges.humidity_percent);
-  if (humidity.invalid) invalidFields.push("humidity_percent");
 
   const battery = sanitizeNumericField(body.battery_percent, ranges.battery_percent);
   if (battery.invalid) invalidFields.push("battery_percent");
@@ -153,7 +151,6 @@ export function sanitizeTelemetry(
       motion_activity: motion.value,
       posture: posture.feature,
       ambient_temperature_c: ambient.value,
-      humidity_percent: humidity.value,
     },
     posture_db: posture.dbValue,
     // Batteries report whole percents; keep fractional values but round for storage.

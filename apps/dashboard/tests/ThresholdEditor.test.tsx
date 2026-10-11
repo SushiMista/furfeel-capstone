@@ -24,7 +24,6 @@ const NULL_OVERRIDES = {
   motion_elevated_min: null,
   motion_high_min: null,
   ambient_heat_c: null,
-  humidity_heat_pct: null,
 };
 
 describe("ThresholdEditor", () => {
@@ -48,7 +47,6 @@ describe("ThresholdEditor", () => {
     expect(screen.queryByLabelText("Elevated at")).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Heart rate" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Ambient temperature" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Humidity" })).toBeInTheDocument();
   });
 
   it("switches categories on tab click without losing an edit made in another one", async () => {

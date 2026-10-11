@@ -37,7 +37,6 @@ const kRrRatioHighAt = ${num(rules.respiratory_elevated.tiers[1].min)};
 
 /// Environment thresholds (environmental_amplifier / context_rules).
 const kHotAmbientAboveC = ${num(rules.environmental_amplifier.ambient_temperature_c_above)};
-const kHotHumidityAbovePercent = ${num(rules.environmental_amplifier.humidity_percent_above)};
 const kColdAmbientBelowC = ${num(cfg.context_rules.environmental_cold.ambient_temperature_c_below)};
 
 /// "Restless" floor for Care Insights combinations = the motion tier-1 floor.

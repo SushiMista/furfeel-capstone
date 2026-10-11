@@ -60,7 +60,6 @@ Called via `supabase.rpc(...)`; each runs under the caller's RLS or is `security
     "motion_activity": 0.62,
     "posture": "standing",
     "ambient_temperature_c": 29.1,
-    "humidity_percent": 68,
     "battery_percent": 87
   }
   ```

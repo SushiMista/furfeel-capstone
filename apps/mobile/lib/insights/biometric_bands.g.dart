@@ -18,7 +18,6 @@ const kRrRatioHighAt = 1.8;
 
 /// Environment thresholds (environmental_amplifier / context_rules).
 const kHotAmbientAboveC = 32;
-const kHotHumidityAbovePercent = 80;
 const kColdAmbientBelowC = 8;
 
 /// "Restless" floor for Care Insights combinations = the motion tier-1 floor.

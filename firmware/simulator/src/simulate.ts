@@ -120,7 +120,6 @@ function buildPayload(config: SimulatorConfig, tick: number): TelemetryPayload {
     motion_activity,
     posture,
     ambient_temperature_c: Number(jitter(24, 1).toFixed(1)),
-    humidity_percent: Number(jitter(55, 3).toFixed(1)),
     battery_percent,
   };
 }

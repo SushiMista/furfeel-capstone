@@ -59,7 +59,7 @@ Deno.test("decideAlert: dedup is per-type — caller must check the type-specifi
 Deno.test("decideAlert: message is friendly, names the dog, and stays observational", () => {
   const result = decideAlert("high", false, "Biscuit", ["rr panting", "environmental heat stress context"]);
   assertEqual(result?.message.includes("Biscuit"), true);
-  assertEqual(result?.message.includes("it's warm and humid"), true);
+  assertEqual(result?.message.includes("it's warm"), true);
   // No-diagnosis guardrail: alert copy never uses clinical/causal language.
   for (const banned of ["diagnos", "disease", "condition", "caused by", "because of"]) {
     assertEqual(result?.message.toLowerCase().includes(banned), false, `contains "${banned}"`);

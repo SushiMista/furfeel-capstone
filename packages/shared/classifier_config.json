@@ -46,9 +46,8 @@
     },
 
     "environmental_amplifier": {
-      "_comment": "docs/08: ambient > 32C OR humidity > 80% (heat stress context) +1.",
+      "_comment": "docs/08: ambient > 32C (heat stress context) +1.",
       "ambient_temperature_c_above": 32,
-      "humidity_percent_above": 80,
       "points": 1,
       "reason": "environmental heat stress context"
     },
@@ -94,7 +93,6 @@
     "respiratory_rate_bpm": { "min": 3, "max": 200 },
     "motion_activity": { "min": 0.0, "max": 1.0 },
     "ambient_temperature_c": { "min": -10, "max": 60 },
-    "humidity_percent": { "min": 0, "max": 100 },
     "battery_percent": { "min": 0, "max": 100 },
     "captured_at_max_skew_hours": 1
   }

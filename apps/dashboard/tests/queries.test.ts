@@ -97,7 +97,6 @@ describe("fetchMonitoringBoardRowForDog", () => {
           motion_activity: 0.3,
           posture: "standing",
           ambient_temperature_c: 24,
-          humidity_percent: 55,
           is_valid: true,
           raw_payload: {},
         },

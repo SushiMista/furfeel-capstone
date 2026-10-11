@@ -69,7 +69,6 @@ export async function seedInitialBiotelemetry(
       const motion = Number((0.12 + Math.random() * 0.15).toFixed(3));
       const posture = motion < 0.18 ? "lying" : "sitting";
       const ambientTemp = Number((24.5 + (Math.random() * 1.0 - 0.5)).toFixed(1));
-      const humidity = Number((52.0 + (Math.random() * 3.0 - 1.5)).toFixed(1));
 
       // Insert Telemetry Reading
       const { data: readingData, error: readingErr } = await client
@@ -84,7 +83,6 @@ export async function seedInitialBiotelemetry(
           motion_activity: motion,
           posture,
           ambient_temperature_c: ambientTemp,
-          humidity_percent: humidity,
           is_valid: true,
           raw_payload: {
             simulated: true,

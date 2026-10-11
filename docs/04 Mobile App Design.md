@@ -59,7 +59,7 @@ Animated **Splash → Welcome → Onboarding → Guided Setup** (create account 
 - **Calm-streak card** on Trends (≥2 mostly-calm days; 70% share threshold — provisional, product-tunable) and a **birthday moment** on Home from `dogs.birthdate`. Celebration copy is observational only.
 - **One-tap "Share weekly report"** on Trends (last 7 days → the PDF exporter).
 - **Alert action tips:** every open alert carries a practical "what you can do" line per type; gone once acknowledged.
-- **Ambient context** on the status hero (ambient temp in the preferred unit + humidity) — the environment is often the classifier's story.
+- **Ambient context** on the status hero (ambient temperature in the preferred unit) — humidity is retired by ADR-025.
 - **"Last 3 hours" sparkline** on each vital detail screen.
 - **Live in-app alert banner** while the app is open (floating snackbar with the friendly message + View → Alerts); honors the master notification toggle and per-type mutes — the same rules push will follow.
 - **Care tips library** under Profile: all vet-editable guidance browsable by stress level and by situation.
@@ -69,8 +69,8 @@ Animated **Splash → Welcome → Onboarding → Guided Setup** (create account 
 ### 1. User Dashboard (Home)
 Primary status screen for the selected dog. Always shows valuable info at a glance — never a bare/empty screen.
 - Stress hero: large stress pill (cross-fading color) + reassuring copy.
-- **The "why" (important):** a plain-language reason under the pill, derived from the classification's `reasons` (stress_classifications.reasons). Surface the **top driver** in owner-friendly words, e.g. high ambient temp/humidity → "Feeling the heat — it's warm and humid today"; elevated HR → "Heart rate is higher than usual"; high motion → "Restless and moving a lot"; calm → "Relaxed and comfortable." Mapping lives in a small reason→phrase table (see `08 AI Classification Pipeline`). This turns a label into something an owner understands and can act on.
-- Vital cards: heart rate, respiratory rate, motion — big tabular values + units + "updated Xs ago". Include ambient temp/humidity when they're the driver (so "it's hot" is visible).
+- **The "why" (important):** a plain-language reason under the pill, derived from the classification's `reasons` (stress_classifications.reasons). Surface the **top driver** in owner-friendly words, e.g. high ambient temperature → "Feeling the heat — it's warm today"; elevated HR → "Heart rate is higher than usual"; high motion → "Restless and moving a lot"; calm → "Relaxed and comfortable." Mapping lives in a small reason→phrase table (see `08 AI Classification Pipeline`). This turns a label into something an owner understands and can act on.
+- Vital cards: heart rate, respiratory rate, motion — big tabular values + units + "updated Xs ago". Include ambient temperature when it is the driver (so "it's hot" is visible).
 - 24h trend sparkline + a "what you can do" care tip (Care Insights) tied to the current driver.
 - Live via Supabase Realtime. Pull-to-refresh. Loading/offline/error states visible.
 

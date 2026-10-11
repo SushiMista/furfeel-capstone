@@ -35,7 +35,6 @@ void main() {
 
     final amp = rules['environmental_amplifier'] as Map<String, dynamic>;
     expect(kHotAmbientAboveC, amp['ambient_temperature_c_above']);
-    expect(kHotHumidityAbovePercent, amp['humidity_percent_above']);
     expect(
       kColdAmbientBelowC,
       ((cfg['context_rules'] as Map)['environmental_cold']

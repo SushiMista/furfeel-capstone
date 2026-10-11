@@ -16,7 +16,7 @@ The wearable harness collects physiological, behavioral, and environmental data 
 - MAX30102 PPG sensor for heart rate.
 - MPU9250 IMU for motion and posture.
 - Flex sensor for respiratory movement.
-- DHT22 sensor for ambient temperature and humidity.
+- DHT22 sensor for ambient temperature.
 
 > Body temperature sensing was dropped (ADR-021) — FurFeel doesn't promote invasive procedures to gather stress data, so the harness only carries non-invasive wearable/environmental sensors.
 

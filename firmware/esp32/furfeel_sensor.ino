@@ -108,7 +108,6 @@ unsigned long lastRespiration = 0;
 
 
 float temperature = NAN;
-float humidity = NAN;
 
 
 //================ PROTOTYPES ==============
@@ -182,7 +181,6 @@ void loop()
     if(millis()-lastDHT>=2000)
     {
         lastDHT=millis();
-        humidity=dht.readHumidity();
         temperature=dht.readTemperature();
     }
 
@@ -403,8 +401,6 @@ void printReadings()
     Serial.println("======================================");
     Serial.print("Temperature : ");
     Serial.println(temperature);
-    Serial.print("Humidity : ");
-    Serial.println(humidity);
     Serial.print("Heart Rate : ");
     Serial.print(beatAvg);
     Serial.println(" BPM");
@@ -468,10 +464,7 @@ void sendTelemetry()
     {
         len += snprintf(payload+len, sizeof(payload)-len, ",\"ambient_temperature_c\":%.1f", temperature);
     }
-    if(!isnan(humidity))
-    {
-        len += snprintf(payload+len, sizeof(payload)-len, ",\"humidity_percent\":%.1f", humidity);
-    }
+
     snprintf(payload+len, sizeof(payload)-len, "}");
 
 

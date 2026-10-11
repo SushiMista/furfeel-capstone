@@ -480,6 +480,7 @@ class TelemetryReading {
 
   /// Environment context (drives combination care insights: hot/cold + state).
   final double? ambientTemperatureC;
+  /// Legacy historical field only (ADR-025); excluded from active features/exports.
   final double? humidityPercent;
 
   /// Device health only — never a classifier input (docs/07).

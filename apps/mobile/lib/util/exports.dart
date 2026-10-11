@@ -18,7 +18,7 @@ String _stamp(DateTime t) => t.toIso8601String();
 String buildReadingsCsv(List<TelemetryReading> readings) {
   final buffer = StringBuffer(
     'captured_at,heart_rate_bpm,respiratory_rate_bpm,'
-    'motion_activity,posture,ambient_temperature_c,humidity_percent,battery_percent\n',
+    'motion_activity,posture,ambient_temperature_c,battery_percent\n',
   );
   for (final r in readings) {
     buffer.writeln(
@@ -29,7 +29,6 @@ String buildReadingsCsv(List<TelemetryReading> readings) {
         _csvCell(r.motionActivity),
         _csvCell(r.posture),
         _csvCell(r.ambientTemperatureC),
-        _csvCell(r.humidityPercent),
         _csvCell(r.batteryPercent),
       ].join(','),
     );
@@ -394,11 +393,6 @@ Future<Uint8List> buildHealthReportPdf({
               '°C',
               vitalSummary(readings, (r) => r.ambientTemperatureC),
               decimals: 1,
-            ),
-            vitalRow(
-              'Humidity',
-              '%',
-              vitalSummary(readings, (r) => r.humidityPercent),
             ),
           ],
         ),

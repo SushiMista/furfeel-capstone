@@ -24,6 +24,7 @@ void main() {
       expect(lines, hasLength(3));
       expect(lines.first, startsWith('captured_at,heart_rate_bpm'));
       expect(lines.first, contains('battery_percent'));
+      expect(lines.first, isNot(contains('humidity')));
       expect(lines[1], contains(',92,'));
       expect(lines[1], endsWith(',80'));
       // All-null sensor row keeps its commas so columns stay aligned.

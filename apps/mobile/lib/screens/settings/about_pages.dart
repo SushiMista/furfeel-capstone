@@ -16,8 +16,8 @@ class HowItWorksPage extends StatelessWidget {
         (
           'The harness listens',
           'A lightweight harness reads your dog\'s heart rate, breathing, '
-              'temperature, movement, and posture, plus the temperature and '
-              'humidity around them, and sends it securely over Wi-Fi.',
+              'movement and posture, plus the ambient temperature around them, '
+              'and sends it securely over Wi-Fi.',
         ),
         (
           'FurFeel looks for patterns',

@@ -1,55 +1,55 @@
-dog_name,breed,size_class,device_code,captured_at,heart_rate_bpm,respiratory_rate_bpm,motion_activity,posture,ambient_temperature_c,humidity_percent,battery_percent,is_valid,expected_score,expected_level,fired_rules,note
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:00.000Z,112,26,0.237,lying,26.8,63.1,96,true,0,calm,(none),
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:10.000Z,125,32,0.367,lying,27.2,63,95,true,0,calm,(none),
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:20.000Z,138,33,0.419,standing,26.3,58.1,94,true,1,calm,hr_ratio 1.15-1.35,
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:30.000Z,146,38,0.582,standing,26.8,62.9,93,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:40.000Z,163,43,0.609,moving,27.4,56.6,92,true,6,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion | rising trend over last 3 readings,
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:50.000Z,172,44,0.745,moving,25.4,62,91,true,6,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion | rising trend over last 3 readings,
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:00.000Z,186,48,0.856,moving,26.6,61.3,90,true,8,high,hr_ratio>1.6 | rr panting | motion>0.8 | posture moving + high motion,
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:10.000Z,175,44,0.728,moving,26,64,89,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:20.000Z,160,43,0.691,moving,27.3,57.8,88,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:30.000Z,151,37,0.558,standing,26.8,57.3,87,true,3,mild,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8,
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:40.000Z,133,33,0.426,standing,26.6,58.2,86,true,1,calm,hr_ratio 1.15-1.35,
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:50.000Z,123,32,0.369,lying,26.6,63.1,85,true,0,calm,(none),
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:02:00.000Z,111,25,0.232,lying,25.1,61.2,84,true,0,calm,(none),
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T09:00:00.000Z,310,24,0.3,standing,24,55,40,false,0,calm,(none),"heart_rate_bpm 310 > validation max 300 -> flagged is_valid=false, field stored null"
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T09:00:10.000Z,95,,0.3,standing,24,55,40,false,0,calm,(none),"respiratory_rate_bpm missing (sensor dropout) -> stored null, classifier skips that rule only"
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T05:00:00.000Z,92,22,0.25,standing,24,55,40,false,0,calm,(none),"captured_at 3h old, outside +/-1h skew -> flagged"
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T14:00:00.000Z,100,30,0.4,standing,34,85,40,true,1,calm,environmental heat stress context,environmental_amplifier: ambient 34C AND humidity 85% -> heat-stress context +1
-Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T15:00:00.000Z,91,23,0.28,standing,24,55,12,true,0,calm,(none),"device_alerts.low_battery_percent (15) breached -- device health only, never a classifier input"
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:10.000Z,87,26,0.247,lying,26.8,62.9,83,true,0,calm,(none),
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:20.000Z,101,26,0.378,lying,27.5,57.6,82,true,0,calm,(none),
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:30.000Z,111,32,0.453,standing,25.5,57.6,81,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:40.000Z,119,34,0.545,standing,26.7,62.2,80,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:50.000Z,131,38,0.688,moving,25.7,61.8,79,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:00.000Z,141,43,0.776,moving,26.4,56.7,78,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:10.000Z,155,46,0.878,moving,26.3,58.5,77,true,8,high,hr_ratio>1.6 | rr panting | motion>0.8 | posture moving + high motion,
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:20.000Z,141,41,0.725,moving,26.3,61.8,76,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:30.000Z,129,40,0.6,standing,25.2,62.6,75,true,4,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8,
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:40.000Z,124,34,0.599,standing,25,58.4,74,true,3,mild,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8,
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:50.000Z,111,29,0.451,standing,25.6,61.1,73,true,1,calm,hr_ratio 1.15-1.35,
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:04:00.000Z,101,26,0.316,lying,26,59.7,72,true,0,calm,(none),
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:04:10.000Z,90,23,0.243,lying,26,62.9,71,true,0,calm,(none),
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T09:00:00.000Z,310,24,0.3,standing,24,55,40,false,0,calm,(none),"heart_rate_bpm 310 > validation max 300 -> flagged is_valid=false, field stored null"
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T09:00:10.000Z,95,,0.3,standing,24,55,40,false,0,calm,(none),"respiratory_rate_bpm missing (sensor dropout) -> stored null, classifier skips that rule only"
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T05:00:00.000Z,92,22,0.25,standing,24,55,40,false,0,calm,(none),"captured_at 3h old, outside +/-1h skew -> flagged"
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T14:00:00.000Z,100,30,0.4,standing,34,85,40,true,1,calm,environmental heat stress context,environmental_amplifier: ambient 34C AND humidity 85% -> heat-stress context +1
-Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T15:00:00.000Z,91,23,0.28,standing,24,55,12,true,0,calm,(none),"device_alerts.low_battery_percent (15) breached -- device health only, never a classifier input"
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:04:20.000Z,70,20,0.233,lying,24.6,59.4,70,true,0,calm,(none),
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:04:30.000Z,81,22,0.316,lying,24.9,63,69,true,0,calm,(none),
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:04:40.000Z,90,24,0.459,standing,25.5,58.4,68,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:04:50.000Z,95,27,0.527,standing,24.6,61.6,67,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:00.000Z,108,28,0.664,moving,25.2,58.9,66,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:10.000Z,112,32,0.704,moving,26.8,57,65,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:20.000Z,121,36,0.836,moving,27,60.5,64,true,8,high,hr_ratio>1.6 | rr panting | motion>0.8 | posture moving + high motion,
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:30.000Z,116,30,0.715,moving,27.4,60.1,63,true,6,moderate,hr_ratio>1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:40.000Z,108,28,0.675,moving,25.5,56.9,62,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:50.000Z,96,27,0.516,standing,26.4,56.1,61,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:06:00.000Z,86,25,0.422,standing,26.7,60.9,60,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:06:10.000Z,80,21,0.383,lying,26.1,63.3,59,true,0,calm,(none),
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:06:20.000Z,72,16,0.258,lying,26.4,59.3,58,true,0,calm,(none),
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T09:00:00.000Z,310,24,0.3,standing,24,55,40,false,1,calm,rr_ratio 1.3-1.8,"heart_rate_bpm 310 > validation max 300 -> flagged is_valid=false, field stored null"
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T09:00:10.000Z,95,,0.3,standing,24,55,40,false,1,calm,hr_ratio 1.15-1.35,"respiratory_rate_bpm missing (sensor dropout) -> stored null, classifier skips that rule only"
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T05:00:00.000Z,92,22,0.25,standing,24,55,40,false,1,calm,hr_ratio 1.15-1.35,"captured_at 3h old, outside +/-1h skew -> flagged"
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T14:00:00.000Z,100,30,0.4,standing,34,85,40,true,4,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | environmental heat stress context,environmental_amplifier: ambient 34C AND humidity 85% -> heat-stress context +1
-Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T15:00:00.000Z,91,23,0.28,standing,24,55,12,true,1,calm,hr_ratio 1.15-1.35,"device_alerts.low_battery_percent (15) breached -- device health only, never a classifier input"
+dog_name,breed,size_class,device_code,captured_at,heart_rate_bpm,respiratory_rate_bpm,motion_activity,posture,ambient_temperature_c,battery_percent,is_valid,expected_score,expected_level,fired_rules,note
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:00.000Z,112,26,0.237,lying,26.8,96,true,0,calm,(none),
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:10.000Z,125,32,0.394,lying,26.5,95,true,0,calm,(none),
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:20.000Z,138,35,0.481,standing,25.1,94,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:30.000Z,147,38,0.527,standing,25,93,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:40.000Z,163,43,0.676,moving,27.1,92,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:00:50.000Z,176,47,0.709,moving,27.4,91,true,7,high,hr_ratio>1.6 | rr panting | motion 0.6-0.8 | posture moving + high motion,
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:00.000Z,184,48,0.818,moving,25.9,90,true,9,high,hr_ratio>1.6 | rr panting | motion>0.8 | posture moving + high motion | rising trend over last 3 readings,
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:10.000Z,173,46,0.741,moving,24.9,89,true,6,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion | rising trend over last 3 readings,
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:20.000Z,162,42,0.666,moving,26.6,88,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:30.000Z,147,37,0.551,standing,27.5,87,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:40.000Z,134,35,0.491,standing,27.3,86,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:01:50.000Z,121,31,0.336,lying,26.3,85,true,0,calm,(none),
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T08:02:00.000Z,112,25,0.205,lying,25.3,84,true,0,calm,(none),
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T09:00:00.000Z,310,24,0.3,standing,24,40,false,0,calm,(none),"heart_rate_bpm 310 > validation max 300 -> flagged is_valid=false, field stored null"
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T09:00:10.000Z,95,,0.3,standing,24,40,false,0,calm,(none),"respiratory_rate_bpm missing (sensor dropout) -> stored null, classifier skips that rule only"
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T05:00:00.000Z,92,22,0.25,standing,24,40,false,0,calm,(none),"captured_at 3h old, outside +/-1h skew -> flagged"
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T14:00:00.000Z,100,30,0.4,standing,34,40,true,1,calm,environmental heat stress context,environmental_amplifier: ambient 34C -> heat-stress context +1
+Mochi,Shiba Inu,small,FURFEEL-DEV-SMALL,2026-07-20T15:00:00.000Z,91,23,0.28,standing,24,12,true,0,calm,(none),"device_alerts.low_battery_percent (15) breached -- device health only, never a classifier input"
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:10.000Z,87,26,0.247,lying,26.8,83,true,0,calm,(none),
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:20.000Z,103,28,0.32,lying,26.9,82,true,0,calm,(none),
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:30.000Z,114,30,0.458,standing,26.8,81,true,1,calm,hr_ratio 1.15-1.35,
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:40.000Z,122,34,0.521,standing,24.9,80,true,3,mild,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8,
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:02:50.000Z,130,38,0.672,moving,26.8,79,true,6,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion | rising trend over last 3 readings,
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:00.000Z,141,42,0.788,moving,25.7,78,true,6,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion | rising trend over last 3 readings,
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:10.000Z,154,45,0.871,moving,26.8,77,true,8,high,hr_ratio>1.6 | rr panting | motion>0.8 | posture moving + high motion,
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:20.000Z,143,41,0.779,moving,26.1,76,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:30.000Z,134,39,0.631,moving,25.3,75,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:40.000Z,120,34,0.561,standing,26.7,74,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:03:50.000Z,108,33,0.4,standing,25.2,73,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:04:00.000Z,102,29,0.334,lying,27.5,72,true,0,calm,(none),
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T08:04:10.000Z,88,23,0.251,lying,24.6,71,true,0,calm,(none),
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T09:00:00.000Z,310,24,0.3,standing,24,40,false,0,calm,(none),"heart_rate_bpm 310 > validation max 300 -> flagged is_valid=false, field stored null"
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T09:00:10.000Z,95,,0.3,standing,24,40,false,0,calm,(none),"respiratory_rate_bpm missing (sensor dropout) -> stored null, classifier skips that rule only"
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T05:00:00.000Z,92,22,0.25,standing,24,40,false,0,calm,(none),"captured_at 3h old, outside +/-1h skew -> flagged"
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T14:00:00.000Z,100,30,0.4,standing,34,40,true,1,calm,environmental heat stress context,environmental_amplifier: ambient 34C -> heat-stress context +1
+Rio,Border Collie,medium,FURFEEL-DEV-MEDIUM,2026-07-20T15:00:00.000Z,91,23,0.28,standing,24,12,true,0,calm,(none),"device_alerts.low_battery_percent (15) breached -- device health only, never a classifier input"
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:04:20.000Z,70,20,0.233,lying,24.6,70,true,0,calm,(none),
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:04:30.000Z,80,21,0.379,lying,25,69,true,0,calm,(none),
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:04:40.000Z,87,25,0.464,standing,26.7,68,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:04:50.000Z,98,25,0.53,standing,25,67,true,3,mild,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8,
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:00.000Z,107,28,0.602,moving,26.6,66,true,6,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion | rising trend over last 3 readings,
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:10.000Z,116,31,0.764,moving,25.2,65,true,7,high,hr_ratio>1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion | rising trend over last 3 readings,
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:20.000Z,121,33,0.861,moving,24.6,64,true,9,high,hr_ratio>1.6 | rr panting | motion>0.8 | posture moving + high motion | rising trend over last 3 readings,
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:30.000Z,115,30,0.733,moving,27.4,63,true,6,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion | rising trend over last 3 readings,
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:40.000Z,104,30,0.656,moving,27.2,62,true,5,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | motion 0.6-0.8 | posture moving + high motion,
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:05:50.000Z,94,25,0.598,standing,26,61,true,2,mild,hr_ratio 1.15-1.35 | rr_ratio 1.3-1.8,
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:06:00.000Z,91,22,0.475,standing,25.5,60,true,1,calm,hr_ratio 1.15-1.35,
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:06:10.000Z,78,20,0.372,lying,25,59,true,0,calm,(none),
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T08:06:20.000Z,73,16,0.209,lying,27.4,58,true,0,calm,(none),
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T09:00:00.000Z,310,24,0.3,standing,24,40,false,1,calm,rr_ratio 1.3-1.8,"heart_rate_bpm 310 > validation max 300 -> flagged is_valid=false, field stored null"
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T09:00:10.000Z,95,,0.3,standing,24,40,false,1,calm,hr_ratio 1.15-1.35,"respiratory_rate_bpm missing (sensor dropout) -> stored null, classifier skips that rule only"
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T05:00:00.000Z,92,22,0.25,standing,24,40,false,1,calm,hr_ratio 1.15-1.35,"captured_at 3h old, outside +/-1h skew -> flagged"
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T14:00:00.000Z,100,30,0.4,standing,34,40,true,4,moderate,hr_ratio 1.35-1.6 | rr_ratio 1.3-1.8 | environmental heat stress context,environmental_amplifier: ambient 34C -> heat-stress context +1
+Duke,Great Dane,large,FURFEEL-DEV-LARGE,2026-07-20T15:00:00.000Z,91,23,0.28,standing,24,12,true,1,calm,hr_ratio 1.15-1.35,"device_alerts.low_battery_percent (15) breached -- device health only, never a classifier input"

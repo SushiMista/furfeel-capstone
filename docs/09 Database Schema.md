@@ -119,7 +119,7 @@ Per-dog resting reference values used by the classifier. Optional; classifier fa
 | motion_elevated_min | numeric(3,2) | null; `motion_restlessness` tier 1 (global 0.60) |
 | motion_high_min | numeric(3,2) | null; tier 2 (global 0.80) |
 | ambient_heat_c | numeric(4,1) | null; `environmental_amplifier` ambient leg (global 32) |
-| humidity_heat_pct | numeric(4,1) | null; `environmental_amplifier` humidity leg (global 80) |
+| humidity_heat_pct | numeric(4,1) | deprecated, historical only; ignored by active classifier (ADR-025) |
 | updated_at | timestamptz | not null, default now() |
 
 Two check constraints enforce "null-safe strictly increasing" ordering per rule: `dog_baselines_thresholds_ordered` (the three score cutoffs) and one each for the HR/RR/motion tier pairs. Reads/writes go through the existing `dog_baselines_select/insert/update` RLS (`is_clinic_member(dog_id)`) — no new policy was added for these columns.
@@ -158,7 +158,7 @@ High-volume table. Index on `(dog_id, captured_at desc)` and `(device_id, captur
 | motion_activity | numeric(4,3) | null (0.000–1.000) |
 | posture | posture_type | not null, default `'unknown'` |
 | ambient_temperature_c | numeric(4,1) | null |
-| humidity_percent | numeric(4,1) | null |
+| humidity_percent | numeric(4,1) | deprecated, historical only; new intake omits it (ADR-025) |
 | battery_percent | int | null, check 0–100 (device health only — never a classifier input) |
 | is_valid | boolean | not null, default true (set false if validation failed) |
 | raw_payload | jsonb | not null (store exactly what the device sent) |
