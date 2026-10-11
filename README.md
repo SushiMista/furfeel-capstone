@@ -54,7 +54,8 @@ cp firmware/simulator/.env.example firmware/simulator/.env
 
 # 3. run
 cd apps/dashboard && npm install && npm run dev                                                    # vet dashboard (port 5173/5174)
-cd apps/mobile && flutter run -d chrome --web-port 5175 --dart-define-from-file=env.json          # owner web app
+cd apps/mobile && flutter run -d chrome --web-port 5175 --dart-define-from-file=env.json         
+# owner web app
 # Or for Android emulator / phone:
 # cd apps/mobile && flutter run --dart-define-from-file=env.json
 cd firmware/simulator && npm install && npm start -- --sweep                                      # live collar data
