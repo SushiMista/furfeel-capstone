@@ -24,6 +24,8 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
   BleDiscoveredCollar? _collar;
   WifiNetwork? _network;
   bool _busy = false,
+      _ready = false,
+      _scanCompleted = false,
       _manual = false,
       _hiddenPassword = true,
       _connected = false;
@@ -52,7 +54,16 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
     try {
       await action();
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        final message = e.toString();
+        setState(
+          () => _error =
+              message.contains('GATT_CONNECTION_TIMEOUT') ||
+                  e is TimeoutException
+              ? 'Could not connect to the harness over Bluetooth. Wi-Fi details were not sent. Restart the harness, keep it near your phone, close other apps connected to it, then tap Find harnesses again.'
+              : message,
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -69,6 +80,8 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
     setState(() {
       _collars = collars;
       _collar = null;
+      _ready = false;
+      _scanCompleted = false;
       _network = null;
       _networks = [];
     });
@@ -82,6 +95,8 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
   Future<void> _select(BleDiscoveredCollar collar) async {
     setState(() {
       _collar = collar;
+      _ready = false;
+      _scanCompleted = false;
       _network = null;
       _networks = [];
       _password.clear();
@@ -92,14 +107,17 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
       await _service.disconnect();
       return;
     }
+    setState(() => _ready = true);
     await _scan();
   }
 
   Future<void> _scan() async {
+    setState(() => _scanCompleted = false);
     final networks = await _service.scanNetworks();
     if (!mounted) return;
     setState(() {
       _networks = networks;
+      _scanCompleted = true;
       _network = null;
       _password.clear();
     });
@@ -107,7 +125,7 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
 
   Future<void> _submit() => _run('Connecting harness to Wi-Fi…', () async {
     final name = _manual ? _ssid.text : _network?.ssid ?? '';
-    if (_collar == null || name.isEmpty) {
+    if (!_ready || _collar == null || name.isEmpty) {
       throw const BleException('Select a harness and Wi-Fi network first.');
     }
     final password = !_manual && _network?.secured == false
@@ -216,7 +234,7 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
                   icon: const Icon(Icons.bluetooth_searching),
                   label: const Text('Find harnesses again'),
                 ),
-                if (_collar != null) ...[
+                if (_collar != null && _ready) ...[
                   Row(
                     children: [
                       const Expanded(child: Text('Available Wi-Fi networks')),
@@ -232,7 +250,7 @@ class _WifiProvisioningModalState extends State<WifiProvisioningModal> {
                       ),
                     ],
                   ),
-                  if (_networks.isEmpty && !_busy)
+                  if (_networks.isEmpty && !_busy && _scanCompleted)
                     const Text(
                       'No visible networks found. Refresh or enter a hidden network.',
                     ),

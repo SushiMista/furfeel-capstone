@@ -8,6 +8,7 @@ import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 class FakeProvisioning extends BleProvisioningService {
   String? sentPassword;
   bool fail = false;
+  bool failConnect = false;
   @override
   Future<List<BleDiscoveredCollar>> findCollars() async => [
     BleDiscoveredCollar(
@@ -17,7 +18,10 @@ class FakeProvisioning extends BleProvisioningService {
     ),
   ];
   @override
-  Future<void> connect(BluetoothDevice device) async {}
+  Future<void> connect(BluetoothDevice device) async {
+    if (failConnect) throw const BleException('GATT_CONNECTION_TIMEOUT');
+  }
+
   @override
   Future<List<WifiNetwork>> scanNetworks() async => [
     const WifiNetwork(ssid: 'Home', rssi: -45, secured: true),
@@ -40,6 +44,26 @@ class FakeProvisioning extends BleProvisioningService {
 }
 
 void main() {
+  testWidgets(
+    'Bluetooth connection failure does not offer a Wi-Fi form or claim an empty scan',
+    (tester) async {
+      final service = FakeProvisioning()..failConnect = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(extensions: [FurFeelPalette.light]),
+          home: Scaffold(body: WifiProvisioningModal(service: service)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Connect harness'), findsNothing);
+      expect(find.text('Enter a hidden network'), findsNothing);
+      expect(find.textContaining('No visible networks'), findsNothing);
+      expect(
+        find.textContaining('Wi-Fi details were not sent'),
+        findsOneWidget,
+      );
+    },
+  );
   test(
     'credential encoding preserves punctuation, unicode and password spaces',
     () {

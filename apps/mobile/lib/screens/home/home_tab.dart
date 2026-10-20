@@ -10,6 +10,7 @@ import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/friendly_time.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/day_timeline.dart';
+import 'package:furfeel_mobile/widgets/harness_battery.dart';
 import 'package:furfeel_mobile/widgets/curved_status_header.dart';
 import 'package:furfeel_mobile/widgets/section_header.dart';
 import 'package:furfeel_mobile/widgets/candle_sparkline.dart';
@@ -128,6 +129,8 @@ class _HomeTabState extends State<HomeTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                HarnessBattery(device: widget.device, reading: widget.reading),
+                const SizedBox(height: FurFeelTokens.space3),
                 if (widget.dog.isBirthday(DateTime.now())) ...[
                   _BirthdayBanner(dog: widget.dog).entrance(context),
                   const SizedBox(height: FurFeelTokens.space3),

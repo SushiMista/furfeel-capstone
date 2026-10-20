@@ -20,11 +20,11 @@ import type {
 
 export type { Dog };
 
-const DEVICE_COLUMNS = "id, dog_id, device_code, status, last_seen_at, firmware_version, created_at";
+const DEVICE_COLUMNS = "id, dog_id, device_code, status, last_seen_at, firmware_version, battery_percent, created_at";
 const READING_COLUMNS =
   "id, device_id, dog_id, captured_at, received_at, heart_rate_bpm, " +
   "respiratory_rate_bpm, motion_activity, posture, ambient_temperature_c, humidity_percent, " +
-  "is_valid, raw_payload";
+  "battery_percent, is_valid, raw_payload";
 const CLASSIFICATION_COLUMNS =
   "id, dog_id, telemetry_reading_id, stress_level, score, confidence, reasons, model_version, created_at";
 
@@ -137,7 +137,7 @@ export async function fetchDevicesReadOnly(client: SupabaseClient): Promise<Devi
   return (data ?? []) as unknown as DeviceWithDog[];
 }
 
-async function fetchDeviceForDog(client: SupabaseClient, dogId: string): Promise<Device | null> {
+export async function fetchDeviceForDog(client: SupabaseClient, dogId: string): Promise<Device | null> {
   const { data, error } = await client
     .from("devices")
     .select(DEVICE_COLUMNS)

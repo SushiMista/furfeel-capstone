@@ -124,3 +124,6 @@ As-built: User Dashboard, Alerts + acknowledge, History/Trends/Detailed Log, Pet
 
 ## Wi-Fi setup update (ADR-025)
 In Settings → Harness & Hardware, select a nearby harness, then select a 2.4 GHz network scanned by that ESP32. Display signal strength and whether a password is required. Offer refresh and hidden-network entry. Require only the password for a visible secured network; open networks require none. Preserve passwords exactly as entered. Keep the setup sheet scrollable while the keyboard is open. Confirm Connected only after the ESP32 reports a successful Wi-Fi join; telemetry delivery is verified separately. Show retryable scan, Bluetooth, firmware-version and connection errors.
+
+### Harness battery display
+Battery percentage is device health, not a stress-classifier input. Show the latest valid telemetry battery_percent, falling back to devices.battery_percent as a last-reported value. Display it on the multi-dog cards and individual dog Home screen. Preserve true zero, label <=15% Low using the existing threshold, show Unavailable for missing/invalid data, and identify offline harnesses. The tooltip explains the reported timestamp when available. Percentage updates follow the existing telemetry subscription. The app does not estimate percentage from voltage or capacity and does not claim charging status or runtime.

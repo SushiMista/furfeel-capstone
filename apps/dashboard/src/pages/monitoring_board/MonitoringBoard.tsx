@@ -14,6 +14,7 @@ import {
 } from "../../lib/queries.ts";
 import { useRealtimeInsert, useRealtimeUpdate } from "../../lib/useRealtimeInsert.ts";
 import { DogCard } from "../../components/DogCard.tsx";
+import { HarnessBattery } from "../../components/HarnessBattery.tsx";
 import { StressLevelBadge } from "../../components/StressLevelBadge.tsx";
 import { Card } from "../../components/ui/card.tsx";
 import { Button } from "../../components/ui/button.tsx";
@@ -326,6 +327,7 @@ export function MonitoringBoard() {
                 </Td>
                 <Td>
                   <DeviceStatus status={row.device?.status} hasReading={Boolean(row.latestReading)} />
+                  <HarnessBattery percent={row.latestReading?.battery_percent ?? row.device?.battery_percent} reportedAt={row.latestReading?.battery_percent != null ? row.latestReading.captured_at : null} offline={row.device?.status === "offline"} />
                 </Td>
                 <Td>
                   {level ? (

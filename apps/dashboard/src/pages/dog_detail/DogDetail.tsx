@@ -27,6 +27,7 @@ import {
   fetchDailyStressSummary,
   fetchDog,
   fetchDogOwners,
+  fetchDeviceForDog,
   fetchRecentAlerts,
   fetchTelemetryHistory,
   fetchStressLabels,
@@ -47,6 +48,7 @@ import { VetNotes } from "../../components/VetNotes.tsx";
 import { ClinicalInterventionsList } from "../../components/ClinicalInterventionsList.tsx";
 import { ThresholdEditor } from "../../components/ThresholdEditor.tsx";
 import { ManageDogOwners } from "../../components/ManageDogOwners.tsx";
+import { HarnessBattery } from "../../components/HarnessBattery.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Input, Select } from "../../components/ui/input.tsx";
 import { Button } from "../../components/ui/button.tsx";
@@ -58,6 +60,7 @@ import type {
   Alert,
   ClinicalIntervention,
   Dog,
+  Device,
   StressClassification,
   TelemetryReading,
   MediaSubmission,
@@ -138,6 +141,7 @@ export function DogDetail() {
   const [media, setMedia] = useState<MediaSubmission[]>([]);
   const [interventions, setInterventions] = useState<ClinicalIntervention[]>([]);
   const [owners, setOwners] = useState<User[]>([]);
+  const [device, setDevice] = useState<Device | null>(null);
   const [editingOwners, setEditingOwners] = useState(false);
   const [editingWard, setEditingWard] = useState(false);
   const [wardDraft, setWardDraft] = useState("");
@@ -161,7 +165,7 @@ export function DogDetail() {
   const load = useCallback(async () => {
     if (!dogId) return;
     try {
-      const [dogRow, history, classHistory, recentAlerts, mixRows, labelRows, mediaRows, interventionRows, ownerList] = await Promise.all([
+      const [dogRow, history, classHistory, recentAlerts, mixRows, labelRows, mediaRows, interventionRows, ownerList, deviceRow] = await Promise.all([
         fetchDog(supabase, dogId),
         fetchTelemetryHistory(supabase, dogId, HISTORY_LIMIT),
         fetchClassificationHistory(supabase, dogId, HISTORY_LIMIT),
@@ -171,6 +175,7 @@ export function DogDetail() {
         fetchMediaSubmissions(supabase, dogId),
         fetchClinicalInterventions(supabase, dogId),
         fetchDogOwners(supabase, dogId),
+        fetchDeviceForDog(supabase, dogId),
       ]);
       setDog(dogRow);
       if (dogRow) {
@@ -185,6 +190,7 @@ export function DogDetail() {
       setMedia(mediaRows);
       setInterventions(interventionRows);
       setOwners(ownerList);
+      setDevice(deviceRow);
       setError(null);
     } catch (err) {
       setError(friendlyError(err, "load this dog"));
@@ -381,6 +387,7 @@ export function DogDetail() {
           )}
 
           {/* Registered Owners Bar */}
+          <div className="mb-3"><HarnessBattery percent={latestReading?.battery_percent ?? device?.battery_percent} reportedAt={latestReading?.battery_percent != null ? latestReading.captured_at : null} offline={device?.status === "offline"} /></div>
           {(
             <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-hairline/70 bg-surface-alt/40 px-3 py-2 text-xs">
               <span className="font-bold text-ink flex items-center gap-1.5 shrink-0">
