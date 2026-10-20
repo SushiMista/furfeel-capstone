@@ -80,3 +80,6 @@ As-built: Board, Dog detail, Alerts queue, Vet notes, Reports, Vet Review media 
 
 ## Existing patient: add registered owners
 On the dog detail page, Manage owners beside Registered Owners opens an editor for existing patients. Display current linked owners, search registered active owner accounts by name/email, select one or more additional accounts, and save to dog_owners. Preserve existing links and the compatibility owner_user_id field. Owner accounts must already exist. Only show success after writes and a refreshed owner list confirm the additions. Supabase RLS and foreign keys remain enforced; rejected writes stay visible for retry.
+
+### Harness battery visibility
+Monitoring Board card/list views and dog detail display battery percentage using telemetry_readings.battery_percent with devices.battery_percent as last-reported fallback. Existing Device Management battery display remains available. Missing/invalid values display Unavailable; zero is a valid value; <=15% uses the existing Low indication. Offline status and reported-value tooltip prevent interpreting offline values as live. Device battery is separate from canine stress status. No firmware or schema change is required for these displays.

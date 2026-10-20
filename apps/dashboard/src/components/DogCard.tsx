@@ -19,6 +19,7 @@ import { supabase } from "../lib/supabaseClient.ts";
 import { getMediaSignedUrl, uploadDogPhoto, type MonitoringBoardRow } from "../lib/queries.ts";
 import { formatPosture } from "../lib/posture.ts";
 import { StressLevelBadge } from "./StressLevelBadge.tsx";
+import { HarnessBattery } from "./HarnessBattery.tsx";
 import { cn } from "../lib/cn.ts";
 import { dogTint } from "../lib/dogTint.ts";
 import { useToast } from "./ui/toast.tsx";
@@ -231,6 +232,7 @@ export function DogCard({
 
       {/* Right Column: Dog Information, Vitals, and Status */}
       <div className="flex flex-1 flex-col justify-between min-w-0 gap-2.5 py-0.5">
+        <HarnessBattery percent={latestReading?.battery_percent ?? device?.battery_percent} reportedAt={latestReading?.battery_percent != null ? latestReading.captured_at : null} offline={device?.status === "offline"} />
         {/* Top Row: Name, Breed, and Stress Badge */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">

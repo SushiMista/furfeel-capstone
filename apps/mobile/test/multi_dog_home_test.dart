@@ -64,10 +64,10 @@ void main() {
     expect(nameInCard('Biscuit'), findsOneWidget);
     expect(nameInCard('Mochi'), findsOneWidget);
     expect(find.text('Calm'), findsWidgets); // stress pill
-    // Wellness and battery are removed from the minimalist glance card
+    // Harness battery is visible without opening each dog; wellness stays in detail.
     expect(find.text('82'), findsNothing);
-    expect(find.text('12%'), findsNothing);
-    expect(find.byIcon(Icons.battery_alert), findsNothing);
+    expect(find.text('Harness battery: 12% · Low'), findsNWidgets(2));
+    expect(find.byIcon(Icons.battery_alert), findsNWidgets(2));
   });
 
   testWidgets('a card opens the full dog detail', (tester) async {
@@ -75,8 +75,11 @@ void main() {
     await tester.pumpWidget(app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.descendant(
-        of: find.byType(DogOverviewCard), matching: find.text('Biscuit')));
+    final cardName = find.descendant(
+        of: find.byType(DogOverviewCard), matching: find.text('Biscuit'));
+    await tester.ensureVisible(cardName);
+    await tester.pumpAndSettle();
+    await tester.tap(cardName);
     await tester.pumpAndSettle();
 
     // The dog's immersive home detail (no app bar now — a floating back button).

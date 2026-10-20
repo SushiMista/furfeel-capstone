@@ -6,6 +6,7 @@ import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/dog_avatar.dart';
+import 'package:furfeel_mobile/widgets/harness_battery.dart';
 import 'package:furfeel_mobile/widgets/overview_stats_card.dart';
 import 'package:furfeel_mobile/widgets/pet_selector.dart';
 import 'package:furfeel_mobile/widgets/skeletons.dart';
@@ -17,7 +18,11 @@ import 'package:furfeel_mobile/screens/dogs/dog_detail_page.dart';
 /// Tapping a card opens the dog's full detail. Single-dog owners never see
 /// this; RootShell routes them straight to the rich detail.
 class MultiDogHomeTab extends StatefulWidget {
-  const MultiDogHomeTab({super.key, required this.repository, required this.dogs});
+  const MultiDogHomeTab({
+    super.key,
+    required this.repository,
+    required this.dogs,
+  });
 
   final FurFeelRepository repository;
   final List<Dog> dogs;
@@ -105,8 +110,9 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
 
   Future<void> _load() async {
     try {
-      final overviews =
-          await Future.wait(widget.dogs.map(widget.repository.fetchDogOverview));
+      final overviews = await Future.wait(
+        widget.dogs.map(widget.repository.fetchDogOverview),
+      );
       if (!mounted) return;
       setState(() {
         _overviews = overviews;
@@ -115,8 +121,10 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
       _setupSubscriptions();
     } catch (_) {
       if (!mounted) return;
-      setState(() =>
-          _error = 'Couldn\'t load your pack right now — pull down to retry.');
+      setState(
+        () =>
+            _error = 'Couldn\'t load your pack right now — pull down to retry.',
+      );
     }
   }
 
@@ -192,7 +200,9 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
                   const childAspectRatio = 0.75;
 
                   final width = constraints.maxWidth;
-                  final itemWidth = (width - (crossAxisCount - 1) * crossAxisSpacing) / crossAxisCount;
+                  final itemWidth =
+                      (width - (crossAxisCount - 1) * crossAxisSpacing) /
+                      crossAxisCount;
                   final itemHeight = itemWidth / childAspectRatio;
 
                   final sorted = List<DogOverview>.of(overviews);
@@ -210,7 +220,9 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
                   });
 
                   final rowCount = (sorted.length / crossAxisCount).ceil();
-                  final totalHeight = rowCount * itemHeight + (rowCount > 0 ? rowCount - 1 : 0) * mainAxisSpacing;
+                  final totalHeight =
+                      rowCount * itemHeight +
+                      (rowCount > 0 ? rowCount - 1 : 0) * mainAxisSpacing;
 
                   return SizedBox(
                     height: totalHeight,
@@ -256,18 +268,29 @@ class _MultiDogHomeTabState extends State<MultiDogHomeTab> {
 /// Pack-wide stats (mirrors the dashboard's clinic KPI row), all derived
 /// from the per-dog [DogOverview]s already fetched by [_MultiDogHomeTabState._load].
 List<OverviewStat> _overviewStats(List<DogOverview> overviews) {
-  final openAlerts = overviews.fold<int>(0, (sum, o) => sum + o.openAlertsCount);
+  final openAlerts = overviews.fold<int>(
+    0,
+    (sum, o) => sum + o.openAlertsCount,
+  );
   final needsAttention = overviews.where((o) => o.openAlertsCount > 0).length;
-  final devicesOffline = overviews.where((o) => o.device?.status == 'offline').length;
+  final devicesOffline = overviews
+      .where((o) => o.device?.status == 'offline')
+      .length;
   final withWellness = overviews.where((o) => o.wellness != null).toList();
   final calmToday = withWellness.isEmpty
       ? null
-      : withWellness.map((o) => o.wellness!.calmPercent).reduce((a, b) => a + b) /
-          withWellness.length;
+      : withWellness
+                .map((o) => o.wellness!.calmPercent)
+                .reduce((a, b) => a + b) /
+            withWellness.length;
 
   return [
     if (overviews.length > 1)
-      OverviewStat(label: 'Dogs monitored', value: '${overviews.length}', icon: Icons.pets),
+      OverviewStat(
+        label: 'Dogs monitored',
+        value: '${overviews.length}',
+        icon: Icons.pets,
+      ),
     if (calmToday != null)
       OverviewStat(
         label: 'Calm today',
@@ -298,7 +321,7 @@ List<OverviewStat> _overviewStats(List<DogOverview> overviews) {
 
 class _PackGreeting extends StatelessWidget {
   const _PackGreeting({required this.dogCount});
-  
+
   final int dogCount;
 
   @override
@@ -319,8 +342,12 @@ class _PackGreeting extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 2),
-        Text(dogCount > 1 ? 'Here\'s how your pack is doing' : 'Here\'s how your dog is doing',
-            style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          dogCount > 1
+              ? 'Here\'s how your pack is doing'
+              : 'Here\'s how your dog is doing',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
       ],
     ).entrance(context);
   }
@@ -362,7 +389,9 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
 
   void _initFuture() {
     final path = widget.overview.dog.photoPath;
-    _photoFuture = path == null ? null : widget.repository.getSignedMediaUrl(path);
+    _photoFuture = path == null
+        ? null
+        : widget.repository.getSignedMediaUrl(path);
   }
 
   @override
@@ -437,19 +466,39 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                             )
                           else
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 'No data',
-                                style: textTheme.labelSmall?.copyWith(color: Colors.white),
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                         ],
                       ),
                       const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: HarnessBattery(
+                          device: widget.overview.device,
+                          reading: widget.overview.reading,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       Text(
                         dog.name,
                         maxLines: 1,
@@ -533,9 +582,9 @@ class _MiniStat extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

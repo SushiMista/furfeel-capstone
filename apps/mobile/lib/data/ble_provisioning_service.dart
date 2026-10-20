@@ -104,10 +104,16 @@ class BleProvisioningService {
     await disconnect();
     _device = device;
     try {
-      await device
-          .connect(autoConnect: false)
-          .timeout(const Duration(seconds: 12));
-      if (Platform.isAndroid) await device.requestMtu(512);
+      await device.connect(
+        autoConnect: false,
+        timeout: const Duration(seconds: 25),
+      );
+      if (Platform.isAndroid) {
+        // MTU negotiation is optional: prepared writes handle smaller packets.
+        try {
+          await device.requestMtu(512);
+        } catch (_) {}
+      }
       final services = await device.discoverServices();
       final service = services.firstWhere(
         (s) => s.uuid == Guid(serviceUuid),
@@ -175,7 +181,7 @@ class BleProvisioningService {
     required String ssid,
     required String password,
   }) async {
-    if (_device?.remoteId != device.remoteId || _creds == null) {
+    if (_device?.remoteId != device.remoteId || _creds == null || !device.isConnected) {
       await connect(device);
     }
     await _creds!.write(
