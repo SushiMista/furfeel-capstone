@@ -35,76 +35,136 @@ volatile bool shouldConnectWifi = false;
 String pendingSSID = "";
 String pendingPass = "";
 
-//================ HARDWARE & CREDENTIALS =============
-const char* DEVICE_CODE = "FURFEEL-DEV-0002";
-const char* DEVICE_KEY  = "014561cd2c1ab0f56a5e5c3ee0814122a868837f45ec441e";
-const char* FUNCTION_URL = "https://kkbumkjvltlrggfefnkp.supabase.co/functions/v1/telemetry-intake";
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <Adafruit_MAX1704X.h>
 
-const unsigned long SEND_INTERVAL_MS = 2000;
+//================ WIFI ====================
 
 String wifiSSID = "";
 String wifiPassword = "";
 
+const char* DEVICE_CODE = "FURFEEL-DEV-0002";
+const char* DEVICE_KEY = "YOUR_DEVICE_KEY";
+
+const char* FUNCTION_URL =
+    "https://kkbumkjvltlrggfefnkp.supabase.co/functions/v1/telemetry-intake";
+
+const unsigned long SEND_INTERVAL_MS = 2000;
+
 //================ DHT22 ===================
+
 #define DHTPIN 4
 #define DHTTYPE DHT22
+
 DHT dht(DHTPIN, DHTTYPE);
 
 //================ FLEX SENSOR =============
+
 #define FLEX_PIN 34
+
 const int BREATH_THRESHOLD = 1260;
+
 bool readyForNextBreath = true;
 int breathCount = 0;
 int respiratoryRate = 0;
 
 //================ MPU9250 =================
+
 MPU9250_asukiaaa imu;
 
 //================ POSTURE MODEL ===========
+
 Eloquent::ML::Port::RandomForest postureModel;
-const int WINDOW_SIZE = 20;                  // ~1s at 20Hz
-const unsigned long SAMPLE_INTERVAL_MS = 50; // 20Hz
-float winAccelX[WINDOW_SIZE], winAccelY[WINDOW_SIZE], winAccelZ[WINDOW_SIZE];
-float winGyroX[WINDOW_SIZE], winGyroY[WINDOW_SIZE], winGyroZ[WINDOW_SIZE];
+
+const int WINDOW_SIZE = 20;
+const unsigned long SAMPLE_INTERVAL_MS = 50;
+
+float winAccelX[WINDOW_SIZE];
+float winAccelY[WINDOW_SIZE];
+float winAccelZ[WINDOW_SIZE];
+
+float winGyroX[WINDOW_SIZE];
+float winGyroY[WINDOW_SIZE];
+float winGyroZ[WINDOW_SIZE];
+
 String currentPosture = "unknown";
 float currentMotion = 0;
 
 //================ MAX30102 ================
+
 MAX30105 particleSensor;
 TwoWire I2C_MAX = TwoWire(1);
 
+bool max30102Ready = false;
+
+//================ OLED + BATTERY ==========
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_ADDR 0x3C
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+Adafruit_MAX17048 maxlipo;
+
+bool oledReady = false;
+bool batteryGaugeReady = false;
+
+float batteryVoltage = NAN;
+float batteryPercent = NAN;
+
+unsigned long lastDisplayMs = 0;
+
 //================ HEART RATE ==============
+
 const byte RATE_SIZE = 8;
+
 byte rates[RATE_SIZE];
 byte rateSpot = 0;
 byte validReadings = 0;
+
 long lastBeat = 0;
+
 float beatsPerMinute = 0;
 float beatAvg = 0;
+
 long irValue = 0;
 bool fingerDetected = false;
 
 //================ TIMERS ==================
+
 unsigned long lastSendMs = 0;
 unsigned long lastPrint = 0;
 unsigned long lastDHT = 0;
 unsigned long lastRespiration = 0;
+
 float temperature = NAN;
 float humidity = NAN;
 
 //================ PROTOTYPES ==============
+
 void startBLE();
 void stopBLE();
 void loadSavedWifi();
 void saveWifiCredentials(String ssid, String pass);
 bool connectWifi();
+void handleWifiSetup();
 void syncTime();
 void updateHeartRate();
 void updateRespiration();
-void capturePostureWindow();
 void printReadings();
-void computeStats(float *arr, int n, float &mean, float &stdDev, float &mn, float &mx);
+void capturePostureWindow();
+void updateBatteryAndDisplay();
 void sendTelemetry();
+
+void computeStats(
+    float *arr,
+    int n,
+    float &mean,
+    float &stdDev,
+    float &mn,
+    float &mx
+);
 
 // Setup commands are handled in loop; never scan or join Wi-Fi in a BLE callback.
 void setupStatus(String value) {
@@ -143,6 +203,7 @@ class ControlCallbacks: public BLECharacteristicCallbacks {
         String command = characteristic->getValue().c_str();
         if (shouldConnectWifi || scanRequested) { setupStatus("ERROR:Harness is busy. Retry shortly."); return; }
         if (command == "SCAN") {
+            bleCloseAt = 0;
             setupStatus("SCANNING"); scanRequested = true;
         } else if (command.startsWith("NETWORK:")) {
             String indexText = command.substring(8);
@@ -178,57 +239,337 @@ class CredsCallbacks: public BLECharacteristicCallbacks {
             (password.length() > 0 && password.length() < 8)) {
             setupStatus("ERROR:Invalid Wi-Fi name or password length"); return;
         }
+        bleCloseAt = 0;
         pendingSSID = ssid; pendingPass = password;
         setupStatus("CONNECTING"); shouldConnectWifi = true;
     }
 };
 
 //================ SETUP ===================
-void setup()
-{
+
+void setup() {
     Serial.begin(115200);
-    WiFi.persistent(false); // Save only verified credentials in our own NVS namespace.
+    WiFi.persistent(false);
     delay(1000);
+
+    Serial.println("Starting FurFeel...");
 
     dht.begin();
     pinMode(FLEX_PIN, INPUT);
 
+    // Main I2C bus: OLED, MAX17048, MPU9250
     Wire.begin(21, 22);
+
+    oledReady = display.begin(
+        SSD1306_SWITCHCAPVCC,
+        OLED_ADDR
+    );
+
+    if (oledReady) {
+        display.clearDisplay();
+        display.setTextColor(SSD1306_WHITE);
+        display.setTextSize(1);
+        display.setCursor(0, 0);
+        display.println("FurFeel Starting...");
+        display.display();
+    } else {
+        Serial.println("OLED NOT FOUND");
+    }
+
+    // Initialize MAX17048 battery monitor
+    batteryGaugeReady = maxlipo.begin();
+
+    if (batteryGaugeReady) {
+        Serial.println("MAX17048 detected");
+    } else {
+        Serial.println("MAX17048 NOT FOUND");
+    }
+
+    // Initialize MPU9250
     imu.setWire(&Wire);
     imu.beginAccel();
     imu.beginGyro();
 
+    // Initialize MAX30102 on separate I2C bus
     I2C_MAX.begin(25, 26);
-    if (!particleSensor.begin(I2C_MAX)) {
-        Serial.println("⚠️ MAX30102 NOT FOUND on pins 25, 26");
-    } else {
+
+    max30102Ready = particleSensor.begin(I2C_MAX);
+
+    if (max30102Ready) {
         particleSensor.setup(0x3F, 4, 2, 400, 411, 4096);
         particleSensor.setPulseAmplitudeRed(0x3F);
         particleSensor.setPulseAmplitudeIR(0x3F);
+        particleSensor.setPulseAmplitudeGreen(0);
+
+        Serial.println("MAX30102 detected");
+    } else {
+        Serial.println("MAX30102 NOT FOUND");
+        Serial.println("Continuing without heart-rate readings.");
     }
 
-    // 1. Check if we have saved Wi-Fi in Flash
+    // Use saved credentials; otherwise advertise setup for the mobile app.
     loadSavedWifi();
-
-    // 2. Try connecting to saved Wi-Fi
     if (wifiSSID.length() > 0 && connectWifi()) {
         syncTime();
     } else {
-        // 3. If no Wi-Fi or connection failed, open Bluetooth for Phone Setup
-        Serial.println("📡 Starting Bluetooth so phone can push Wi-Fi credentials...");
         startBLE();
     }
 
     lastRespiration = millis();
-    Serial.println();
-    Serial.println("======================================");
-    Serial.println(" FurFeel Smart Collar Ready");
-    Serial.println("======================================");
+
+    Serial.println("FurFeel Ready");
+
+    if (oledReady) {
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setCursor(0, 0);
+        display.println("FurFeel Ready");
+        display.println("Reading sensors...");
+        display.display();
+    }
 }
 
 //================ LOOP ====================
-void loop()
-{
+
+void loop() {
+    handleWifiSetup();
+    capturePostureWindow();
+
+    // Read temperature and humidity every 2 seconds
+    if (millis() - lastDHT >= 2000) {
+        lastDHT = millis();
+
+        humidity = dht.readHumidity();
+        temperature = dht.readTemperature();
+    }
+
+    // Update OLED and battery every 2 seconds
+    if (millis() - lastDisplayMs >= 2000) {
+        lastDisplayMs = millis();
+        updateBatteryAndDisplay();
+    }
+
+    // Print sensor readings every 5 seconds
+    if (millis() - lastPrint >= 5000) {
+        lastPrint = millis();
+        printReadings();
+    }
+
+    // Attempt telemetry upload every 2 seconds
+    if (millis() - lastSendMs >= SEND_INTERVAL_MS) {
+        lastSendMs = millis();
+        sendTelemetry();
+    }
+}
+
+//================ STATISTICS ==============
+
+void computeStats(
+    float *arr,
+    int n,
+    float &mean,
+    float &stdDev,
+    float &mn,
+    float &mx
+) {
+    float sum = 0;
+    float sumSq = 0;
+
+    mn = arr[0];
+    mx = arr[0];
+
+    for (int i = 0; i < n; i++) {
+        sum += arr[i];
+
+        if (arr[i] < mn) mn = arr[i];
+        if (arr[i] > mx) mx = arr[i];
+    }
+
+    mean = sum / n;
+
+    for (int i = 0; i < n; i++) {
+        float d = arr[i] - mean;
+        sumSq += d * d;
+    }
+
+    stdDev = sqrt(sumSq / n);
+}
+
+//================ POSTURE MODEL ===========
+
+void capturePostureWindow() {
+    for (int i = 0; i < WINDOW_SIZE; i++) {
+        imu.accelUpdate();
+        imu.gyroUpdate();
+
+        winAccelX[i] = imu.accelX();
+        winAccelY[i] = imu.accelY();
+        winAccelZ[i] = imu.accelZ();
+
+        winGyroX[i] = imu.gyroX();
+        winGyroY[i] = imu.gyroY();
+        winGyroZ[i] = imu.gyroZ();
+
+        unsigned long slotStart = millis();
+
+        while (millis() - slotStart < SAMPLE_INTERVAL_MS) {
+            updateHeartRate();
+            delay(2);
+        }
+
+        updateRespiration();
+    }
+
+    float feats[26];
+    float mean, stdDev, mn, mx;
+
+    computeStats(winAccelX, WINDOW_SIZE, mean, stdDev, mn, mx);
+    feats[0] = mean;
+    feats[1] = stdDev;
+    feats[2] = mn;
+    feats[3] = mx;
+
+    computeStats(winAccelY, WINDOW_SIZE, mean, stdDev, mn, mx);
+    feats[4] = mean;
+    feats[5] = stdDev;
+    feats[6] = mn;
+    feats[7] = mx;
+
+    computeStats(winAccelZ, WINDOW_SIZE, mean, stdDev, mn, mx);
+    feats[8] = mean;
+    feats[9] = stdDev;
+    feats[10] = mn;
+    feats[11] = mx;
+
+    computeStats(winGyroX, WINDOW_SIZE, mean, stdDev, mn, mx);
+    feats[12] = mean;
+    feats[13] = stdDev;
+    feats[14] = mn;
+    feats[15] = mx;
+
+    computeStats(winGyroY, WINDOW_SIZE, mean, stdDev, mn, mx);
+    feats[16] = mean;
+    feats[17] = stdDev;
+    feats[18] = mn;
+    feats[19] = mx;
+
+    computeStats(winGyroZ, WINDOW_SIZE, mean, stdDev, mn, mx);
+    feats[20] = mean;
+    feats[21] = stdDev;
+    feats[22] = mn;
+    feats[23] = mx;
+
+    float mag[WINDOW_SIZE];
+
+    for (int i = 0; i < WINDOW_SIZE; i++) {
+        mag[i] = sqrt(
+            winAccelX[i] * winAccelX[i] +
+            winAccelY[i] * winAccelY[i] +
+            winAccelZ[i] * winAccelZ[i]
+        );
+    }
+
+    computeStats(mag, WINDOW_SIZE, mean, stdDev, mn, mx);
+    feats[24] = mean;
+    feats[25] = stdDev;
+
+    float gyroMagSum = 0;
+
+    for (int i = 0; i < WINDOW_SIZE; i++) {
+        gyroMagSum += sqrt(
+            winGyroX[i] * winGyroX[i] +
+            winGyroY[i] * winGyroY[i] +
+            winGyroZ[i] * winGyroZ[i]
+        );
+    }
+
+    float normalized = (gyroMagSum / WINDOW_SIZE) / 250.0;
+
+    currentMotion = normalized < 0 ? 0 :
+                    (normalized > 1 ? 1 : normalized);
+
+    currentPosture = String(postureModel.predictLabel(feats));
+}
+
+//================ HEART RATE ==============
+
+void updateHeartRate() {
+    if (!max30102Ready) {
+        fingerDetected = false;
+        beatsPerMinute = 0;
+        beatAvg = 0;
+        return;
+    }
+
+    irValue = particleSensor.getIR();
+    fingerDetected = (irValue > 50000);
+
+    if (!fingerDetected) {
+        beatsPerMinute = 0;
+        beatAvg = 0;
+        validReadings = 0;
+        rateSpot = 0;
+        return;
+    }
+
+    if (checkForBeat(irValue)) {
+        long delta = millis() - lastBeat;
+        lastBeat = millis();
+
+        if (delta > 0) {
+            beatsPerMinute = 60.0 / (delta / 1000.0);
+
+            if (beatsPerMinute > 35 && beatsPerMinute < 220) {
+                rates[rateSpot++] = (byte)beatsPerMinute;
+                rateSpot %= RATE_SIZE;
+
+                if (validReadings < RATE_SIZE) {
+                    validReadings++;
+                }
+
+                beatAvg = 0;
+
+                for (byte i = 0; i < validReadings; i++) {
+                    beatAvg += rates[i];
+                }
+
+                beatAvg /= validReadings;
+            }
+        }
+    }
+}
+
+//================ RESPIRATORY RATE =========
+
+void updateRespiration() {
+    long total = 0;
+
+    for (int i = 0; i < 5; i++) {
+        total += analogRead(FLEX_PIN);
+        delay(2);
+    }
+
+    int rawValue = total / 5;
+
+    if (rawValue >= BREATH_THRESHOLD && readyForNextBreath) {
+        breathCount++;
+        readyForNextBreath = false;
+    }
+
+    if (rawValue < BREATH_THRESHOLD) {
+        readyForNextBreath = true;
+    }
+
+    if (millis() - lastRespiration >= 10000) {
+        respiratoryRate = breathCount * 6;
+        breathCount = 0;
+        lastRespiration = millis();
+    }
+}
+
+//================ WIFI =====================
+
+void handleWifiSetup() {
     if (scanRequested) {
         WiFi.mode(WIFI_STA);
         WiFi.scanDelete();
@@ -253,28 +594,11 @@ void loop()
         pendingPass = "";
         shouldConnectWifi = false;
     }
-    if (bleCloseAt && (long)(millis() - bleCloseAt) >= 0) {
+    if (bleCloseAt && WiFi.status() == WL_CONNECTED && (long)(millis() - bleCloseAt) >= 0) {
         bleCloseAt = 0; stopBLE();
     }
     if (!bleActive && WiFi.status() != WL_CONNECTED) startBLE();
 
-    capturePostureWindow();
-
-    if (millis() - lastDHT >= 2000) {
-        lastDHT = millis();
-        humidity = dht.readHumidity();
-        temperature = dht.readTemperature();
-    }
-
-    if (millis() - lastPrint >= 5000) {
-        lastPrint = millis();
-        printReadings();
-    }
-
-    if (millis() - lastSendMs >= SEND_INTERVAL_MS) {
-        lastSendMs = millis();
-        sendTelemetry();
-    }
 }
 
 //================ BLE FUNCTIONS ============
@@ -282,7 +606,7 @@ void startBLE()
 {
     if (bleActive) return;
 
-    String devName = "FurFeel-" + String(DEVICE_CODE);
+    String devName = String(DEVICE_CODE);
     BLEDevice::init(devName.c_str());
     pServer = BLEDevice::createServer();
     pServer->setCallbacks(new SetupServerCallbacks());
@@ -376,200 +700,272 @@ bool connectWifi()
     }
 }
 
-void syncTime()
-{
+//================ TIME SYNC ================
+
+void syncTime() {
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("Time sync skipped: Wi-Fi unavailable.");
+        return;
+    }
+
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+
     struct tm timeinfo;
-    unsigned long start = millis();
-    while (!getLocalTime(&timeinfo) && millis() - start < 6000) {
+    unsigned long started = millis();
+
+    while (
+        !getLocalTime(&timeinfo, 10) &&
+        millis() - started < 10000
+    ) {
         delay(500);
         Serial.print(".");
     }
-    Serial.println("\n🕒 Time Synced (UTC)");
-}
 
-//================ SENSORS & POSTURE ========
-void computeStats(float *arr, int n, float &mean, float &stdDev, float &mn, float &mx)
-{
-    float sum = 0, sumSq = 0;
-    mn = arr[0];
-    mx = arr[0];
-    for (int i = 0; i < n; i++) {
-        sum += arr[i];
-        if (arr[i] < mn) mn = arr[i];
-        if (arr[i] > mx) mx = arr[i];
-    }
-    mean = sum / n;
-    for (int i = 0; i < n; i++) {
-        float d = arr[i] - mean;
-        sumSq += d * d;
-    }
-    stdDev = sqrt(sumSq / n);
-}
-
-void capturePostureWindow()
-{
-    for (int i = 0; i < WINDOW_SIZE; i++) {
-        imu.accelUpdate();
-        imu.gyroUpdate();
-        winAccelX[i] = imu.accelX(); winAccelY[i] = imu.accelY(); winAccelZ[i] = imu.accelZ();
-        winGyroX[i] = imu.gyroX();   winGyroY[i] = imu.gyroY();   winGyroZ[i] = imu.gyroZ();
-
-        unsigned long slotStart = millis();
-        while (millis() - slotStart < SAMPLE_INTERVAL_MS) {
-            updateHeartRate();
-            delay(2);
-        }
-        updateRespiration();
-    }
-
-    float feats[26];
-    float mean, stdDev, mn, mx;
-    computeStats(winAccelX, WINDOW_SIZE, mean, stdDev, mn, mx); feats[0]=mean; feats[1]=stdDev; feats[2]=mn; feats[3]=mx;
-    computeStats(winAccelY, WINDOW_SIZE, mean, stdDev, mn, mx); feats[4]=mean; feats[5]=stdDev; feats[6]=mn; feats[7]=mx;
-    computeStats(winAccelZ, WINDOW_SIZE, mean, stdDev, mn, mx); feats[8]=mean; feats[9]=stdDev; feats[10]=mn; feats[11]=mx;
-    computeStats(winGyroX,  WINDOW_SIZE, mean, stdDev, mn, mx); feats[12]=mean; feats[13]=stdDev; feats[14]=mn; feats[15]=mx;
-    computeStats(winGyroY,  WINDOW_SIZE, mean, stdDev, mn, mx); feats[16]=mean; feats[17]=stdDev; feats[18]=mn; feats[19]=mx;
-    computeStats(winGyroZ,  WINDOW_SIZE, mean, stdDev, mn, mx); feats[20]=mean; feats[21]=stdDev; feats[22]=mn; feats[23]=mx;
-
-    float mag[WINDOW_SIZE];
-    for (int i = 0; i < WINDOW_SIZE; i++)
-        mag[i] = sqrt(winAccelX[i]*winAccelX[i] + winAccelY[i]*winAccelY[i] + winAccelZ[i]*winAccelZ[i]);
-    computeStats(mag, WINDOW_SIZE, mean, stdDev, mn, mx); feats[24]=mean; feats[25]=stdDev;
-
-    float gyroMagSum = 0;
-    for (int i = 0; i < WINDOW_SIZE; i++)
-        gyroMagSum += sqrt(winGyroX[i]*winGyroX[i] + winGyroY[i]*winGyroY[i] + winGyroZ[i]*winGyroZ[i]);
-    float normalized = (gyroMagSum / WINDOW_SIZE) / 250.0;
-    currentMotion = normalized < 0 ? 0 : (normalized > 1 ? 1 : normalized);
-
-    currentPosture = String(postureModel.predictLabel(feats));
-}
-
-void updateHeartRate()
-{
-    irValue = particleSensor.getIR();
-    fingerDetected = (irValue > 50000);
-
-    if (!fingerDetected) {
-        beatsPerMinute = 0;
-        beatAvg = 0;
-        validReadings = 0;
-        rateSpot = 0;
-        return;
-    }
-
-    if (checkForBeat(irValue)) {
-        long delta = millis() - lastBeat;
-        lastBeat = millis();
-        if (delta > 0) {
-            beatsPerMinute = 60.0 / (delta / 1000.0);
-        }
-
-        if (beatsPerMinute > 35 && beatsPerMinute < 220) {
-            rates[rateSpot++] = (byte)beatsPerMinute;
-            rateSpot %= RATE_SIZE;
-            if (validReadings < RATE_SIZE) validReadings++;
-
-            beatAvg = 0;
-            for (byte i = 0; i < validReadings; i++)
-                beatAvg += rates[i];
-            beatAvg /= validReadings;
-        }
+    if (getLocalTime(&timeinfo, 10)) {
+        Serial.println("\nTime synced.");
+    } else {
+        Serial.println("\nTime sync failed; continuing locally.");
     }
 }
 
-void updateRespiration()
-{
-    long total = 0;
-    for (int i = 0; i < 5; i++) {
-        total += analogRead(FLEX_PIN);
-        delay(2);
-    }
-    int rawValue = total / 5;
+//================ SERIAL MONITOR ============
 
-    if (rawValue >= BREATH_THRESHOLD && readyForNextBreath) {
-        breathCount++;
-        readyForNextBreath = false;
-    }
-    if (rawValue < BREATH_THRESHOLD) {
-        readyForNextBreath = true;
-    }
-
-    if (millis() - lastRespiration >= 10000) {
-        respiratoryRate = breathCount * 6;
-        breathCount = 0;
-        lastRespiration = millis();
-    }
-}
-
-void printReadings()
-{
+void printReadings() {
     Serial.println();
     Serial.println("======================================");
-    Serial.print("Temperature      : "); Serial.println(temperature);
-    Serial.print("Humidity         : "); Serial.println(humidity);
-    Serial.print("Heart Rate       : "); Serial.print(beatAvg); Serial.println(" BPM");
-    Serial.print("Respiratory Rate : "); Serial.print(respiratoryRate); Serial.println(" BPM");
-    Serial.print("Flex Value       : "); Serial.println(analogRead(FLEX_PIN));
-    Serial.print("Motion           : "); Serial.println(currentMotion, 3);
-    Serial.print("Posture          : "); Serial.println(currentPosture);
-    Serial.print("Wi-Fi Status     : "); Serial.println(WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected");
+
+    Serial.print("Temperature: ");
+    if (isnan(temperature)) Serial.println("Unavailable");
+    else {
+        Serial.print(temperature, 1);
+        Serial.println(" C");
+    }
+
+    Serial.print("Humidity: ");
+    if (isnan(humidity)) Serial.println("Unavailable");
+    else {
+        Serial.print(humidity, 1);
+        Serial.println(" %");
+    }
+
+    Serial.print("Heart Rate: ");
+    if (beatAvg > 0) {
+        Serial.print(beatAvg, 0);
+        Serial.println(" BPM");
+    } else {
+        Serial.println("Unavailable");
+    }
+
+    Serial.print("Respiratory Rate: ");
+    Serial.print(respiratoryRate);
+    Serial.println(" breaths/min");
+
+    Serial.print("Flex Value: ");
+    Serial.println(analogRead(FLEX_PIN));
+
+    Serial.print("Motion: ");
+    Serial.println(currentMotion, 3);
+
+    Serial.print("Posture: ");
+    Serial.println(currentPosture);
+
+    Serial.print("Battery Percentage: ");
+    if (batteryGaugeReady && !isnan(batteryPercent)) {
+        Serial.print(batteryPercent, 0);
+        Serial.println(" %");
+    } else {
+        Serial.println("Unavailable");
+    }
+
     Serial.println("======================================");
 }
 
-//================ SUPABASE TRANSMISSION ====
-void sendTelemetry()
-{
-    if (WiFi.status() != WL_CONNECTED)
+//================ OLED + MAX17048 ===========
+
+void updateBatteryAndDisplay() {
+    if (batteryGaugeReady) {
+        batteryVoltage = maxlipo.cellVoltage();
+        batteryPercent = maxlipo.cellPercent();
+    }
+
+    if (!oledReady) return;
+
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextSize(1);
+
+    // Row 1: Title
+    display.setCursor(0, 0);
+    display.println("FurFeel Monitor");
+
+    // Row 2: Temperature and humidity
+    display.setCursor(0, 9);
+    display.print("Temp:");
+    if (isnan(temperature)) display.print("--");
+    else {
+        display.print(temperature, 1);
+        display.print("C");
+    }
+
+    display.print(" Hum:");
+    if (isnan(humidity)) display.print("--");
+    else {
+        display.print(humidity, 0);
+        display.print("%");
+    }
+
+    // Row 3: Heart rate
+    display.setCursor(0, 18);
+    display.print("Heart Rate:");
+    if (beatAvg > 0) {
+        display.print((int)beatAvg);
+        display.print(" BPM");
+    } else {
+        display.print("-- BPM");
+    }
+
+    // Row 4: Respiratory rate
+    display.setCursor(0, 27);
+    display.print("Resp Rate:");
+    display.print(respiratoryRate);
+    display.print("/min");
+
+    // Row 5: Posture
+    display.setCursor(0, 36);
+    display.print("Posture:");
+    display.print(currentPosture);
+
+    // Row 6: Motion
+    display.setCursor(0, 45);
+    display.print("Motion:");
+    display.print(currentMotion, 2);
+
+    // Row 7: Battery percentage only
+    display.setCursor(0, 54);
+    display.print("Battery:");
+    if (batteryGaugeReady && !isnan(batteryPercent)) {
+        display.print(batteryPercent, 0);
+        display.print("%");
+    } else {
+        display.print("--%");
+    }
+
+    display.display();
+}
+
+//================ SUPABASE TELEMETRY ========
+
+void sendTelemetry() {
+    if (WiFi.status() != WL_CONNECTED) {
         return;
+    }
 
     struct tm timeinfo;
-    if (!getLocalTime(&timeinfo))
+
+    if (!getLocalTime(&timeinfo, 10)) {
         return;
+    }
 
     char capturedAt[30];
-    strftime(capturedAt, sizeof(capturedAt), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+
+    strftime(
+        capturedAt,
+        sizeof(capturedAt),
+        "%Y-%m-%dT%H:%M:%SZ",
+        &timeinfo
+    );
 
     char payload[700];
+
     int len = snprintf(
-        payload, sizeof(payload),
+        payload,
+        sizeof(payload),
         "{\"device_code\":\"%s\","
         "\"captured_at\":\"%s\","
         "\"motion_activity\":%.3f,"
         "\"posture\":\"%s\"",
-        DEVICE_CODE, capturedAt, currentMotion, currentPosture.c_str()
+        DEVICE_CODE,
+        capturedAt,
+        currentMotion,
+        currentPosture.c_str()
     );
 
+    if (len < 0 || len >= (int)sizeof(payload)) {
+        Serial.println("Telemetry payload creation failed.");
+        return;
+    }
+
     if (fingerDetected && beatAvg > 0) {
-        len += snprintf(payload + len, sizeof(payload) - len, ",\"heart_rate_bpm\":%.0f", beatAvg);
+        len += snprintf(
+            payload + len,
+            sizeof(payload) - len,
+            ",\"heart_rate_bpm\":%.0f",
+            beatAvg
+        );
     }
+
     if (respiratoryRate > 0) {
-        len += snprintf(payload + len, sizeof(payload) - len, ",\"respiratory_rate_bpm\":%d", respiratoryRate);
+        len += snprintf(
+            payload + len,
+            sizeof(payload) - len,
+            ",\"respiratory_rate_bpm\":%d",
+            respiratoryRate
+        );
     }
+
     if (!isnan(temperature)) {
-        len += snprintf(payload + len, sizeof(payload) - len, ",\"ambient_temperature_c\":%.1f", temperature);
+        len += snprintf(
+            payload + len,
+            sizeof(payload) - len,
+            ",\"ambient_temperature_c\":%.1f",
+            temperature
+        );
     }
+
     if (!isnan(humidity)) {
-        len += snprintf(payload + len, sizeof(payload) - len, ",\"humidity_percent\":%.1f", humidity);
+        len += snprintf(
+            payload + len,
+            sizeof(payload) - len,
+            ",\"humidity_percent\":%.1f",
+            humidity
+        );
     }
-    snprintf(payload + len, sizeof(payload) - len, "}");
+
+    if (len < 0 || len >= (int)sizeof(payload)) {
+        Serial.println("Telemetry payload too large.");
+        return;
+    }
+
+    snprintf(
+        payload + len,
+        sizeof(payload) - len,
+        "}"
+    );
 
     WiFiClientSecure client;
     client.setInsecure();
 
     HTTPClient https;
-    https.begin(client, FUNCTION_URL);
+
+    if (!https.begin(client, FUNCTION_URL)) {
+        Serial.println("Could not start HTTPS connection.");
+        return;
+    }
+
     https.addHeader("Content-Type", "application/json");
     https.addHeader("x-device-key", DEVICE_KEY);
 
-    int code = https.POST((uint8_t*)payload, strlen(payload));
+    int code = https.POST(
+        (uint8_t*)payload,
+        strlen(payload)
+    );
+
     Serial.println();
     Serial.println("========== SUPABASE ==========");
-    Serial.print("HTTP Status : ");
+    Serial.print("HTTP: ");
     Serial.println(code);
-    Serial.print("Response    : ");
     Serial.println(https.getString());
     Serial.println("==============================");
+
     https.end();
 }
