@@ -23,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import unquote
 
-state = {"label": "unlabeled"}
+state = {"label": "unlabeled", "paused": True}
 
 PAGE = """<!doctype html>
 <html>
@@ -49,6 +49,8 @@ h1 { font-size: 20px; }
 <div id="label">loading...</div>
 <div id="rows"></div>
 <div id="total"></div>
+<button id="pause" onclick="setPaused(this.dataset.paused !== 'true')" style="font-size:18px;padding:12px 24px">Loading...</button>
+<p id="recording" role="status"></p>
 <div class="postures">
   <button onclick="setLabel('sitting')">Sitting</button>
   <button onclick="setLabel('standing')">Standing</button>
@@ -62,11 +64,16 @@ h1 { font-size: 20px; }
   <button onclick="setCustom()">Set</button>
 </div>
 <script>
+function setPaused(v) { fetch(v ? '/pause' : '/resume', {method: 'POST'}).then(refresh); }
 function setLabel(v) { fetch('/label/' + encodeURIComponent(v)).then(refresh); }
 function setCustom() { var v = document.getElementById('custom').value.trim(); if (v) setLabel(v); }
 function refresh() {
   fetch('/status').then(r => r.json()).then(d => {
     document.getElementById('label').textContent = d.label;
+    var button = document.getElementById('pause');
+    button.dataset.paused = String(d.paused);
+    button.textContent = d.paused ? 'Resume recording' : 'Pause recording';
+    document.getElementById('recording').textContent = d.paused ? 'Paused — incoming samples are not saved. Choose a posture, then resume.' : 'Recording — pause when the dog changes activity.';
     document.getElementById('rows').textContent = d.label_rows + ' rows / ' + d.label_seconds + 's for this label';
     document.getElementById('total').textContent = d.rows + ' rows total this session';
   });
@@ -95,8 +102,8 @@ def make_handler(writer, out_file, dog, size):
                     print(f"-> label set to '{value}'")
                 self._json({"ok": True, "label": state["label"]})
             elif self.path == "/status":
-                label_seconds = round(time.time() - seen["label_start"], 1) if seen["label_start"] else 0
-                self._json({"label": state["label"], "rows": seen["rows"],
+                label_seconds = round(seen["label_rows"] / 20, 1)
+                self._json({"label": state["label"], "paused": state["paused"], "rows": seen["rows"],
                              "label_rows": seen["label_rows"], "label_seconds": label_seconds})
             else:
                 self.send_response(200)
@@ -111,8 +118,15 @@ def make_handler(writer, out_file, dog, size):
             self.wfile.write(json.dumps(obj).encode())
 
         def do_POST(self):
+            if self.path in ("/pause", "/resume"):
+                state["paused"] = self.path == "/pause"
+                self._json({"ok": True, "paused": state["paused"]})
+                return
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
+            if state["paused"]:
+                self._json({"ok": True, "paused": True})
+                return
             try:
                 rows = json.loads(body)
             except json.JSONDecodeError:
