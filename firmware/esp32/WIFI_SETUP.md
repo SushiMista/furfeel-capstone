@@ -1,5 +1,26 @@
 # Harness Wi-Fi setup verification
 
+## Arduino upload
+
+Create a separate sketch folder named `furfeel_sensor`, containing only
+`furfeel_sensor.ino` and the matching `posture_model.h`. Do not include
+`imu_logger.ino`: Arduino compiles all `.ino` tabs in a sketch together.
+Set `DEVICE_KEY` to the provisioned key for `DEVICE_CODE` before uploading;
+the checked-in sketch deliberately contains a placeholder. Wi-Fi credentials
+are entered in the phone app and saved in NVS only after a successful join.
+
+The sketch preserves the supplied OLED (SSD1306), MAX17048 battery monitor,
+optional MAX30102, MPU9250, DHT22, flex sensor and posture feature extraction.
+Install their libraries in Arduino IDE alongside the ESP32 board package.
+BLE/Preferences/WiFi/HTTPClient are supplied by that board package.
+
+At first setup, Serial Monitor (115200 baud) reports Bluetooth ready with the
+name `FURFEEL-DEV-0002`. On restart, saved working Wi-Fi is tried first. To
+change networks while connected, make the old network unavailable so BLE setup
+reopens. After a successful app setup, BLE closes after 30 seconds.
+
+## Checks
+
 Flash firmware/esp32/furfeel_sensor.ino and install the updated Flutter app together. Android/iOS Bluetooth hardware is required; web setup is unsupported. The normal flow is Settings → Harness & Hardware → Connect Harness to Home Wi-Fi.
 
 Acceptance checklist:
