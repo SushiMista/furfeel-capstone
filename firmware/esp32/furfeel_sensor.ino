@@ -203,6 +203,7 @@ class ControlCallbacks: public BLECharacteristicCallbacks {
         String command = characteristic->getValue().c_str();
         if (shouldConnectWifi || scanRequested) { setupStatus("ERROR:Harness is busy. Retry shortly."); return; }
         if (command == "SCAN") {
+            Serial.println("[SETUP] Phone requested Wi-Fi scan");
             bleCloseAt = 0;
             setupStatus("SCANNING"); scanRequested = true;
         } else if (command.startsWith("NETWORK:")) {
@@ -572,11 +573,29 @@ void updateRespiration() {
 void handleWifiSetup() {
     if (scanRequested) {
         WiFi.mode(WIFI_STA);
+        // Stop retries to an unavailable saved router before starting a scan.
+        if (WiFi.status() != WL_CONNECTED) {
+            WiFi.setAutoReconnect(false);
+            WiFi.disconnect(false, false);
+            delay(200);
+        }
         WiFi.scanDelete();
+        Serial.println("[SETUP] Scanning nearby Wi-Fi networks...");
         networkCount = WiFi.scanNetworks(false, false);
-        if (networkCount < 0) { networkCount = 0; setupStatus("ERROR:Wi-Fi scan failed. Refresh to retry."); }
-        else setupStatus("SCAN_DONE:" + String(networkCount));
+        Serial.printf("[SETUP] Wi-Fi scan result: %d\n", networkCount);
+        // Release the busy guard before publishing results to the phone.
         scanRequested = false;
+        if (networkCount < 0) {
+            int errorCode = networkCount;
+            networkCount = 0;
+            setupStatus("ERROR:Wi-Fi scan failed (" + String(errorCode) + "). Refresh to retry.");
+        } else {
+            for (int i = 0; i < networkCount; i++) {
+                Serial.printf("[SETUP] Network %d: %s (channel %d, RSSI %d)\n",
+                    i, WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
+            }
+            setupStatus("SCAN_DONE:" + String(networkCount));
+        }
     }
     if (shouldConnectWifi) {
         wifiSSID = pendingSSID;
@@ -681,6 +700,7 @@ bool connectWifi()
 {
     Serial.print("Connecting to Wi-Fi: " + wifiSSID);
     WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(false);
     WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
 
     unsigned long startAttempt = millis();
@@ -693,8 +713,10 @@ bool connectWifi()
         Serial.println();
         Serial.print("✅ Connected! IP: ");
         Serial.println(WiFi.localIP());
+        WiFi.setAutoReconnect(true);
         return true;
     } else {
+        WiFi.disconnect(false, false);
         Serial.println("\n⚠️ Failed to connect to Wi-Fi.");
         return false;
     }
