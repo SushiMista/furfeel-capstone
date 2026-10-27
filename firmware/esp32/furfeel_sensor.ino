@@ -785,9 +785,6 @@ void printReadings() {
     Serial.print("Flex Value: ");
     Serial.println(analogRead(FLEX_PIN));
 
-    Serial.print("Motion: ");
-    Serial.println(currentMotion, 3);
-
     Serial.print("Posture: ");
     Serial.println(currentPosture);
 
@@ -857,13 +854,8 @@ void updateBatteryAndDisplay() {
     display.print("Posture:");
     display.print(currentPosture);
 
-    // Row 6: Motion
+    // Row 6: Battery percentage only
     display.setCursor(0, 45);
-    display.print("Motion:");
-    display.print(currentMotion, 2);
-
-    // Row 7: Battery percentage only
-    display.setCursor(0, 54);
     display.print("Battery:");
     if (batteryGaugeReady && !isnan(batteryPercent)) {
         display.print(batteryPercent, 0);
