@@ -950,6 +950,22 @@ void sendTelemetry() {
         return;
     }
 
+    // Device health: send the same battery reading shown on Serial/OLED.
+    // Omit unavailable readings instead of reporting an invented percentage.
+    if (batteryGaugeReady && isfinite(batteryPercent)) {
+        int written = snprintf(
+            payload + len,
+            sizeof(payload) - len,
+            ",\"battery_percent\":%.0f",
+            batteryPercent
+        );
+        if (written < 0 || written >= (int)(sizeof(payload) - len)) {
+            Serial.println("Telemetry payload too large.");
+            return;
+        }
+        len += written;
+    }
+
     snprintf(
         payload + len,
         sizeof(payload) - len,
