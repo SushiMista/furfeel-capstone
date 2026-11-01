@@ -18,10 +18,15 @@ again. Ctrl+C to stop.
 import argparse
 import csv
 import json
+import re
+import uuid
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import unquote
+
+CSV_HEADER = ["wall_time", "millis_ms", "accel_x", "accel_y", "accel_z",
+              "gyro_x", "gyro_y", "gyro_z", "label", "dog_name", "size_class"]
 
 state = {"label": "unlabeled", "paused": True}
 
@@ -45,7 +50,16 @@ h1 { font-size: 20px; }
 </head>
 <body>
 <h1>FurFeel &mdash; Posture Data Logger</h1>
-<div>Dog: <b>__DOG__</b> (__SIZE__)</div>
+<div>Dog: <b id="dog-name"></b> (<span id="dog-size"></span>)</div>
+<p>CSV: <span id="csv-name"></span></p>
+<form id="new-session" class="custom">
+  <label for="new-dog">New session — dog name</label><br>
+  <input id="new-dog" required maxlength="80" placeholder="Bochi">
+  <label for="new-size">Size</label>
+  <select id="new-size"><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select>
+  <button id="create-csv" type="submit">New CSV</button>
+  <p id="session-message" role="status"></p>
+</form>
 <div id="label">loading...</div>
 <div id="rows"></div>
 <div id="total"></div>
@@ -67,8 +81,27 @@ h1 { font-size: 20px; }
 function setPaused(v) { fetch(v ? '/pause' : '/resume', {method: 'POST'}).then(refresh); }
 function setLabel(v) { fetch('/label/' + encodeURIComponent(v)).then(refresh); }
 function setCustom() { var v = document.getElementById('custom').value.trim(); if (v) setLabel(v); }
+document.getElementById('new-session').addEventListener('submit', async function(event) {
+  event.preventDefault();
+  var button = document.getElementById('create-csv');
+  var message = document.getElementById('session-message');
+  button.disabled = true;
+  try {
+    var response = await fetch('/new-session', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({dog_name: document.getElementById('new-dog').value.trim(),
+                            size_class: document.getElementById('new-size').value})});
+    var result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not create CSV');
+    message.textContent = 'New CSV created. Choose an activity, then resume recording.';
+    await refresh();
+  } catch (error) { message.textContent = error.message; }
+  finally { button.disabled = false; }
+});
 function refresh() {
-  fetch('/status').then(r => r.json()).then(d => {
+  return fetch('/status').then(r => r.json()).then(d => {
+    document.getElementById('dog-name').textContent = d.dog_name;
+    document.getElementById('dog-size').textContent = d.size_class;
+    document.getElementById('csv-name').textContent = d.csv_name;
     document.getElementById('label').textContent = d.label;
     var button = document.getElementById('pause');
     button.dataset.paused = String(d.paused);
@@ -88,7 +121,8 @@ setInterval(refresh, 1000);
 
 def make_handler(writer, out_file, dog, size):
     seen = {"label": None, "rows": 0, "label_rows": 0, "label_start": None}
-    page = PAGE.replace("__DOG__", dog).replace("__SIZE__", size)
+    output_dir = Path(out_file.name).parent
+    state.update(label="unlabeled", paused=True)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -104,20 +138,60 @@ def make_handler(writer, out_file, dog, size):
             elif self.path == "/status":
                 label_seconds = round(seen["label_rows"] / 20, 1)
                 self._json({"label": state["label"], "paused": state["paused"], "rows": seen["rows"],
-                             "label_rows": seen["label_rows"], "label_seconds": label_seconds})
+                             "label_rows": seen["label_rows"], "label_seconds": label_seconds,
+                             "dog_name": dog, "size_class": size, "csv_name": Path(out_file.name).name})
             else:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html")
                 self.end_headers()
-                self.wfile.write(page.encode())
+                self.wfile.write(PAGE.encode())
 
-        def _json(self, obj):
-            self.send_response(200)
+        def _json(self, obj, status=200):
+            self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(obj).encode())
 
         def do_POST(self):
+            nonlocal writer, out_file, dog, size
+            if self.path == "/new-session":
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if not 0 < length <= 4096:
+                        raise ValueError("Invalid request length")
+                    data = json.loads(self.rfile.read(length))
+                    new_dog = data.get("dog_name", "") if isinstance(data, dict) else ""
+                    new_size = data.get("size_class") if isinstance(data, dict) else None
+                    if not isinstance(new_dog, str):
+                        raise ValueError("Enter a dog name")
+                    new_dog = new_dog.strip()
+                    if not 1 <= len(new_dog) <= 80 or any(ord(c) < 32 for c in new_dog):
+                        raise ValueError("Dog name must be 1–80 characters without control characters")
+                    if new_size not in ("small", "medium", "large"):
+                        raise ValueError("Choose small, medium or large")
+                except (ValueError, UnicodeDecodeError) as error:
+                    self._json({"error": str(error)}, 400)
+                    return
+                slug = re.sub(r"[^A-Za-z0-9_-]+", "_", new_dog).strip("_") or "dog"
+                new_path = output_dir / f"{slug}_{time.time_ns()}_{uuid.uuid4().hex[:8]}.csv"
+                try:
+                    new_file = new_path.open("x", newline="", encoding="utf-8")
+                    new_writer = csv.writer(new_file)
+                    new_writer.writerow(CSV_HEADER)
+                    new_file.flush()
+                except OSError:
+                    if 'new_file' in locals():
+                        new_file.close()
+                    self._json({"error": "Could not create CSV; existing session is unchanged"}, 500)
+                    return
+                out_file.flush()
+                out_file.close()
+                writer, out_file, dog, size = new_writer, new_file, new_dog, new_size
+                state.update(label="unlabeled", paused=True)
+                seen.update(label=None, rows=0, label_rows=0, label_start=None)
+                print(f"New session: {dog} ({size}) -> {new_path}")
+                self._json({"ok": True, "csv_name": new_path.name})
+                return
             if self.path in ("/pause", "/resume"):
                 state["paused"] = self.path == "/pause"
                 self._json({"ok": True, "paused": state["paused"]})
@@ -167,8 +241,8 @@ def main():
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_file = open(out_path, "w", newline="", encoding="utf-8")
     writer = csv.writer(out_file)
-    writer.writerow(["wall_time", "millis_ms", "accel_x", "accel_y", "accel_z",
-                      "gyro_x", "gyro_y", "gyro_z", "label", "dog_name", "size_class"])
+    writer.writerow(CSV_HEADER)
+    out_file.flush()
 
     print(f"Logging to {out_path}")
     print(f"Listening on port {args.port} -- put this machine's IP (run `ipconfig`) into the sketch's SERVER_URL")
