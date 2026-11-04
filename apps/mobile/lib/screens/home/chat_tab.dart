@@ -196,6 +196,7 @@ class DogChatPage extends StatefulWidget {
     required this.dog,
     this.alert,
     this.reading,
+    this.draft,
   });
 
   final FurFeelRepository repository;
@@ -203,12 +204,15 @@ class DogChatPage extends StatefulWidget {
   final Alert? alert;
   final TelemetryReading? reading;
 
+  /// Starting text for the message box, e.g. which day the owner is asking about.
+  final String? draft;
+
   @override
   State<DogChatPage> createState() => _DogChatPageState();
 }
 
 class _DogChatPageState extends State<DogChatPage> {
-  final _text = TextEditingController();
+  late final _text = TextEditingController(text: widget.draft);
   final _scroll = ScrollController();
   final _picker = ImagePicker();
 

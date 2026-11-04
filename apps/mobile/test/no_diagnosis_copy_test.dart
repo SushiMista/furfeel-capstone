@@ -19,7 +19,7 @@ void main() {
     'lib/screens/auth/consent_page.dart',
     'lib/screens/vitals/detailed_log_page.dart',
     'lib/screens/home/multi_dog_home.dart',
-    'lib/widgets/wellness_card.dart',
+    'lib/insights/month_summary.dart',
     'lib/util/exports.dart',
     // Owner-delight pass copy.
     'lib/insights/owner_moments.dart',

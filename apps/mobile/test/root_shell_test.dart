@@ -4,6 +4,8 @@ import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/screens/home/root_shell.dart';
 
+import 'package:furfeel_mobile/widgets/stress_calendar.dart';
+
 import 'fakes.dart';
 
 const _dog = Dog(
@@ -349,27 +351,22 @@ void main() {
     expect(find.textContaining('Home only'), findsOneWidget); // Mochi
   });
 
-  testWidgets('trends tab shows the calm hero, chart, insights, and log link', (
+  testWidgets('trends tab shows the month, its calendar and useful links', (
     tester,
   ) async {
     final today = DateTime.now();
-    DailyStressSummary summary(int daysAgo, int calm, int high) =>
-        DailyStressSummary(
-          day: DateTime(
-            today.year,
-            today.month,
-            today.day,
-          ).subtract(Duration(days: daysAgo)),
-          calm: calm,
-          mild: 0,
-          moderate: 0,
-          high: high,
-        );
+    final monthDays = today.day;
     final repo = FakeRepository(
       dogs: const [_dog],
       dailySummaries: [
-        for (var i = 0; i < 7; i++) summary(i, 90, 10), // this week 90%
-        for (var i = 7; i < 14; i++) summary(i, 50, 50), // last week 50%
+        for (var i = 1; i <= monthDays; i++)
+          DailyStressSummary(
+            day: DateTime(today.year, today.month, i),
+            calm: 90,
+            mild: 0,
+            moderate: 0,
+            high: 10,
+          ),
       ],
     );
     await tester.pumpWidget(app(repo));
@@ -378,22 +375,16 @@ void main() {
     await tester.tap(navTab('Trends'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Calm time this week'), findsOneWidget);
-    expect(find.text('90%'), findsOneWidget);
-    expect(find.textContaining('vs last week'), findsOneWidget);
-
-    // Insight cards + log link sit below the chart — scroll them into view.
+    expect(find.byType(StressCalendar), findsOneWidget);
+    expect(find.text('Previous month'), findsNothing);
+    expect(find.byTooltip('Previous month'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.textContaining('not a diagnosis'),
+      find.text('All readings'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(
-      find.text('More calm time this week'),
-      findsOneWidget,
-    ); // insight card
-    expect(find.text('View detailed log'), findsOneWidget);
-    expect(find.textContaining('not a diagnosis'), findsOneWidget);
+    expect(find.text('All readings'), findsOneWidget);
+    expect(find.text('Share a report'), findsOneWidget);
   });
 
   testWidgets(
@@ -406,11 +397,11 @@ void main() {
       await tester.tap(navTab('Trends'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Getting to know Biscuit'), findsOneWidget);
       expect(
         find.textContaining('Trends appear after a day or two'),
         findsOneWidget,
       );
-      expect(find.text('Calm time this week'), findsNothing);
     },
   );
 }
