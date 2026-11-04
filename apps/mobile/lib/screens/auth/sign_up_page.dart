@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:furfeel_mobile/data/google_oauth.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
+import 'package:furfeel_mobile/util/otp_rate_limiter.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
 import 'package:furfeel_mobile/widgets/auth_pattern_background.dart';
 import 'package:furfeel_mobile/data/google_auth_helper.dart';
@@ -34,6 +37,11 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _obscureConfirm = true;
   bool _needsOtp = false;
 
+  Timer? _resendTimer;
+  int _cooldownSeconds = 0;
+  int _lockoutSeconds = 0;
+  int _resendAttempts = 0;
+
   @override
   void dispose() {
     _name.dispose();
@@ -43,7 +51,116 @@ class _SignUpPageState extends State<SignUpPage> {
     _password.dispose();
     _confirmPassword.dispose();
     _otp.dispose();
+    _resendTimer?.cancel();
     super.dispose();
+  }
+
+  void _startLockoutCountdown(int seconds) {
+    _resendTimer?.cancel();
+    setState(() => _lockoutSeconds = seconds);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_lockoutSeconds > 0) {
+        setState(() => _lockoutSeconds--);
+      } else {
+        timer.cancel();
+        setState(() {
+          _lockoutSeconds = 0;
+          _resendAttempts = 0;
+        });
+      }
+    });
+  }
+
+  void _startCooldown([int seconds = OtpRateLimiter.defaultCooldownSeconds]) {
+    setState(() => _cooldownSeconds = seconds);
+    _resendTimer?.cancel();
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_cooldownSeconds > 0) {
+        setState(() => _cooldownSeconds--);
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  String _formatLockoutTime(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (minutes > 0) {
+      return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+    }
+    return '${seconds}s';
+  }
+
+  Future<void> _resendCode() async {
+    final email = _email.text.trim();
+    if (_lockoutSeconds > 0) {
+      setState(() {
+        _error =
+            'Too many requests. Please try again in ${_formatLockoutTime(_lockoutSeconds)}.';
+      });
+      return;
+    }
+
+    if (_cooldownSeconds > 0) return;
+
+    final result = await OtpRateLimiter.recordAttempt(email);
+    if (!mounted) return;
+
+    setState(() {
+      _resendAttempts = result.attempts;
+      _error = null;
+    });
+
+    if (result.isLockedOut) {
+      _startLockoutCountdown(result.lockoutSeconds);
+      setState(() {
+        _error =
+            'Maximum resend attempts reached. Please try again in ${_formatLockoutTime(result.lockoutSeconds)}.';
+      });
+      return;
+    }
+
+    _startCooldown(OtpRateLimiter.defaultCooldownSeconds);
+
+    try {
+      await widget.client.auth.resend(
+        type: OtpType.signup,
+        email: email,
+        emailRedirectTo: authRedirectUrl(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A new code has been sent!')),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      final msg = e.message.toLowerCase();
+      if (msg.contains('rate limit') || msg.contains('over_email_send_rate_limit')) {
+        setState(() {
+          _error = 'Email sending limit reached. Please wait before trying again.';
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to resend code. Please try again later.'),
+        ),
+      );
+    }
   }
 
   Future<void> _submit() async {
@@ -54,8 +171,22 @@ class _SignUpPageState extends State<SignUpPage> {
 
     final name = _name.text.trim();
     final email = _email.text.trim();
-    final phone = _phone.text.trim();
-    final emergencyContact = _emergencyContact.text.trim();
+    final rawPhone = _phone.text.trim();
+    final rawEmergency = _emergencyContact.text.trim();
+
+    String? normalizePhone(String input) {
+      if (input.isEmpty) return null;
+      var clean = input.replaceAll(RegExp(r'\D'), '');
+      if (clean.startsWith('63') && clean.length > 2) {
+        clean = clean.substring(2);
+      } else if (clean.startsWith('0') && clean.length > 1) {
+        clean = clean.substring(1);
+      }
+      return '+63$clean';
+    }
+
+    final phone = normalizePhone(rawPhone);
+    final emergencyContact = normalizePhone(rawEmergency);
     final password = _password.text;
     final confirmPassword = _confirmPassword.text;
 
@@ -98,19 +229,29 @@ class _SignUpPageState extends State<SignUpPage> {
         emailRedirectTo: authRedirectUrl(),
         data: {
           'name': name,
-          'phone': phone.isEmpty ? null : phone,
-          'emergency_contact': emergencyContact.isEmpty
-              ? null
-              : emergencyContact,
+          'phone': phone,
+          'emergency_contact': emergencyContact,
         },
       );
       if (!mounted) return;
 
       if (response.session == null) {
+        final email = _email.text.trim();
+        final remaining = await OtpRateLimiter.getLockoutRemainingSeconds(email);
+        final count = await OtpRateLimiter.getAttemptCount(email);
+        if (!mounted) return;
         setState(() {
           _needsOtp = true;
           _submitting = false;
+          _lockoutSeconds = remaining;
+          _resendAttempts = count;
         });
+        if (remaining > 0) {
+          _startLockoutCountdown(remaining);
+        } else {
+          // Initial cooldown on signup OTP sent
+          _startCooldown(OtpRateLimiter.defaultCooldownSeconds);
+        }
       } else {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
@@ -155,6 +296,8 @@ class _SignUpPageState extends State<SignUpPage> {
       if (!mounted) return;
 
       if (response.session != null) {
+        await OtpRateLimiter.reset(_email.text.trim());
+        if (!mounted) return;
         Navigator.of(context).popUntil((route) => route.isFirst);
       } else {
         setState(() {
@@ -363,6 +506,42 @@ class _SignUpPageState extends State<SignUpPage> {
                           ? const BusyButtonLabel(label: 'Verifying')
                           : const Text('Verify'),
                     ).entrance(context, index: 3),
+                    const SizedBox(height: FurFeelTokens.space4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Didn't get the code?",
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: context.ff.inkMuted,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        TextButton(
+                          onPressed: (_lockoutSeconds > 0 || _cooldownSeconds > 0)
+                              ? null
+                              : _resendCode,
+                          child: Text(
+                            _lockoutSeconds > 0
+                                ? 'Locked for ${_formatLockoutTime(_lockoutSeconds)}'
+                                : _cooldownSeconds > 0
+                                    ? 'Resend code in ${_cooldownSeconds}s'
+                                    : 'Resend code',
+                          ),
+                        ),
+                      ],
+                    ).entrance(context, index: 4),
+                    if (_resendAttempts > 0 && _lockoutSeconds == 0) ...[
+                      const SizedBox(height: FurFeelTokens.space1),
+                      Text(
+                        '${OtpRateLimiter.maxResendAttempts - _resendAttempts} attempts remaining',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: context.ff.inkMuted,
+                          fontSize: 11,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ] else ...[
                     Text(
                       'Create an account',
@@ -413,9 +592,36 @@ class _SignUpPageState extends State<SignUpPage> {
                             autofillHints: const [
                               AutofillHints.telephoneNumber,
                             ],
-                            decoration: const InputDecoration(
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(10),
+                            ],
+                            decoration: InputDecoration(
                               labelText: 'Phone Number',
-                              prefixIcon: Icon(Icons.phone_outlined),
+                              hintText: '9157130180',
+                              prefixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(width: 12),
+                                  const Icon(Icons.phone_outlined),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '+63',
+                                    style: TextStyle(
+                                      color: context.ff.brandInk,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    width: 1,
+                                    height: 20,
+                                    color: context.ff.hairline,
+                                  ),
+                                  const SizedBox(width: 10),
+                                ],
+                              ),
                             ),
                           ),
                           const SizedBox(height: FurFeelTokens.space3),
@@ -423,10 +629,35 @@ class _SignUpPageState extends State<SignUpPage> {
                             controller: _emergencyContact,
                             keyboardType: TextInputType.phone,
                             textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(10),
+                            ],
+                            decoration: InputDecoration(
                               labelText: 'Emergency Contact',
-                              prefixIcon: Icon(
-                                Icons.health_and_safety_outlined,
+                              hintText: '9157130180',
+                              prefixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(width: 12),
+                                  const Icon(Icons.health_and_safety_outlined),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '+63',
+                                    style: TextStyle(
+                                      color: context.ff.brandInk,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    width: 1,
+                                    height: 20,
+                                    color: context.ff.hairline,
+                                  ),
+                                  const SizedBox(width: 10),
+                                ],
                               ),
                             ),
                           ),
