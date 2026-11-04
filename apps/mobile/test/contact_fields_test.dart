@@ -23,8 +23,10 @@ Widget app(FakeRepository repo, SettingsController controller) => SettingsScope(
       ),
     );
 
-Future<void> openProfile(WidgetTester tester) async {
+Future<void> openAccount(WidgetTester tester) async {
   await tester.tap(find.bySemanticsLabel('Profile'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.textContaining('@example.com').first);
   await tester.pumpAndSettle();
 }
 
@@ -36,7 +38,7 @@ void main() {
     await controller.load();
     await tester.pumpWidget(app(repo, controller));
     await tester.pumpAndSettle();
-    await openProfile(tester);
+    await openAccount(tester);
 
     await tester.tap(find.text('Phone Number'));
     await tester.pumpAndSettle();
@@ -56,7 +58,7 @@ void main() {
     await controller.load();
     await tester.pumpWidget(app(repo, controller));
     await tester.pumpAndSettle();
-    await openProfile(tester);
+    await openAccount(tester);
 
     await tester.tap(find.text('Emergency Contact'));
     await tester.pumpAndSettle();
@@ -89,7 +91,7 @@ void main() {
     await controller.load();
     await tester.pumpWidget(app(repo, controller));
     await tester.pumpAndSettle();
-    await openProfile(tester);
+    await openAccount(tester);
 
     await tester.tap(find.text('Phone Number'));
     await tester.pumpAndSettle();
