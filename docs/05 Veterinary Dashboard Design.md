@@ -83,3 +83,6 @@ On the dog detail page, Manage owners beside Registered Owners opens an editor f
 
 ### Harness battery visibility
 Monitoring Board card/list views and dog detail display battery percentage using telemetry_readings.battery_percent with devices.battery_percent as last-reported fallback. Existing Device Management battery display remains available. Missing/invalid values display Unavailable; zero is a valid value; <=15% uses the existing Low indication. Offline status and reported-value tooltip prevent interpreting offline values as live. Device battery is separate from canine stress status. No firmware or schema change is required for these displays.
+
+### Messages (ADR-026)
+Sidebar page `/messages`: every dog's conversation with its owners, latest first with unread counts, reading attached alerts and media and replying in place. Each dog page links to its conversation. New owner messages raise a toast. This replaces per-submission media review; stress confirmation (`stress_labels`) is unchanged.

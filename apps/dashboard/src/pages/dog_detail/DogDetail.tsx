@@ -31,12 +31,11 @@ import {
   fetchRecentAlerts,
   fetchTelemetryHistory,
   fetchStressLabels,
-  fetchMediaSubmissions,
   updateDogWardAndAdmission,
   type DailyStressSummaryRow,
   type StressLabelWithVet,
 } from "../../lib/queries.ts";
-import { ConfirmOverridePanel, MediaItem } from "../vet_review/VetReview.tsx";
+import { ConfirmOverridePanel } from "../vet_review/VetReview.tsx";
 import { useAuth } from "../../lib/useAuth.ts";
 import { TelemetryChart } from "../../components/TelemetryChart.tsx";
 import { StressMixChart } from "../../components/StressMixChart.tsx";
@@ -63,7 +62,6 @@ import type {
   Device,
   StressClassification,
   TelemetryReading,
-  MediaSubmission,
   User,
 } from "../../../../../packages/shared/types/index.ts";
 
@@ -138,7 +136,6 @@ export function DogDetail() {
   const [mixSummary, setMixSummary] = useState<DailyStressSummaryRow[]>([]);
   const [stressMixDays, setStressMixDays] = useState<number>(14);
   const [labels, setLabels] = useState<StressLabelWithVet[]>([]);
-  const [media, setMedia] = useState<MediaSubmission[]>([]);
   const [interventions, setInterventions] = useState<ClinicalIntervention[]>([]);
   const [owners, setOwners] = useState<User[]>([]);
   const [device, setDevice] = useState<Device | null>(null);
@@ -165,14 +162,13 @@ export function DogDetail() {
   const load = useCallback(async () => {
     if (!dogId) return;
     try {
-      const [dogRow, history, classHistory, recentAlerts, mixRows, labelRows, mediaRows, interventionRows, ownerList, deviceRow] = await Promise.all([
+      const [dogRow, history, classHistory, recentAlerts, mixRows, labelRows, interventionRows, ownerList, deviceRow] = await Promise.all([
         fetchDog(supabase, dogId),
         fetchTelemetryHistory(supabase, dogId, HISTORY_LIMIT),
         fetchClassificationHistory(supabase, dogId, HISTORY_LIMIT),
         fetchRecentAlerts(supabase, dogId),
         fetchDailyStressSummary(supabase, dogId, stressMixDays),
         fetchStressLabels(supabase, dogId),
-        fetchMediaSubmissions(supabase, dogId),
         fetchClinicalInterventions(supabase, dogId),
         fetchDogOwners(supabase, dogId),
         fetchDeviceForDog(supabase, dogId),
@@ -187,7 +183,6 @@ export function DogDetail() {
       setAlerts(recentAlerts);
       setMixSummary(mixRows);
       setLabels(labelRows);
-      setMedia(mediaRows);
       setInterventions(interventionRows);
       setOwners(ownerList);
       setDevice(deviceRow);
@@ -597,29 +592,16 @@ export function DogDetail() {
 
               <Card className="mt-5">
                 <CardHeader>
-                  <CardTitle>Owner-submitted media</CardTitle>
+                  <CardTitle>Messages</CardTitle>
                   <CardDescription>
-                    Supplementary context from the owner — not used by the stress classifier.
+                    Owner messages, photos and videos. Supplementary context, not used by the
+                    stress classifier.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {media.length === 0 ? (
-                    <EmptyState>
-                      No submissions yet — owners can share photos and short videos from the app 🐾
-                    </EmptyState>
-                  ) : (
-                    <ul className="m-0 flex list-none flex-col gap-4 p-0">
-                      {media.map((m) => (
-                        <MediaItem
-                          key={m.id}
-                          media={m}
-                          onReviewed={(updated) =>
-                            setMedia((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
-                          }
-                        />
-                      ))}
-                    </ul>
-                  )}
+                  <Link to={`/messages?dog=${dogId}`} className="text-sm font-semibold text-brand">
+                    Open conversation
+                  </Link>
                 </CardContent>
               </Card>
             </>
