@@ -102,6 +102,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
   List<TelemetryReading> _recent = const [];
   _VitalTrendRange _trendRange = _VitalTrendRange.today;
   bool _trendLoading = true;
+  String? _photoUrl;
 
   @override
   void dispose() {
@@ -119,6 +120,15 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
         })
         .catchError((_) {});
     _loadTrend();
+    final photoPath = widget.dog.photoPath;
+    if (photoPath != null) {
+      widget.repository
+          .getSignedMediaUrl(photoPath)
+          .then((url) {
+            if (mounted) setState(() => _photoUrl = url);
+          })
+          .catchError((_) {});
+    }
   }
 
   ({DateTime start, DateTime end}) _trendWindow(DateTime now) {
@@ -453,6 +463,7 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
             value: _currentValue(settings),
             unit: unit.isEmpty ? null : unit,
             description: _heroDescription(),
+            backgroundImage: _photoUrl,
             scroll: _scroll,
             chips: [
               HeaderChip(
