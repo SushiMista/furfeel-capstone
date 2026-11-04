@@ -681,13 +681,38 @@ class UserSettings {
 
   /// Per-type alert mute helpers (docs/04 Settings — Health/Stress/Battery
   /// toggles). Keys are app-level categories, not `alerts.type` values.
-  bool isAlertCategoryEnabled(String category) => !mutedAlertTypes.contains(category);
+  static const _alertCategoryTypes = {
+    'stress': ['moderate_stress', 'high_stress'],
+    'battery': ['low_battery'],
+    'connection': ['device_offline'],
+  };
 
-  UserSettings withAlertCategoryEnabled(String category, bool enabled) => copyWith(
-        mutedAlertTypes: enabled
-            ? mutedAlertTypes.where((t) => t != category).toList()
-            : [...mutedAlertTypes, if (!mutedAlertTypes.contains(category)) category],
-      );
+  bool isAlertCategoryEnabled(String category) =>
+      !_alertCategoryTypes[category]!.every(mutedAlertTypes.contains);
+
+  UserSettings withAlertCategoryEnabled(String category, bool enabled) {
+    final types = _alertCategoryTypes[category]!;
+    return copyWith(
+      mutedAlertTypes: enabled
+          ? mutedAlertTypes.where((t) => !types.contains(t)).toList()
+          : {...mutedAlertTypes, ...types}.toList(),
+    );
+  }
+
+  /// Whether [time] falls in quiet hours, including spans past midnight.
+  bool isQuietAt(DateTime time) {
+    int? minutes(String? hhmm) {
+      final parts = hhmm?.split(':');
+      if (parts == null || parts.length < 2) return null;
+      final h = int.tryParse(parts[0]), m = int.tryParse(parts[1]);
+      return h == null || m == null ? null : h * 60 + m;
+    }
+
+    final start = minutes(quietHoursStart), end = minutes(quietHoursEnd);
+    if (start == null || end == null || start == end) return false;
+    final now = time.hour * 60 + time.minute;
+    return start < end ? now >= start && now < end : now >= start || now < end;
+  }
 
   static const _unset = Object();
 

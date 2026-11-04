@@ -44,20 +44,6 @@ enum _AlertGroup {
   bool matches(Alert alert) => types == null || types!.contains(alert.type);
 }
 
-bool _sameDay(DateTime a, DateTime b) =>
-    a.year == b.year && a.month == b.month && a.day == b.day;
-
-String _dayLabel(DateTime t) {
-  final now = DateTime.now();
-  if (_sameDay(t, now)) return 'TODAY';
-  if (_sameDay(t, now.subtract(const Duration(days: 1)))) return 'YESTERDAY';
-  const months = [
-    'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
-    'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
-  ];
-  return '${months[t.month - 1]} ${t.day}, ${t.year}';
-}
-
 class _AlertsTabState extends State<AlertsTab> {
   _AlertGroup _group = _AlertGroup.all;
 
@@ -66,6 +52,8 @@ class _AlertsTabState extends State<AlertsTab> {
     final controller = SettingsScope.of(context);
     final settings = controller.settings;
     final visible = widget.alerts.where(_group.matches).toList();
+    final needsAttention = visible.where((a) => a.isOpen).toList();
+    final earlier = visible.where((a) => !a.isOpen).toList();
     final groupTypes = _group.types;
     final muted =
         groupTypes != null && groupTypes.every(settings.mutedAlertTypes.contains);
@@ -125,8 +113,8 @@ class _AlertsTabState extends State<AlertsTab> {
                 ),
                 subtitle: Text(
                   muted
-                      ? 'Muted — they still appear here, just no push.'
-                      : 'Push notifications are on for this type.',
+                      ? 'Muted. They still appear here.'
+                      : "You'll be notified about these.",
                   style: TextStyle(
                     fontSize: FurFeelTokens.typeCaptionSize,
                     color: context.ff.inkMuted,
@@ -153,25 +141,73 @@ class _AlertsTabState extends State<AlertsTab> {
                 style: TextStyle(color: context.ff.inkMuted),
               ),
             ).entrance(context, index: 1)
-          else
-            // "When did this happen?" first: alerts grouped under a date
-            // header (Today / Yesterday / full date), newest group on top.
-            for (final (i, alert) in visible.indexed) ...[
-              if (i == 0 ||
-                  !_sameDay(alert.createdAt, visible[i - 1].createdAt))
-                Padding(
-                  padding: EdgeInsets.only(
-                    top: i == 0 ? 0 : FurFeelTokens.space3,
-                    bottom: FurFeelTokens.space2,
-                  ),
-                  child: Text(
-                    _dayLabel(alert.createdAt),
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ),
-              AlertCard(alert: alert, onAcknowledge: widget.onAcknowledge)
-                  .entrance(context, index: 1 + i),
+          else ...[
+            // What needs the owner first; everything else is quiet history.
+            if (needsAttention.isEmpty)
+              const _AllClear()
+            else ...[
+              const _SectionLabel('NEEDS ATTENTION'),
+              for (final (i, alert) in needsAttention.indexed)
+                AlertCard(
+                  key: ValueKey(alert.id),
+                  alert: alert,
+                  onAcknowledge: widget.onAcknowledge,
+                ).entrance(context, index: 1 + i),
             ],
+            if (earlier.isNotEmpty) ...[
+              const _SectionLabel('EARLIER'),
+              for (final alert in earlier)
+                AlertCard(key: ValueKey(alert.id), alert: alert),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: FurFeelTokens.space3,
+        bottom: FurFeelTokens.space2,
+      ),
+      child: Text(text, style: Theme.of(context).textTheme.labelSmall),
+    );
+  }
+}
+
+class _AllClear extends StatelessWidget {
+  const _AllClear();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: FurFeelTokens.space5),
+      child: Column(
+        children: [
+          Icon(Icons.check_circle_outline, color: context.ff.inkMuted),
+          const SizedBox(height: FurFeelTokens.space2),
+          Text(
+            'All clear',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: context.ff.ink,
+            ),
+          ),
+          Text(
+            'Nothing needs you right now',
+            style: TextStyle(
+              fontSize: FurFeelTokens.typeCaptionSize,
+              color: context.ff.inkMuted,
+            ),
+          ),
         ],
       ),
     );
