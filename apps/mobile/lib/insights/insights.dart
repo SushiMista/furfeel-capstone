@@ -234,30 +234,3 @@ List<Insight> buildInsights({
 
   return insights;
 }
-
-/// ADDED (QA): one-sentence story of the last 7 days ("how the week went").
-/// Null until at least 3 days have data — no stories built on thin air.
-String? weekStory(String dogName, List<DailyStressSummary> daily, DateTime now) {
-  final today = DateTime(now.year, now.month, now.day);
-  final start = today.subtract(const Duration(days: 6));
-  final week = daily
-      .where((d) => !d.day.isBefore(start) && !d.day.isAfter(today) && d.total > 0)
-      .toList();
-  if (week.length < 3) return null;
-
-  const names = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-  ];
-  final good = week.where((d) => (d.calmShare ?? 0) >= 0.8).length;
-  var hardest = week.first;
-  for (final d in week) {
-    if ((d.calmShare ?? 1) < (hardest.calmShare ?? 1)) hardest = d;
-  }
-
-  if (good == week.length) {
-    return '$dogName was mostly calm every day this week — a good week.';
-  }
-  final hardestName = names[hardest.day.weekday - 1];
-  return '$dogName was mostly calm on $good of ${week.length} days this week; '
-      '$hardestName was the hardest day.';
-}

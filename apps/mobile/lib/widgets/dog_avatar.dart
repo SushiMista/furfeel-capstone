@@ -61,6 +61,7 @@ class DogAvatar extends StatefulWidget {
     this.radius = 28,
     this.backgroundColor,
     this.shape = DogAvatarShape.circle,
+    this.cornerRadius,
   });
 
   final Dog dog;
@@ -68,6 +69,9 @@ class DogAvatar extends StatefulWidget {
   final double radius;
   final Color? backgroundColor;
   final DogAvatarShape shape;
+
+  /// Squircle corner; defaults to the list-row size.
+  final double? cornerRadius;
 
   @override
   State<DogAvatar> createState() => _DogAvatarState();
@@ -136,7 +140,7 @@ class _DogAvatarState extends State<DogAvatar> {
             top: Radius.circular(widget.radius),
             bottom: const Radius.circular(FurFeelTokens.radiusMd),
           )
-        : BorderRadius.circular(FurFeelTokens.radiusMd);
+        : BorderRadius.circular(widget.cornerRadius ?? FurFeelTokens.radiusMd);
 
     return Container(
       width: width,
