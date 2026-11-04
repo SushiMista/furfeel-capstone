@@ -41,6 +41,7 @@ void setup() {
   delay(1000);
 
   Wire.begin(21, 22);
+  Wire.setTimeOut(50); // Prevent I2C bus from locking up if a sensor glitches
   oledReady = display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   batteryGaugeReady = batteryGauge.begin();
   if (!oledReady) Serial.println("OLED NOT FOUND");
@@ -50,7 +51,9 @@ void setup() {
   imu.beginGyro();
 
   Serial.print("Connecting to WiFi");
+  WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
+  WiFi.setSleep(false); // CRITICAL: Disable Wi-Fi modem sleep to prevent random disconnects
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   updateDisplay();
   while (WiFi.status() != WL_CONNECTED) {
