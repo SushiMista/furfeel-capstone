@@ -470,6 +470,16 @@ class _RootShellState extends State<RootShell> {
         dog: dog,
         alerts: _alerts,
         onAcknowledge: _acknowledgeAlert,
+        onMessageVet: (alert) => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => DogChatPage(
+              repository: widget.repository,
+              dog: dog,
+              alert: alert,
+              reading: _latestReading,
+            ),
+          ),
+        ),
         onRefresh: _refresh,
       ),
       2 => TrendsTab(
@@ -487,7 +497,7 @@ class _RootShellState extends State<RootShell> {
         onDogsChanged: _loadDogs,
         onSignOut: widget.onSignOut,
       ),
-      // Chat picks its own dog (conversations are granted per dog), so it
+      // Messages lists every dog (conversations are granted per dog), so it
       // takes the whole list rather than the shell's selected dog.
       _ => ChatTab(repository: widget.repository, dogs: _dogs ?? const []),
     };

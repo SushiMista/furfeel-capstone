@@ -114,33 +114,34 @@ abstract class FurFeelRepository {
   /// Everything the multi-dog Home card needs for one dog, in one call.
   Future<DogOverview> fetchDogOverview(Dog dog);
 
-  // ---- Media conversation (docs/04 module 5: threaded follow-up) ----
-  Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId);
-  Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body);
+  // ---- Vet conversation, one per dog (ADR-026). Supplementary only. ----
+  Future<List<DogMessageThread>> fetchDogMessageThreads();
+  Future<List<DogMessage>> fetchDogMessages(String dogId);
+  Future<void> sendDogMessage({
+    required String dogId,
+    String? body,
+    Uint8List? mediaBytes,
+    String? mediaExtension,
+    String? mediaType, // 'image' | 'video'
+    String? alertId,
+    String? readingId,
+  });
 
-  /// Full CRUD on the owner's own messages only — RLS rejects anyone else's
-  /// (media_messages_update_author / _delete_author, author_user_id = auth.uid()).
-  Future<MediaMessage> updateMediaMessage(String messageId, String body);
-  Future<void> deleteMediaMessage(String messageId);
+  /// Own messages only: RLS rejects anyone else's (dog_messages_*_author).
+  Future<void> updateDogMessage(String messageId, String body);
+  Future<void> deleteDogMessage(DogMessage message);
+  Future<void> markDogMessagesRead(String dogId);
+  Unsubscribe subscribeToDogMessages(String dogId, void Function() onChange);
+
+  /// Signed-in user, to tell own messages from the clinic's.
+  String? get currentUserId;
 
   // ---- Data-collection consent (docs/12) ----
   Future<bool> hasAcceptedConsent(String policyVersion);
   Future<void> acceptConsent(String policyVersion);
 
-  // ---- Observation assessment (docs/04 module 3). Supplementary only. ----
+  // ---- Earlier observation submissions, kept for the data export. ----
   Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50});
-  Future<MediaSubmission> submitObservation({
-    required String dogId,
-    required Uint8List bytes,
-    required String fileExtension,
-    required String mediaType, // 'image' | 'video'
-    String? note,
-  });
-
-  /// Deletes a submission the caller owns, including its storage object
-  /// (media_delete_owner RLS: submitted_by_user_id = auth.uid() — a clinic
-  /// member can never delete an owner's media).
-  Future<void> deleteMediaSubmission(MediaSubmission submission);
 
   /// Registers/refreshes a push token for the signed-in user (docs/04
   /// notifications). Delivery wiring (FCM/APNs credentials) is server-side.
@@ -608,49 +609,6 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
     );
   }
 
-  static const _mediaMessageColumns =
-      'id, media_submission_id, author_user_id, body, created_at, author:users(name, avatar_path)';
-
-  @override
-  Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId) async {
-    final rows = await _client
-        .from('media_messages')
-        .select(_mediaMessageColumns)
-        .eq('media_submission_id', mediaSubmissionId)
-        .order('created_at', ascending: true);
-    return rows.map(MediaMessage.fromMap).toList();
-  }
-
-  @override
-  Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body) async {
-    final row = await _client
-        .from('media_messages')
-        .insert({
-          'media_submission_id': mediaSubmissionId,
-          'author_user_id': _requiredUserId,
-          'body': body.trim(),
-        })
-        .select(_mediaMessageColumns)
-        .single();
-    return MediaMessage.fromMap(row);
-  }
-
-  @override
-  Future<MediaMessage> updateMediaMessage(String messageId, String body) async {
-    final row = await _client
-        .from('media_messages')
-        .update({'body': body.trim()})
-        .eq('id', messageId)
-        .select(_mediaMessageColumns)
-        .single();
-    return MediaMessage.fromMap(row);
-  }
-
-  @override
-  Future<void> deleteMediaMessage(String messageId) async {
-    await _client.from('media_messages').delete().eq('id', messageId);
-  }
-
   @override
   Future<bool> hasAcceptedConsent(String policyVersion) async {
     final rows = await _client
@@ -676,6 +634,122 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
       'submitter:users!media_submissions_submitted_by_user_id_fkey(name, avatar_path), '
       'reviewer:users!media_submissions_reviewed_by_user_id_fkey(name, avatar_path)';
 
+  static const _dogMessageColumns =
+      'id, dog_id, author_user_id, body, media_path, media_type, edited_at, created_at, '
+      'author:users!dog_messages_author_user_id_fkey(name, avatar_path), '
+      'alert:alerts(type), '
+      'reading:telemetry_readings(heart_rate_bpm, ambient_temperature_c, captured_at)';
+
+  @override
+  String? get currentUserId => _client.auth.currentUser?.id;
+
+  @override
+  Future<List<DogMessageThread>> fetchDogMessageThreads() async {
+    final rows = await _client.rpc('dog_message_threads') as List<dynamic>;
+    return rows
+        .map((r) => DogMessageThread.fromMap(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<DogMessage>> fetchDogMessages(String dogId) async {
+    final rows = await _client
+        .from('dog_messages')
+        .select(_dogMessageColumns)
+        .eq('dog_id', dogId)
+        .order('created_at', ascending: true);
+    return rows.map(DogMessage.fromMap).toList();
+  }
+
+  @override
+  Future<void> sendDogMessage({
+    required String dogId,
+    String? body,
+    Uint8List? mediaBytes,
+    String? mediaExtension,
+    String? mediaType,
+    String? alertId,
+    String? readingId,
+  }) async {
+    final userId = currentUserId;
+    if (userId == null) throw const FurFeelDataException('You need to be signed in.');
+    String? mediaPath;
+    if (mediaBytes != null) {
+      final stamp = DateTime.now().toUtc().millisecondsSinceEpoch;
+      mediaPath = 'dogs/$dogId/chat-$stamp.$mediaExtension';
+      await _upload('media', mediaPath, mediaBytes);
+    }
+    final trimmed = body?.trim();
+    await _client.from('dog_messages').insert({
+      'dog_id': dogId,
+      'author_user_id': userId,
+      'body': (trimmed == null || trimmed.isEmpty) ? null : trimmed,
+      'media_path': mediaPath,
+      'media_type': mediaPath == null ? null : mediaType,
+      'alert_id': alertId,
+      'telemetry_reading_id': readingId,
+    });
+    if (mediaPath != null) {
+      AuditService.logEvent(
+        action: 'media.submit',
+        targetResource: 'dog_messages',
+        details: {'dog_id': dogId, 'media_type': mediaType},
+      );
+    }
+  }
+
+  @override
+  Future<void> updateDogMessage(String messageId, String body) async {
+    await _client
+        .from('dog_messages')
+        .update({
+          'body': body.trim(),
+          'edited_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', messageId);
+  }
+
+  @override
+  Future<void> deleteDogMessage(DogMessage message) async {
+    // The row is what people see, so it goes first. Removing the file after is
+    // best-effort: a leftover blob isn't worth surfacing a failed delete.
+    await _client.from('dog_messages').delete().eq('id', message.id);
+    final path = message.mediaPath;
+    if (path == null) return;
+    try {
+      await _client.storage.from('media').remove([path]);
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> markDogMessagesRead(String dogId) async {
+    final userId = currentUserId;
+    if (userId == null) return;
+    await _client.from('dog_message_reads').upsert({
+      'dog_id': dogId,
+      'user_id': userId,
+      'last_read_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'dog_id,user_id');
+  }
+
+  @override
+  Unsubscribe subscribeToDogMessages(String dogId, void Function() onChange) {
+    final channel = _client.channel('dog-messages-$dogId')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'dog_messages',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'dog_id',
+          value: dogId,
+        ),
+        callback: (_) => onChange(),
+      )
+      ..subscribe();
+    return () => _client.removeChannel(channel);
+  }
+
   @override
   Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50}) async {
     final rows = await _client
@@ -685,50 +759,6 @@ class SupabaseFurFeelRepository implements FurFeelRepository {
         .order('created_at', ascending: false)
         .limit(limit);
     return rows.map(MediaSubmission.fromMap).toList();
-  }
-
-  @override
-  Future<MediaSubmission> submitObservation({
-    required String dogId,
-    required Uint8List bytes,
-    required String fileExtension,
-    required String mediaType,
-    String? note,
-  }) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) throw const FurFeelDataException('You need to be signed in.');
-    final path = 'dogs/$dogId/obs-${DateTime.now().toUtc().millisecondsSinceEpoch}.$fileExtension';
-    await _upload('media', path, bytes);
-    final row = await _client
-        .from('media_submissions')
-        .insert({
-          'dog_id': dogId,
-          'submitted_by_user_id': userId,
-          'storage_path': path,
-          'media_type': mediaType,
-          'note': (note == null || note.trim().isEmpty) ? null : note.trim(),
-        })
-        .select(_mediaColumns)
-        .single();
-    final submission = MediaSubmission.fromMap(row);
-    AuditService.logEvent(
-      action: 'media.submit',
-      targetResource: 'media_submissions',
-      targetId: submission.id,
-      details: {'dog_id': dogId, 'media_type': mediaType, 'note': note},
-    );
-    return submission;
-  }
-
-  @override
-  Future<void> deleteMediaSubmission(MediaSubmission submission) async {
-    // The row is the source of truth for what the owner sees — delete it
-    // first. The storage object is best-effort cleanup after: if it fails,
-    // a leftover blob isn't worth surfacing a failed delete to the owner.
-    await _client.from('media_submissions').delete().eq('id', submission.id);
-    try {
-      await _client.storage.from('media').remove([submission.storagePath]);
-    } catch (_) {}
   }
 
   @override

@@ -63,10 +63,16 @@ String alertDetails(BuildContext context, Alert alert) {
 /// and when. Tapping drops down the details and tip. Open alerts sit on a tinted
 /// card with Got it in reach; past alerts are quiet list rows.
 class AlertCard extends StatefulWidget {
-  const AlertCard({super.key, required this.alert, this.onAcknowledge});
+  const AlertCard({
+    super.key,
+    required this.alert,
+    this.onAcknowledge,
+    this.onMessageVet,
+  });
 
   final Alert alert;
   final Future<void> Function(Alert alert)? onAcknowledge;
+  final void Function(Alert alert)? onMessageVet;
 
   @override
   State<AlertCard> createState() => _AlertCardState();
@@ -180,6 +186,29 @@ class _AlertCardState extends State<AlertCard> {
             child: dropDownBody,
           );
 
+    final actionStyle = TextButton.styleFrom(
+      backgroundColor: context.ff.surface,
+      foregroundColor: context.ff.brandStrong,
+      minimumSize: const Size(0, FurFeelTokens.touchTargetMin),
+      padding: const EdgeInsets.symmetric(horizontal: FurFeelTokens.space4),
+      shape: const StadiumBorder(),
+      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+    );
+    final actions = [
+      if (open && widget.onAcknowledge != null)
+        TextButton(
+          onPressed: _busy ? null : _acknowledge,
+          style: actionStyle,
+          child: Text(_busy ? 'Saving…' : 'Got it'),
+        ),
+      if (widget.onMessageVet != null && (open || _expanded))
+        TextButton(
+          onPressed: () => widget.onMessageVet!(alert),
+          style: actionStyle,
+          child: const Text('Message vet'),
+        ),
+    ];
+
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -196,22 +225,13 @@ class _AlertCardState extends State<AlertCard> {
             ),
           ),
         ),
-        if (open && widget.onAcknowledge != null)
+        if (actions.isNotEmpty)
           Padding(
             padding: EdgeInsets.only(left: indent, top: FurFeelTokens.space2),
-            child: TextButton(
-              onPressed: _busy ? null : _acknowledge,
-              style: TextButton.styleFrom(
-                backgroundColor: context.ff.surface,
-                foregroundColor: context.ff.brandStrong,
-                minimumSize: const Size(0, FurFeelTokens.touchTargetMin),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: FurFeelTokens.space4,
-                ),
-                shape: const StadiumBorder(),
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              child: Text(_busy ? 'Saving…' : 'Got it'),
+            child: Wrap(
+              spacing: FurFeelTokens.space2,
+              runSpacing: FurFeelTokens.space2,
+              children: actions,
             ),
           ),
       ],

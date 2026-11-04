@@ -18,12 +18,14 @@ class AlertsTab extends StatefulWidget {
     required this.alerts,
     required this.onAcknowledge,
     required this.onRefresh,
+    this.onMessageVet,
   });
 
   final Dog dog;
   final List<Alert> alerts;
   final Future<void> Function(Alert alert) onAcknowledge;
   final Future<void> Function() onRefresh;
+  final void Function(Alert alert)? onMessageVet;
 
   @override
   State<AlertsTab> createState() => _AlertsTabState();
@@ -152,12 +154,17 @@ class _AlertsTabState extends State<AlertsTab> {
                   key: ValueKey(alert.id),
                   alert: alert,
                   onAcknowledge: widget.onAcknowledge,
+                  onMessageVet: widget.onMessageVet,
                 ).entrance(context, index: 1 + i),
             ],
             if (earlier.isNotEmpty) ...[
               const _SectionLabel('EARLIER'),
               for (final alert in earlier)
-                AlertCard(key: ValueKey(alert.id), alert: alert),
+                AlertCard(
+                  key: ValueKey(alert.id),
+                  alert: alert,
+                  onMessageVet: widget.onMessageVet,
+                ),
             ],
           ],
         ],

@@ -239,35 +239,94 @@ class CareGuidance {
       );
 }
 
-/// One message in a media-submission conversation (media_messages): the owner
-/// and the clinic replying back and forth under a submitted photo/video.
-class MediaMessage {
-  const MediaMessage({
+/// One message in a dog's conversation with the clinic (dog_messages,
+/// ADR-026). Text, media and an attached alert are each optional, but a message
+/// always has at least one. Supplementary only: NEVER a classifier input.
+class DogMessage {
+  const DogMessage({
     required this.id,
-    required this.mediaSubmissionId,
-    required this.authorUserId,
-    required this.body,
+    required this.dogId,
     required this.createdAt,
+    this.authorUserId,
     this.authorName,
     this.authorAvatarPath,
+    this.body,
+    this.mediaPath,
+    this.mediaType,
+    this.alertType,
+    this.heartRateBpm,
+    this.ambientTemperatureC,
+    this.readingCapturedAt,
+    this.editedAt,
   });
 
   final String id;
-  final String mediaSubmissionId;
-  final String authorUserId;
-  final String body;
+  final String dogId;
   final DateTime createdAt;
+  final String? authorUserId;
   final String? authorName;
   final String? authorAvatarPath;
+  final String? body;
+  final String? mediaPath;
+  final String? mediaType; // image | video
+  final String? alertType;
+  final int? heartRateBpm;
+  final double? ambientTemperatureC;
+  final DateTime? readingCapturedAt;
+  final DateTime? editedAt;
 
-  factory MediaMessage.fromMap(Map<String, dynamic> map) => MediaMessage(
-        id: map['id'] as String,
-        mediaSubmissionId: map['media_submission_id'] as String,
-        authorUserId: map['author_user_id'] as String,
-        body: map['body'] as String,
-        createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
-        authorName: (map['author'] as Map<String, dynamic>?)?['name'] as String?,
-        authorAvatarPath: (map['author'] as Map<String, dynamic>?)?['avatar_path'] as String?,
+  factory DogMessage.fromMap(Map<String, dynamic> map) {
+    final author = map['author'] as Map<String, dynamic>?;
+    final alert = map['alert'] as Map<String, dynamic>?;
+    final reading = map['reading'] as Map<String, dynamic>?;
+    return DogMessage(
+      id: map['id'] as String,
+      dogId: map['dog_id'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
+      authorUserId: map['author_user_id'] as String?,
+      authorName: author?['name'] as String?,
+      authorAvatarPath: author?['avatar_path'] as String?,
+      body: map['body'] as String?,
+      mediaPath: map['media_path'] as String?,
+      mediaType: map['media_type'] as String?,
+      alertType: alert?['type'] as String?,
+      heartRateBpm: _toInt(reading?['heart_rate_bpm']),
+      ambientTemperatureC: _toDouble(reading?['ambient_temperature_c']),
+      readingCapturedAt: reading?['captured_at'] == null
+          ? null
+          : DateTime.parse(reading!['captured_at'] as String).toLocal(),
+      editedAt: map['edited_at'] == null
+          ? null
+          : DateTime.parse(map['edited_at'] as String).toLocal(),
+    );
+  }
+}
+
+/// A dog's conversation as a row in Messages (dog_message_threads RPC).
+class DogMessageThread {
+  const DogMessageThread({
+    required this.dogId,
+    required this.lastAt,
+    this.lastBody,
+    this.lastHasMedia = false,
+    this.lastHasAlert = false,
+    this.unreadCount = 0,
+  });
+
+  final String dogId;
+  final DateTime lastAt;
+  final String? lastBody;
+  final bool lastHasMedia;
+  final bool lastHasAlert;
+  final int unreadCount;
+
+  factory DogMessageThread.fromMap(Map<String, dynamic> map) => DogMessageThread(
+        dogId: map['dog_id'] as String,
+        lastAt: DateTime.parse(map['last_at'] as String).toLocal(),
+        lastBody: map['last_body'] as String?,
+        lastHasMedia: map['last_has_media'] as bool? ?? false,
+        lastHasAlert: map['last_has_alert'] as bool? ?? false,
+        unreadCount: (map['unread_count'] as num?)?.toInt() ?? 0,
       );
 }
 
