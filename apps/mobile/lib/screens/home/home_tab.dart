@@ -114,6 +114,8 @@ class _HomeTabState extends State<HomeTab> {
             dog: widget.dog,
             level: level,
             latestUpdatedAt: widget.reading?.capturedAt,
+            device: widget.device,
+            reading: widget.reading,
             openAlerts: widget.alerts.where((a) => a.status == 'open').length,
             hasCareTip: careGuidance != null,
             onBack: widget.onBack,
@@ -129,8 +131,6 @@ class _HomeTabState extends State<HomeTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                HarnessBattery(device: widget.device, reading: widget.reading),
-                const SizedBox(height: FurFeelTokens.space3),
                 if (widget.dog.isBirthday(DateTime.now())) ...[
                   _BirthdayBanner(dog: widget.dog).entrance(context),
                   const SizedBox(height: FurFeelTokens.space3),
@@ -185,6 +185,8 @@ class _ImmersiveHero extends StatefulWidget {
     required this.dog,
     required this.level,
     required this.latestUpdatedAt,
+    required this.device,
+    required this.reading,
     required this.openAlerts,
     required this.hasCareTip,
     this.onBack,
@@ -195,6 +197,8 @@ class _ImmersiveHero extends StatefulWidget {
   final Dog dog;
   final StressLevel? level;
   final DateTime? latestUpdatedAt;
+  final Device? device;
+  final TelemetryReading? reading;
   final int openAlerts;
   final bool hasCareTip;
   final VoidCallback? onBack;
@@ -268,6 +272,7 @@ class _ImmersiveHeroState extends State<_ImmersiveHero> {
               tooltip: 'Back',
               onTap: widget.onBack,
             ),
+      trailing: HarnessBattery(device: widget.device, reading: widget.reading),
       chips: [
         if (widget.latestUpdatedAt != null)
           HeaderChip(

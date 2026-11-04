@@ -66,8 +66,37 @@ void main() {
     expect(find.text('Calm'), findsWidgets); // stress pill
     // Harness battery is visible without opening each dog; wellness stays in detail.
     expect(find.text('82'), findsNothing);
-    expect(find.text('Harness battery: 12% · Low'), findsNWidgets(2));
+    expect(find.text('12%'), findsNWidgets(2));
     expect(find.byIcon(Icons.battery_alert), findsNWidgets(2));
+  });
+
+  testWidgets('battery and a long stress word share the top row on a small phone',
+      (tester) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repo = FakeRepository(
+      dogs: const [_biscuit, _mochi],
+      latestClassification: StressClassification(
+        id: 'c1',
+        dogId: 'dog-1',
+        stressLevel: StressLevel.moderate,
+        createdAt: DateTime.now(),
+      ),
+      device: const Device(
+        id: 'device-1',
+        deviceCode: 'FF-1',
+        status: 'offline',
+        batteryPercent: 100,
+      ),
+    );
+
+    await tester.pumpWidget(app(repo));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Moderate'), findsNWidgets(2));
+    expect(find.byIcon(Icons.wifi_off), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('a card opens the full dog detail', (tester) async {

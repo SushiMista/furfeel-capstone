@@ -455,13 +455,23 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          HarnessBattery(
+                            device: widget.overview.device,
+                            reading: widget.overview.reading,
+                          ),
+                          const SizedBox(width: FurFeelTokens.space1),
                           if (level != null)
                             Expanded(
                               child: Align(
                                 alignment: Alignment.topRight,
-                                child: StressPill(level: level, onDark: true),
+                                // Scales down beside the battery pill when a
+                                // long word like "Moderate" would overflow.
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: StressPill(level: level, onDark: true),
+                                ),
                               ),
                             )
                           else
@@ -484,21 +494,6 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                         ],
                       ),
                       const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: HarnessBattery(
-                          device: widget.overview.device,
-                          reading: widget.overview.reading,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
                       Text(
                         dog.name,
                         maxLines: 1,
