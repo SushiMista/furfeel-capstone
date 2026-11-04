@@ -2,7 +2,8 @@
 // Run:  flutter test test/screenshots_test.dart --update-goldens
 // Output: test/screenshots/*.png  (full scrollable page per file, real charts).
 //
-// Not a correctness test — it only regenerates docs images. Uses DemoRepository
+// Not a correctness test — it only regenerates docs images, so it skips
+// unless run with --update-goldens. Uses DemoRepository
 // so there's no network/auth and the data is deterministic.
 import 'dart:async';
 import 'dart:io';
@@ -176,7 +177,7 @@ void main() {
     if (!e.toString().contains('font')) throw e;
   })!;
 
-  testWidgets('demo tabs', (t) async {
+  testWidgets('demo tabs', skip: !autoUpdateGoldenFiles, (t) async {
     ignoreDocGenNoise();
     await guarded(() async {
       await _surface(t, _probe);
@@ -199,7 +200,7 @@ void main() {
     });
   });
 
-  testWidgets('all other screens', timeout: const Timeout(Duration(minutes: 30)), (t) async {
+  testWidgets('all other screens', skip: !autoUpdateGoldenFiles, timeout: const Timeout(Duration(minutes: 30)), (t) async {
     ignoreDocGenNoise();
     await guarded(() async {
       final repo = DemoRepository();

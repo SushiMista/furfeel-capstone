@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/furfeel_tokens.dart';
-
 /// Level-aware battery glyph (QA item 14 follow-up): the icon fill tracks the
 /// actual charge instead of jumping between "full" and "alert".
 IconData batteryIconFor(int percent) => switch (percent) {
@@ -12,12 +10,4 @@ IconData batteryIconFor(int percent) => switch (percent) {
       <= 75 => Icons.battery_5_bar,
       <= 90 => Icons.battery_6_bar,
       _ => Icons.battery_full,
-    };
-
-/// Word+color convention (docs/19): red at the alert threshold, amber when a
-/// charge is worth planning, calm green otherwise.
-Color batteryColorFor(BuildContext context, int percent) => switch (percent) {
-      <= 15 => context.ff.statusHighOwner,
-      <= 30 => context.ff.warm,
-      _ => context.ff.statusCalmFg,
     };

@@ -178,12 +178,15 @@ void main() {
 
       await tester.tap(navTab('Alerts'));
       await tester.pumpAndSettle();
-      expect(find.text('Biscuit is showing high stress'), findsOneWidget);
+      expect(find.text('Stress level is high'), findsOneWidget);
+      expect(find.text('NEEDS ATTENTION'), findsOneWidget);
 
-      await tester.tap(find.text('Acknowledge'));
+      await tester.tap(find.text('Got it'));
       await tester.pumpAndSettle();
       expect(repo.acknowledgedIds, ['a1']);
-      expect(find.text('Acknowledge'), findsNothing);
+      expect(find.text('Got it'), findsNothing);
+      expect(find.text('All clear'), findsOneWidget);
+      expect(find.text('EARLIER'), findsOneWidget);
     },
   );
 
@@ -211,12 +214,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // All tab shows both; Harness tab filters to device alerts.
-    expect(find.text('Stress is high'), findsOneWidget);
-    expect(find.text('Harness went offline'), findsOneWidget);
+    expect(find.text('Stress level is high'), findsOneWidget);
+    expect(find.text('Device stopped sending data'), findsOneWidget);
     await tester.tap(find.text('Harness'));
     await tester.pumpAndSettle();
-    expect(find.text('Stress is high'), findsNothing);
-    expect(find.text('Harness went offline'), findsOneWidget);
+    expect(find.text('Stress level is high'), findsNothing);
+    expect(find.text('Device stopped sending data'), findsOneWidget);
 
     // Muting the harness type persists to user_settings.
     await tester.tap(find.byType(Switch));
@@ -335,6 +338,7 @@ void main() {
       findsWidgets,
     ); // account card
     expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Pair harness'), findsOneWidget);
     // The dog list sits below the fold of the lazy ListView — scroll to it.
     await tester.scrollUntilVisible(
       find.textContaining('Home only'),

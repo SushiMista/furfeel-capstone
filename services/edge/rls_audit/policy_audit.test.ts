@@ -35,9 +35,13 @@ const norm = (t: string) => t.replace(/^public\./, "");
 
 function createdTables(): string[] {
   const tables = new Set<string>();
-  for (const m of activeSql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_.]+)/gi)) {
-    const t = norm(m[1]);
-    if (!t.startsWith("storage.") && !t.startsWith("auth.")) tables.add(t);
+  // In migration order, so a table a later rollback drops no longer counts.
+  const re = /(create|drop)\s+table\s+(?:if\s+(?:not\s+)?exists\s+)?([a-z_.]+)/gi;
+  for (const m of activeSql.matchAll(re)) {
+    const t = norm(m[2]);
+    if (t.startsWith("storage.") || t.startsWith("auth.")) continue;
+    if (m[1].toLowerCase() === "create") tables.add(t);
+    else tables.delete(t);
   }
   return [...tables].sort();
 }
@@ -55,7 +59,7 @@ type Policy = { name: string; table: string; cmd: string; roles: string };
 function policies(): Policy[] {
   const out: Policy[] = [];
   const re =
-    /create\s+policy\s+([a-z0-9_]+)\s+on\s+([a-z_.]+)([\s\S]*?)(?=create\s+policy|create\s+table|create\s+function|alter\s+table|insert\s+into|grant\s|revoke\s|$)/gi;
+    /create\s+policy\s+"?([a-z0-9_ -]+)"?\s+on\s+([a-z_.]+)([\s\S]*?)(?=create\s+policy|create\s+table|create\s+function|alter\s+table|insert\s+into|grant\s|revoke\s|$)/gi;
   for (const m of activeSql.matchAll(re)) {
     const body = m[3];
     const cmd = body.match(/for\s+(select|insert|update|delete|all)/i)?.[1] ?? "all";

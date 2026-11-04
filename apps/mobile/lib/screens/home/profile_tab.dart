@@ -8,6 +8,7 @@ import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/dog_avatar.dart';
 import 'package:furfeel_mobile/widgets/settings_group.dart';
 import 'package:furfeel_mobile/widgets/user_avatar.dart';
+import 'package:furfeel_mobile/widgets/wifi_provisioning_modal.dart';
 import 'package:furfeel_mobile/screens/settings/account_page.dart';
 import 'package:furfeel_mobile/screens/dogs/care_tips_page.dart';
 import 'package:furfeel_mobile/screens/dogs/dog_profile_page.dart';
@@ -133,6 +134,12 @@ class ProfileTab extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
               ),
+            ),
+            SettingsRow(
+              icon: Icons.wifi_tethering,
+              title: 'Pair harness',
+              subtitle: 'Connect your harness to home Wi-Fi',
+              onTap: () => WifiProvisioningModal.show(context),
             ),
             SettingsRow(
               icon: Icons.tips_and_updates_outlined,

@@ -268,11 +268,13 @@ class _RootShellState extends State<RootShell> {
 
   /// Owner-delight pass: a live alert lands as a gentle in-app banner while
   /// the app is open (push covers the closed-app case once FCM is wired).
-  /// Honors the same preferences push will: master toggle + per-type mutes.
+  /// Honors the same preferences push will: master toggle, per-type mutes, and
+  /// quiet hours, which only urgent alerts pass.
   void _showAlertBanner(Alert alert) {
     final settings = SettingsScope.of(context).settings;
     if (!settings.notificationsEnabled ||
-        settings.mutedAlertTypes.contains(alert.type)) {
+        settings.mutedAlertTypes.contains(alert.type) ||
+        (alert.severity != 'critical' && settings.isQuietAt(DateTime.now()))) {
       return;
     }
     if (_tab == 1) return; // already looking at Alerts
@@ -298,7 +300,14 @@ class _RootShellState extends State<RootShell> {
                       color: severity.fg,
                     ),
                   ),
-                  Text(alert.message),
+                  Text(alertHeadline(alert.type) ?? alert.message),
+                  if (alertHeadline(alert.type) != null)
+                    Text(
+                      alertDetails(context, alert),
+                      style: const TextStyle(
+                        fontSize: FurFeelTokens.typeCaptionSize,
+                      ),
+                    ),
                 ],
               ),
             ),

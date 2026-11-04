@@ -7,7 +7,6 @@ import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/settings_group.dart';
 import 'package:furfeel_mobile/screens/settings/about_pages.dart';
 import 'package:furfeel_mobile/screens/settings/bug_report_page.dart';
-import 'package:furfeel_mobile/widgets/wifi_provisioning_modal.dart';
 
 /// Settings — categorized into clear sections.
 ///
@@ -158,8 +157,8 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               _SwitchRow(
                 icon: Icons.notifications_outlined,
-                title: 'Push Notifications',
-                subtitle: 'All alerts from FurFeel',
+                title: 'Notifications',
+                subtitle: 'Alerts about your dog',
                 value: s.notificationsEnabled,
                 onChanged: (on) {
                   HapticFeedback.selectionClick();
@@ -167,22 +166,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
               ),
               _SwitchRow(
-                icon: Icons.favorite_outline,
-                iconColor: context.ff.statusHighFg,
-                iconBackground: context.ff.statusHighBg,
-                title: 'Health Alerts',
-                subtitle: 'Heart rate, temperature anomalies',
-                value: s.notificationsEnabled && s.isAlertCategoryEnabled('health'),
-                onChanged: s.notificationsEnabled
-                    ? (on) => ctrl.update(s.withAlertCategoryEnabled('health', on))
-                    : null,
-              ),
-              _SwitchRow(
                 icon: Icons.psychology_outlined,
                 iconColor: context.ff.statusModerateFg,
                 iconBackground: context.ff.statusModerateBg,
-                title: 'Stress Alerts',
-                subtitle: 'Moderate and high stress detections',
+                title: 'Stress',
+                subtitle: 'When my dog seems stressed',
                 value: s.notificationsEnabled && s.isAlertCategoryEnabled('stress'),
                 onChanged: s.notificationsEnabled
                     ? (on) => ctrl.update(s.withAlertCategoryEnabled('stress', on))
@@ -192,17 +180,26 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: Icons.battery_alert_outlined,
                 iconColor: context.ff.statusMildFg,
                 iconBackground: context.ff.statusMildBg,
-                title: 'Battery Alerts',
-                subtitle: 'Low harness battery warnings',
+                title: 'Harness battery',
+                subtitle: 'When the harness needs charging',
                 value: s.notificationsEnabled && s.isAlertCategoryEnabled('battery'),
                 onChanged: s.notificationsEnabled
                     ? (on) => ctrl.update(s.withAlertCategoryEnabled('battery', on))
                     : null,
               ),
               _SwitchRow(
+                icon: Icons.sensors_off_outlined,
+                title: 'Harness connection',
+                subtitle: 'When the harness disconnects',
+                value: s.notificationsEnabled && s.isAlertCategoryEnabled('connection'),
+                onChanged: s.notificationsEnabled
+                    ? (on) => ctrl.update(s.withAlertCategoryEnabled('connection', on))
+                    : null,
+              ),
+              _SwitchRow(
                 icon: Icons.bedtime_outlined,
-                title: 'Quiet Hours',
-                subtitle: 'Mute non-critical alerts overnight',
+                title: 'Quiet hours',
+                subtitle: 'Pause non-urgent alerts while you sleep',
                 value: quietHoursOn,
                 onChanged: s.notificationsEnabled
                     ? (on) {
@@ -275,26 +272,9 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: FurFeelTokens.space5),
 
           // ────────────────────────────────────────────────────────────
-          // HARNESS & HARDWARE
-          // ────────────────────────────────────────────────────────────
-          _Label('HARNESS & HARDWARE').entrance(context, index: 8),
-          const SizedBox(height: FurFeelTokens.space2),
-          SettingsGroup(
-            children: [
-              SettingsRow(
-                icon: Icons.wifi_tethering,
-                title: 'Connect Harness to Home Wi-Fi',
-                subtitle: 'Pair over Bluetooth to configure 2.4GHz Wi-Fi',
-                onTap: () => WifiProvisioningModal.show(context),
-              ),
-            ],
-          ).entrance(context, index: 9),
-          const SizedBox(height: FurFeelTokens.space5),
-
-          // ────────────────────────────────────────────────────────────
           // ABOUT
           // ────────────────────────────────────────────────────────────
-          _Label('ABOUT').entrance(context, index: 10),
+          _Label('ABOUT').entrance(context, index: 8),
           const SizedBox(height: FurFeelTokens.space2),
           SettingsGroup(
             children: [
@@ -331,7 +311,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
             ],
-          ).entrance(context, index: 11),
+          ).entrance(context, index: 9),
           const SizedBox(height: FurFeelTokens.space7),
         ],
       ),
