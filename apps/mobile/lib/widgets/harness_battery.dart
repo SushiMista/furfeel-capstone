@@ -1,9 +1,8 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
 import '../util/battery.dart';
+import 'curved_status_header.dart';
 
 /// Battery of the wearable harness, independent of canine stress classification.
 ///
@@ -34,42 +33,29 @@ class HarnessBattery extends StatelessWidget {
       child: Semantics(
         label: label,
         excludeSemantics: true,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: FurFeelTokens.space2,
-                vertical: FurFeelTokens.space1,
+        child: GlassPill(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                available ? batteryIconFor(percent!) : Icons.battery_unknown,
+                color: Colors.white,
+                size: 14,
               ),
-              color: Colors.white.withValues(alpha: 0.15),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    available
-                        ? batteryIconFor(percent!)
-                        : Icons.battery_unknown,
-                    color: Colors.white,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    available ? '${percent!}%' : '--',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: FurFeelTokens.typeLabelSize,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (offline) ...[
-                    const SizedBox(width: 3),
-                    const Icon(Icons.wifi_off, color: Colors.white, size: 13),
-                  ],
-                ],
+              const SizedBox(width: 2),
+              Text(
+                available ? '${percent!}%' : '--',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: FurFeelTokens.typeLabelSize,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
+              if (offline) ...[
+                const SizedBox(width: 3),
+                const Icon(Icons.wifi_off, color: Colors.white, size: 13),
+              ],
+            ],
           ),
         ),
       ),

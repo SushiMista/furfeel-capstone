@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../theme/furfeel_tokens.dart';
@@ -240,6 +242,33 @@ class HeaderChip extends StatelessWidget {
                   fontSize: FurFeelTokens.typeCaptionSize,
                   fontWeight: FontWeight.w300)),
         ],
+      ),
+    );
+  }
+}
+
+/// Frosted pill for controls over photos and the hero, matching
+/// `StressPill(onDark: true)`. Pass a dark [color] where it can leave the hero.
+class GlassPill extends StatelessWidget {
+  const GlassPill({super.key, required this.child, this.color});
+
+  final Widget child;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: FurFeelTokens.space2,
+            vertical: FurFeelTokens.space1,
+          ),
+          color: color ?? Colors.white.withValues(alpha: 0.15),
+          child: child,
+        ),
       ),
     );
   }

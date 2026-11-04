@@ -99,8 +99,9 @@ class _HomeTabState extends State<HomeTab> {
       clinicId: widget.dog.clinicId,
     );
 
-    final bottom = MediaQuery.paddingOf(context).bottom;
-    return RefreshIndicator(
+    final padding = MediaQuery.paddingOf(context);
+    final bottom = padding.bottom;
+    final content = RefreshIndicator(
       onRefresh: widget.onRefresh,
       child: ListView(
         controller: _scroll,
@@ -118,7 +119,7 @@ class _HomeTabState extends State<HomeTab> {
             reading: widget.reading,
             openAlerts: widget.alerts.where((a) => a.status == 'open').length,
             hasCareTip: careGuidance != null,
-            onBack: widget.onBack,
+            showPaw: widget.onBack == null,
             scroll: _scroll,
           ),
           Padding(
@@ -172,6 +173,78 @@ class _HomeTabState extends State<HomeTab> {
         ],
       ),
     );
+
+    final onBack = widget.onBack;
+    if (onBack == null) return content;
+    // Scrolls with the hero, then sticks under the status bar so a pushed dog
+    // screen can always go back. Darkens as it sticks to read on the sheet.
+    final restTop = padding.top + FurFeelTokens.space5;
+    final stuckTop = padding.top + FurFeelTokens.space1;
+    return Stack(
+      children: [
+        content,
+        AnimatedBuilder(
+          animation: _scroll,
+          builder: (context, _) {
+            final offset = _scroll.hasClients ? _scroll.offset : 0.0;
+            final top = restTop - offset;
+            final stuck = ((stuckTop - top) / 40).clamp(0.0, 1.0);
+            return Positioned(
+              top: top < stuckTop ? stuckTop : top,
+              left: FurFeelTokens.space4,
+              child: _BackPill(
+                onTap: onBack,
+                color: Color.lerp(
+                  Colors.white.withValues(alpha: 0.15),
+                  Colors.black.withValues(alpha: 0.3),
+                  stuck,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Back control in the battery pill's style, inside a 40pt tap target.
+class _BackPill extends StatelessWidget {
+  const _BackPill({required this.onTap, required this.color});
+
+  final VoidCallback onTap;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Back',
+      child: Semantics(
+        button: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: GlassPill(
+                color: color,
+                child: const SizedBox(
+                  height: 17,
+                  child: Icon(
+                    Icons.arrow_back_ios_new,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -189,7 +262,7 @@ class _ImmersiveHero extends StatefulWidget {
     required this.reading,
     required this.openAlerts,
     required this.hasCareTip,
-    this.onBack,
+    required this.showPaw,
     this.scroll,
   });
 
@@ -201,7 +274,7 @@ class _ImmersiveHero extends StatefulWidget {
   final TelemetryReading? reading;
   final int openAlerts;
   final bool hasCareTip;
-  final VoidCallback? onBack;
+  final bool showPaw;
   final ScrollController? scroll;
 
   @override
@@ -265,13 +338,9 @@ class _ImmersiveHeroState extends State<_ImmersiveHero> {
       description: description,
       backgroundImage: _photoUrl,
       scroll: widget.scroll,
-      leading: widget.onBack == null
+      leading: widget.showPaw
           ? const HeaderCircleButton(icon: Icons.pets)
-          : HeaderCircleButton(
-              icon: Icons.arrow_back_ios_new,
-              tooltip: 'Back',
-              onTap: widget.onBack,
-            ),
+          : null,
       trailing: HarnessBattery(device: widget.device, reading: widget.reading),
       chips: [
         if (widget.latestUpdatedAt != null)

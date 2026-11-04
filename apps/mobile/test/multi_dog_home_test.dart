@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/screens/home/multi_dog_home.dart';
+import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 
 import 'fakes.dart';
 
@@ -115,5 +116,21 @@ void main() {
     expect(find.byTooltip('Back'), findsOneWidget);
     expect(find.textContaining('Waiting for the first reading'),
         findsOneWidget);
+
+    // Back scrolls with the hero, then sticks at the top and stays tappable.
+    final back = find.byTooltip('Back');
+    final restTop = tester.getTopLeft(back).dy;
+    final stuckTop = restTop - FurFeelTokens.space5 + FurFeelTokens.space1;
+    await tester.dragFrom(const Offset(200, 400), const Offset(0, -8),
+        touchSlopY: 0);
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(back).dy, restTop - 8);
+    await tester.dragFrom(const Offset(200, 400), const Offset(0, -100),
+        touchSlopY: 0);
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(back).dy, stuckTop);
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Waiting for the first reading'), findsNothing);
   });
 }
