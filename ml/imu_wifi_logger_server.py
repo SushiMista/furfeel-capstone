@@ -22,8 +22,12 @@ import re
 import uuid
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 from pathlib import Path
 from urllib.parse import unquote
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
 
 CSV_HEADER = ["wall_time", "millis_ms", "accel_x", "accel_y", "accel_z",
               "gyro_x", "gyro_y", "gyro_z", "label", "dog_name", "size_class"]
@@ -38,6 +42,11 @@ PAGE = """<!doctype html>
 <style>
 body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
 h1 { font-size: 20px; }
+#conn-status { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 8px; margin: 12px 0; font-size: 14px; font-weight: 500; }
+.conn-strong { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.conn-fair { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+.conn-weak { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.conn-offline { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
 #label { font-size: 28px; font-weight: bold; padding: 14px; background: #eef2ff; border-radius: 8px; text-align: center; margin: 16px 0; }
 #rows { color: #666; margin-bottom: 4px; }
 #total { color: #999; font-size: 13px; margin-bottom: 16px; }
@@ -52,6 +61,12 @@ h1 { font-size: 20px; }
 <h1>FurFeel &mdash; Posture Data Logger</h1>
 <div>Dog: <b id="dog-name"></b> (<span id="dog-size"></span>)</div>
 <p>CSV: <span id="csv-name"></span></p>
+
+<div id="conn-status" class="conn-offline">
+  <span id="conn-text">📡 ESP32: Waiting for packets...</span>
+  <span id="conn-signal">--</span>
+</div>
+
 <form id="new-session" class="custom">
   <label for="new-dog">New session — dog name</label><br>
   <input id="new-dog" required maxlength="80" placeholder="Bochi">
@@ -109,6 +124,33 @@ function refresh() {
     document.getElementById('recording').textContent = d.paused ? 'Paused — incoming samples are not saved. Choose a posture, then resume.' : 'Recording — pause when the dog changes activity.';
     document.getElementById('rows').textContent = d.label_rows + ' rows / ' + d.label_seconds + 's for this label';
     document.getElementById('total').textContent = d.rows + ' rows total this session';
+
+    // Update connection & signal status
+    var connBox = document.getElementById('conn-status');
+    var connText = document.getElementById('conn-text');
+    var connSignal = document.getElementById('conn-signal');
+    var age = d.last_packet_age;
+    if (age === null || age === undefined || age > 5) {
+      connBox.className = 'conn-offline';
+      connText.textContent = age === null ? '📡 ESP32: Waiting for packets...' : '⚠️ ESP32: Disconnected (' + Math.round(age) + 's ago)';
+      connSignal.textContent = 'Offline';
+    } else {
+      var rssi = d.rssi;
+      var ip = d.esp_ip ? ' [' + d.esp_ip + ']' : '';
+      if (rssi >= -60) {
+        connBox.className = 'conn-strong';
+        connText.textContent = '🟢 ESP32 Connected' + ip;
+        connSignal.textContent = 'Strong (' + rssi + ' dBm)';
+      } else if (rssi >= -75) {
+        connBox.className = 'conn-fair';
+        connText.textContent = '🟡 ESP32 Connected' + ip;
+        connSignal.textContent = 'Fair (' + rssi + ' dBm)';
+      } else {
+        connBox.className = 'conn-weak';
+        connText.textContent = '🔴 ESP32 Connected' + ip;
+        connSignal.textContent = 'Weak (' + rssi + ' dBm)';
+      }
+    }
   });
 }
 refresh();
@@ -121,6 +163,7 @@ setInterval(refresh, 1000);
 
 def make_handler(writer, out_file, dog, size):
     seen = {"label": None, "rows": 0, "label_rows": 0, "label_start": None}
+    conn_info = {"last_seen": None, "rssi": None, "ip": None}
     output_dir = Path(out_file.name).parent
     state.update(label="unlabeled", paused=True)
 
@@ -137,9 +180,11 @@ def make_handler(writer, out_file, dog, size):
                 self._json({"ok": True, "label": state["label"]})
             elif self.path == "/status":
                 label_seconds = round(seen["label_rows"] / 20, 1)
+                last_age = round(time.time() - conn_info["last_seen"], 1) if conn_info["last_seen"] else None
                 self._json({"label": state["label"], "paused": state["paused"], "rows": seen["rows"],
                              "label_rows": seen["label_rows"], "label_seconds": label_seconds,
-                             "dog_name": dog, "size_class": size, "csv_name": Path(out_file.name).name})
+                             "dog_name": dog, "size_class": size, "csv_name": Path(out_file.name).name,
+                             "last_packet_age": last_age, "rssi": conn_info["rssi"], "esp_ip": conn_info["ip"]})
             else:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html")
@@ -198,6 +243,18 @@ def make_handler(writer, out_file, dog, size):
                 return
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
+
+            # Track ESP32 incoming packet time and signal
+            conn_info["last_seen"] = time.time()
+            raw_rssi = self.headers.get("X-ESP32-RSSI")
+            if raw_rssi:
+                try:
+                    conn_info["rssi"] = int(raw_rssi)
+                except ValueError:
+                    pass
+            esp_ip = self.headers.get("X-ESP32-IP") or self.client_address[0]
+            conn_info["ip"] = esp_ip
+
             if state["paused"]:
                 self._json({"ok": True, "paused": True})
                 return
@@ -249,7 +306,7 @@ def main():
     print(f"Open this in a browser to control labeling: http://localhost:{args.port}/")
     print("Ctrl+C to stop.")
 
-    HTTPServer(("0.0.0.0", args.port), make_handler(writer, out_file, args.dog, args.size)).serve_forever()
+    ThreadedHTTPServer(("0.0.0.0", args.port), make_handler(writer, out_file, args.dog, args.size)).serve_forever()
 
 
 if __name__ == "__main__":
