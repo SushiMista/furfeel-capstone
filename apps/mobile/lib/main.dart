@@ -133,7 +133,9 @@ class _FurFeelAppState extends State<FurFeelApp> {
           .from('users')
           .select('role')
           .eq('id', userId)
-          .maybeSingle();
+          .maybeSingle()
+          // A stalled connection must not hold the splash forever.
+          .timeout(const Duration(seconds: 10));
       if (!mounted || run != _mobileAccessRun) return;
 
       final error = mobileAccessErrorForRole(row?['role'] as String?);
