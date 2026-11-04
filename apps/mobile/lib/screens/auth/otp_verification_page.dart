@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:furfeel_mobile/data/google_oauth.dart';
 import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/motion.dart';
+import 'package:furfeel_mobile/util/otp_rate_limiter.dart';
 import 'package:furfeel_mobile/widgets/auth_form.dart';
 
 class OtpVerificationPage extends StatefulWidget {
@@ -28,6 +29,14 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   Timer? _resendTimer;
   int _cooldownSeconds = 0;
+  int _lockoutSeconds = 0;
+  int _attempts = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialLockout();
+  }
 
   @override
   void dispose() {
@@ -36,16 +45,63 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     super.dispose();
   }
 
-  void _startCooldown() {
-    setState(() => _cooldownSeconds = 60);
+  Future<void> _checkInitialLockout() async {
+    final remaining = await OtpRateLimiter.getLockoutRemainingSeconds(widget.email);
+    final count = await OtpRateLimiter.getAttemptCount(widget.email);
+    if (!mounted) return;
+    setState(() {
+      _lockoutSeconds = remaining;
+      _attempts = count;
+    });
+
+    if (remaining > 0) {
+      _startLockoutCountdown(remaining);
+    }
+  }
+
+  void _startLockoutCountdown(int seconds) {
+    _resendTimer?.cancel();
+    setState(() => _lockoutSeconds = seconds);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_lockoutSeconds > 0) {
+        setState(() => _lockoutSeconds--);
+      } else {
+        timer.cancel();
+        setState(() {
+          _lockoutSeconds = 0;
+          _attempts = 0;
+        });
+      }
+    });
+  }
+
+  void _startCooldown([int seconds = OtpRateLimiter.defaultCooldownSeconds]) {
+    setState(() => _cooldownSeconds = seconds);
     _resendTimer?.cancel();
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       if (_cooldownSeconds > 0) {
         setState(() => _cooldownSeconds--);
       } else {
         timer.cancel();
       }
     });
+  }
+
+  String _formatLockoutTime(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (minutes > 0) {
+      return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+    }
+    return '${seconds}s';
   }
 
   Future<void> _submit() async {
@@ -68,7 +124,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       );
       if (!mounted) return;
       if (response.session != null) {
-        // Successfully verified, auth state changes and routes to root shell
+        await OtpRateLimiter.reset(widget.email);
+        if (!mounted) return;
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } on AuthException catch (e) {
@@ -87,10 +144,35 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   }
 
   Future<void> _resendCode() async {
+    if (_lockoutSeconds > 0) {
+      setState(() {
+        _error =
+            'Too many requests. Please try again in ${_formatLockoutTime(_lockoutSeconds)}.';
+      });
+      return;
+    }
+
     if (_cooldownSeconds > 0) return;
 
-    // Start timer immediately to prevent spamming
-    _startCooldown();
+    final result = await OtpRateLimiter.recordAttempt(widget.email);
+    if (!mounted) return;
+
+    setState(() {
+      _attempts = result.attempts;
+      _error = null;
+    });
+
+    if (result.isLockedOut) {
+      _startLockoutCountdown(result.lockoutSeconds);
+      setState(() {
+        _error =
+            'Maximum resend attempts reached. Please try again in ${_formatLockoutTime(result.lockoutSeconds)}.';
+      });
+      return;
+    }
+
+    // Start 60-second cooldown
+    _startCooldown(OtpRateLimiter.defaultCooldownSeconds);
 
     try {
       await widget.client.auth.resend(
@@ -104,9 +186,16 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       );
     } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      final msg = e.message.toLowerCase();
+      if (msg.contains('rate limit') || msg.contains('over_email_send_rate_limit')) {
+        setState(() {
+          _error = 'Email sending limit reached. Please wait before trying again.';
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -120,6 +209,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final isLockedOut = _lockoutSeconds > 0;
+    final isCoolingDown = _cooldownSeconds > 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -195,7 +286,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   },
                   onSubmitted: (_) => _submit(),
                   decoration: InputDecoration(
-                    counterText: '', // hide counter
+                    counterText: '',
                     hintText: '000000',
                     hintStyle: textTheme.headlineMedium?.copyWith(
                       letterSpacing: 12,
@@ -249,16 +340,30 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                         color: context.ff.inkMuted,
                       ),
                     ),
+                    const SizedBox(width: 4),
                     TextButton(
-                      onPressed: _cooldownSeconds > 0 ? null : _resendCode,
+                      onPressed: (isLockedOut || isCoolingDown) ? null : _resendCode,
                       child: Text(
-                        _cooldownSeconds > 0
-                            ? 'Resend code in ${_cooldownSeconds}s'
-                            : 'Resend code',
+                        isLockedOut
+                            ? 'Locked for ${_formatLockoutTime(_lockoutSeconds)}'
+                            : isCoolingDown
+                                ? 'Resend code in ${_cooldownSeconds}s'
+                                : 'Resend code',
                       ),
                     ),
                   ],
                 ).entrance(context, index: 4),
+                if (_attempts > 0 && !isLockedOut) ...[
+                  const SizedBox(height: FurFeelTokens.space1),
+                  Text(
+                    '${OtpRateLimiter.maxResendAttempts - _attempts} attempts remaining',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: context.ff.inkMuted,
+                      fontSize: 11,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ],
             ),
           ),
