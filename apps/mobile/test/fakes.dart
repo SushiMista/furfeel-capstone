@@ -227,8 +227,10 @@ class FakeRepository implements FurFeelRepository {
   Future<List<CareGuidance>> fetchCareGuidance() async => guidance;
 
   WellnessSnapshot? wellness;
-  List<MediaMessage> mediaMessages = const [];
-  final sentMediaMessages = <(String, String)>[]; // (submissionId, body)
+  List<DogMessage> dogMessages = [];
+  List<DogMessageThread> dogMessageThreads = const [];
+  final sentDogMessages = <({String dogId, String? body, String? alertId, String? readingId, bool hasMedia})>[];
+  final markedReadDogIds = <String>[];
   bool consentAccepted = true; // most tests start past the gate
   final acceptedConsentVersions = <String>[];
 
@@ -246,49 +248,6 @@ class FakeRepository implements FurFeelRepository {
       );
 
   @override
-  Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId) async =>
-      mediaMessages
-          .where((m) => m.mediaSubmissionId == mediaSubmissionId)
-          .toList();
-
-  @override
-  Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body) async {
-    sentMediaMessages.add((mediaSubmissionId, body));
-    final message = MediaMessage(
-      id: 'msg-${mediaMessages.length + 1}',
-      mediaSubmissionId: mediaSubmissionId,
-      authorUserId: 'user-1',
-      body: body,
-      createdAt: DateTime.now(),
-    );
-    mediaMessages = [...mediaMessages, message];
-    return message;
-  }
-
-  @override
-  Future<MediaMessage> updateMediaMessage(String messageId, String body) async {
-    final updated = mediaMessages.firstWhere((m) => m.id == messageId);
-    final edited = MediaMessage(
-      id: updated.id,
-      mediaSubmissionId: updated.mediaSubmissionId,
-      authorUserId: updated.authorUserId,
-      body: body,
-      createdAt: updated.createdAt,
-      authorName: updated.authorName,
-      authorAvatarPath: updated.authorAvatarPath,
-    );
-    mediaMessages = [
-      for (final m in mediaMessages) if (m.id == messageId) edited else m,
-    ];
-    return edited;
-  }
-
-  @override
-  Future<void> deleteMediaMessage(String messageId) async {
-    mediaMessages = mediaMessages.where((m) => m.id != messageId).toList();
-  }
-
-  @override
   Future<bool> hasAcceptedConsent(String policyVersion) async {
     _maybeThrow();
     return consentAccepted;
@@ -301,37 +260,62 @@ class FakeRepository implements FurFeelRepository {
   }
 
   @override
+  String? get currentUserId => 'user-1';
+
+  @override
+  Future<List<DogMessageThread>> fetchDogMessageThreads() async => dogMessageThreads;
+
+  @override
+  Future<List<DogMessage>> fetchDogMessages(String dogId) async =>
+      dogMessages.where((m) => m.dogId == dogId).toList();
+
+  @override
+  Future<void> sendDogMessage({
+    required String dogId,
+    String? body,
+    Uint8List? mediaBytes,
+    String? mediaExtension,
+    String? mediaType,
+    String? alertId,
+    String? readingId,
+  }) async {
+    sentDogMessages.add((
+      dogId: dogId,
+      body: body,
+      alertId: alertId,
+      readingId: readingId,
+      hasMedia: mediaBytes != null,
+    ));
+    dogMessages = [
+      ...dogMessages,
+      DogMessage(
+        id: 'sent-${dogMessages.length}',
+        dogId: dogId,
+        authorUserId: 'user-1',
+        body: body,
+        createdAt: DateTime.now(),
+      ),
+    ];
+  }
+
+  @override
+  Future<void> updateDogMessage(String messageId, String body) async {}
+
+  @override
+  Future<void> deleteDogMessage(DogMessage message) async {
+    dogMessages = dogMessages.where((m) => m.id != message.id).toList();
+  }
+
+  @override
+  Future<void> markDogMessagesRead(String dogId) async => markedReadDogIds.add(dogId);
+
+  @override
+  Unsubscribe subscribeToDogMessages(String dogId, void Function() onChange) =>
+      () async {};
+
+  @override
   Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50}) async =>
       mediaSubmissions;
-
-  @override
-  Future<MediaSubmission> submitObservation({
-    required String dogId,
-    required Uint8List bytes,
-    required String fileExtension,
-    required String mediaType,
-    String? note,
-  }) async {
-    lastObservation = (dogId: dogId, mediaType: mediaType, note: note);
-    final submission = MediaSubmission(
-      id: 'media-${mediaSubmissions.length + 1}',
-      dogId: dogId,
-      storagePath: 'dogs/$dogId/obs.$fileExtension',
-      mediaType: mediaType,
-      createdAt: DateTime.now(),
-      note: note,
-    );
-    mediaSubmissions = [submission, ...mediaSubmissions];
-    return submission;
-  }
-
-  final deletedMediaSubmissionIds = <String>[];
-
-  @override
-  Future<void> deleteMediaSubmission(MediaSubmission submission) async {
-    deletedMediaSubmissionIds.add(submission.id);
-    mediaSubmissions = mediaSubmissions.where((s) => s.id != submission.id).toList();
-  }
 
   @override
   Future<void> registerPushToken(String platform, String token) async {

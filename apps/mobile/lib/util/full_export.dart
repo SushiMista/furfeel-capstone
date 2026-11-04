@@ -68,6 +68,7 @@ String buildFullExportJson({
   required List<VetNote> vetNotes,
   required List<StressLabelEntry> stressLabels,
   required List<MediaSubmission> media,
+  List<DogMessage> messages = const [],
 }) {
   final now = DateTime.now();
   return const JsonEncoder.withIndent('  ').convert({
@@ -83,6 +84,7 @@ String buildFullExportJson({
         'vet_notes': vetNotes.length,
         'stress_labels': stressLabels.length,
         'media_submissions': media.length,
+        'messages': messages.length,
       },
     },
     'owner': {
@@ -164,6 +166,18 @@ String buildFullExportJson({
           'confirmed_level': l.confirmedLevel.name,
           'agreed_with_model': l.agreedWithModel,
           'note': l.note,
+        },
+    ],
+    'messages': [
+      for (final m in messages)
+        {
+          'id': m.id,
+          'author': m.authorName,
+          'body': m.body,
+          'media_type': m.mediaType,
+          'media_path': m.mediaPath,
+          'alert_type': m.alertType,
+          'created_at': m.createdAt.toUtc().toIso8601String(),
         },
     ],
     'media_submissions': [

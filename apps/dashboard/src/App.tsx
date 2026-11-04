@@ -10,6 +10,7 @@ import { Overview } from "./pages/overview/Overview.tsx";
 import { MonitoringBoard } from "./pages/monitoring_board/MonitoringBoard.tsx";
 import { DogDetail } from "./pages/dog_detail/DogDetail.tsx";
 import { AlertsQueue } from "./pages/alerts/AlertsQueue.tsx";
+import { Messages } from "./pages/messages/Messages.tsx";
 import { Handover } from "./pages/handover/Handover.tsx";
 import { Devices } from "./pages/devices/Devices.tsx";
 import { Reports } from "./pages/reports/Reports.tsx";
@@ -92,6 +93,14 @@ export function App() {
             element={
               <RequireAuth>
                 <PatientIntake />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <RequireAuth>
+                <Messages />
               </RequireAuth>
             }
           />

@@ -19,7 +19,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:furfeel_mobile/data/demo_repository.dart';
 import 'package:furfeel_mobile/data/furfeel_repository.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
-import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/screens/auth/consent_page.dart';
 import 'package:furfeel_mobile/screens/auth/splash_page.dart';
 import 'package:furfeel_mobile/screens/auth/welcome_page.dart';
@@ -27,8 +26,6 @@ import 'package:furfeel_mobile/screens/dogs/care_tips_page.dart';
 import 'package:furfeel_mobile/screens/dogs/dog_detail_page.dart';
 import 'package:furfeel_mobile/screens/home/empty_account_page.dart';
 import 'package:furfeel_mobile/screens/home/root_shell.dart';
-import 'package:furfeel_mobile/screens/observations/media_thread_page.dart';
-import 'package:furfeel_mobile/screens/observations/observation_page.dart';
 import 'package:furfeel_mobile/screens/observations/vet_review_page.dart';
 import 'package:furfeel_mobile/screens/settings/about_pages.dart';
 import 'package:furfeel_mobile/screens/settings/account_page.dart';
@@ -39,7 +36,6 @@ import 'package:furfeel_mobile/screens/vitals/history_page.dart';
 import 'package:furfeel_mobile/screens/vitals/vital_detail_page.dart';
 import 'package:furfeel_mobile/theme/furfeel_theme.dart';
 
-import 'fakes.dart';
 
 const _w = 390.0; // logical phone width
 const _dpr = 2.0; // crisp for docs without being huge
@@ -211,37 +207,13 @@ void main() {
       final client = SupabaseClient('https://demo.supabase.co', 'anon');
       client.auth.stopAutoRefresh();
 
-      // Media thread needs a concrete submission + a reply; demo media is empty.
-      final mediaRepo = FakeRepository()
-        ..mediaMessages = [
-          MediaMessage(
-            id: 'm1',
-            mediaSubmissionId: 'media-1',
-            authorUserId: 'vet-1',
-            authorName: 'Dr. Kim',
-            body: 'Thanks — this angle helps a lot. Buddy looks relaxed here.',
-            createdAt: DateTime(2026, 7, 16, 11),
-          ),
-        ];
-      final submission = MediaSubmission(
-        id: 'media-1',
-        dogId: dog.id,
-        storagePath: 'dogs/${dog.id}/obs.mp4',
-        mediaType: 'video',
-        createdAt: DateTime(2026, 7, 16, 9),
-        note: 'Buddy paced a lot during the thunderstorm this afternoon.',
-        reviewNote: 'Normal stress response to loud noise — no concern.',
-        reviewedAt: DateTime(2026, 7, 16, 11),
-      );
 
       final screens = <(String, Widget)>[
         ('dog_detail', DogDetailPage(repository: repo, dog: dog, dogsCount: 1)),
         ('history', HistoryView(repository: repo, dog: dog)),
         ('vital_heart_rate', VitalDetailPage(repository: repo, dog: dog, kind: VitalKind.heartRate)),
         ('detailed_log', DetailedLogPage(repository: repo, dog: dog)),
-        ('observation', ObservationPage(repository: repo, dog: dog)),
         ('vet_review', VetReviewPage(repository: repo, dog: dog)),
-        ('media_thread', MediaThreadPage(repository: mediaRepo, dog: dog, submission: submission)),
         ('care_tips', CareTipsPage(repository: repo)),
         ('settings', const SettingsPage()),
         ('account', AccountPage(repository: repo, onSignOut: () async {})),

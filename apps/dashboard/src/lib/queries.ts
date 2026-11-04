@@ -698,6 +698,87 @@ export async function reviewMediaSubmission(
   return data as unknown as MediaSubmission;
 }
 
+// =========================================================================
+// Vet messages: one ongoing conversation per dog (ADR-026). Supplementary
+// context only, never a classifier input.
+// =========================================================================
+
+export interface DogMessage {
+  id: string;
+  dog_id: string;
+  author_user_id: string | null;
+  body: string | null;
+  media_path: string | null;
+  media_type: "image" | "video" | null;
+  edited_at: string | null;
+  created_at: string;
+  author: { name: string } | null;
+  alert: { type: string; severity: string } | null;
+  reading: {
+    heart_rate_bpm: number | null;
+    ambient_temperature_c: number | null;
+    captured_at: string;
+  } | null;
+}
+
+export interface DogMessageThread {
+  dog_id: string;
+  last_body: string | null;
+  last_has_media: boolean;
+  last_has_alert: boolean;
+  last_author_id: string | null;
+  last_at: string;
+  unread_count: number;
+}
+
+const DOG_MESSAGE_COLUMNS =
+  "id, dog_id, author_user_id, body, media_path, media_type, edited_at, created_at, " +
+  "author:users!dog_messages_author_user_id_fkey(name), " +
+  "alert:alerts(type, severity), " +
+  "reading:telemetry_readings(heart_rate_bpm, ambient_temperature_c, captured_at)";
+
+export async function fetchDogMessageThreads(client: SupabaseClient): Promise<DogMessageThread[]> {
+  const { data, error } = await client.rpc("dog_message_threads");
+  if (error) throw error;
+  return (data ?? []) as DogMessageThread[];
+}
+
+export async function fetchDogMessages(client: SupabaseClient, dogId: string): Promise<DogMessage[]> {
+  const { data, error } = await client
+    .from("dog_messages")
+    .select(DOG_MESSAGE_COLUMNS)
+    .eq("dog_id", dogId)
+    .order("created_at");
+  if (error) throw error;
+  return (data ?? []) as unknown as DogMessage[];
+}
+
+export async function sendDogMessage(
+  client: SupabaseClient,
+  dogId: string,
+  authorUserId: string,
+  body: string,
+): Promise<void> {
+  const { error } = await client
+    .from("dog_messages")
+    .insert({ dog_id: dogId, author_user_id: authorUserId, body: body.trim() });
+  if (error) throw error;
+}
+
+export async function markDogMessagesRead(
+  client: SupabaseClient,
+  dogId: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("dog_message_reads")
+    .upsert(
+      { dog_id: dogId, user_id: userId, last_read_at: new Date().toISOString() },
+      { onConflict: "dog_id,user_id" },
+    );
+  if (error) throw error;
+}
+
 /** Media lives in the private `media` bucket; viewing needs a short-lived signed URL.
  * RLS on storage.objects limits this to the dog's owner and clinic staff. */
 export async function getMediaSignedUrl(

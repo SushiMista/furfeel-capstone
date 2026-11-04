@@ -156,6 +156,7 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
           widget.repository.fetchVetNotes(dogId, limit: 1000),
           widget.repository.fetchStressLabels(dogId, limit: 1000),
           widget.repository.fetchMediaSubmissions(dogId, limit: 1000),
+          widget.repository.fetchDogMessages(dogId),
         ]);
         final json = buildFullExportJson(
           dog: widget.dog,
@@ -168,6 +169,7 @@ class _DetailedLogPageState extends State<DetailedLogPage> {
           vetNotes: results[6] as List<VetNote>,
           stressLabels: results[7] as List<StressLabelEntry>,
           media: results[8] as List<MediaSubmission>,
+          messages: results[9] as List<DogMessage>,
         );
         final name =
             widget.dog.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
