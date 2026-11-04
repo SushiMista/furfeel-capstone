@@ -113,6 +113,9 @@ void sendBatch() {
   HTTPClient http;
   http.begin(SERVER_URL);
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-ESP32-RSSI", String(WiFi.RSSI()));
+  http.addHeader("X-ESP32-IP", WiFi.localIP().toString());
+  http.setTimeout(3000);
   int code = http.POST(batch);
   lastPostCode = code;
   postAttempted = true;
