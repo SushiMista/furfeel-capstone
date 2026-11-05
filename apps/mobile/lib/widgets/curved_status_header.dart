@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+import 'dart:ui';
+
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
 import 'package:flutter/material.dart';
 
 import '../theme/furfeel_tokens.dart';
@@ -48,7 +53,11 @@ class CurvedStatusHeader extends StatelessWidget {
   /// Top-left header control (a paw mark, or a back button on pushed screens).
   final Widget? leading;
 
+<<<<<<< HEAD
   /// Top-right header control (e.g. settings).
+=======
+  /// Top-right header control or status pill (e.g. harness battery).
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
   final Widget? trailing;
 
   /// Translucent info pills under the description.
@@ -121,6 +130,7 @@ class CurvedStatusHeader extends StatelessWidget {
               child: Column(
                 children: [
                   // Header row: leading · title · trailing.
+<<<<<<< HEAD
                   Row(
                     children: [
                       SizedBox(width: 40, height: 40, child: leading),
@@ -139,6 +149,27 @@ class CurvedStatusHeader extends StatelessWidget {
                       ),
                       SizedBox(width: 40, height: 40, child: trailing),
                     ],
+=======
+                  // The toolbar keeps the title centred when trailing is a
+                  // pill wider than leading.
+                  SizedBox(
+                    height: 40,
+                    child: NavigationToolbar(
+                      leading: SizedBox(width: 40, height: 40, child: leading),
+                      middle: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: FurFeelTokens.typeH3Size,
+                        ),
+                      ),
+                      trailing: trailing,
+                      middleSpacing: FurFeelTokens.space2,
+                    ),
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
                   ),
                   const SizedBox(height: FurFeelTokens.space5),
                   Icon(mark, color: Colors.white, size: 40),
@@ -244,6 +275,36 @@ class HeaderChip extends StatelessWidget {
   }
 }
 
+<<<<<<< HEAD
+=======
+/// Frosted pill for controls over photos and the hero, matching
+/// `StressPill(onDark: true)`. Pass a dark [color] where it can leave the hero.
+class GlassPill extends StatelessWidget {
+  const GlassPill({super.key, required this.child, this.color});
+
+  final Widget child;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(FurFeelTokens.radiusPill),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: FurFeelTokens.space2,
+            vertical: FurFeelTokens.space1,
+          ),
+          color: color ?? Colors.white.withValues(alpha: 0.15),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
 /// Round translucent header control (paw / back / settings), matching the
 /// mood-board buttons. A null [onTap] renders a plain (decorative) disc.
 class HeaderCircleButton extends StatelessWidget {

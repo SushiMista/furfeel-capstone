@@ -36,13 +36,16 @@ bool setupComplete(Map<SetupStep, bool> progress) =>
     (progress[SetupStep.pairHarness] ?? false) &&
     (progress[SetupStep.firstReading] ?? false);
 
+/// Share of calm classifications that makes a day "mostly calm". Provisional
+/// and product-tunable, not clinical.
+const mostlyCalmShare = 0.7;
+
 /// Consecutive days (ending today, or yesterday when today has no data yet)
 /// where at least [threshold] of classifications were calm. 0 = no streak.
-/// Threshold is provisional and product-tunable, not clinical.
 int calmStreak(
   List<DailyStressSummary> daily,
   DateTime now, {
-  double threshold = 0.7,
+  double threshold = mostlyCalmShare,
 }) {
   final byDay = <DateTime, DailyStressSummary>{
     for (final d in daily) DateTime(d.day.year, d.day.month, d.day.day): d,

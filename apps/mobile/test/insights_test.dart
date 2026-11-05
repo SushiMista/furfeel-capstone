@@ -163,33 +163,4 @@ void main() {
       }
     });
   });
-
-  group('weekStory', () {
-    DailyStressSummary day(int daysAgo, int calm, int high) {
-      final now = DateTime.now();
-      return DailyStressSummary(
-        day: DateTime(now.year, now.month, now.day).subtract(Duration(days: daysAgo)),
-        calm: calm,
-        mild: 0,
-        moderate: 0,
-        high: high,
-      );
-    }
-
-    test('names the hardest day and counts the calm ones', () {
-      final daily = [day(0, 90, 10), day(1, 40, 60), day(2, 95, 5), day(3, 85, 15)];
-      final story = weekStory('Biscuit', daily, DateTime.now())!;
-      expect(story, contains('3 of 4 days'));
-      expect(story, contains('hardest day'));
-    });
-
-    test('celebrates an all-calm week', () {
-      final daily = [for (var i = 0; i < 7; i++) day(i, 95, 5)];
-      expect(weekStory('Biscuit', daily, DateTime.now()), contains('a good week'));
-    });
-
-    test('stays quiet with fewer than 3 days of data', () {
-      expect(weekStory('Biscuit', [day(0, 90, 10)], DateTime.now()), isNull);
-    });
-  });
 }

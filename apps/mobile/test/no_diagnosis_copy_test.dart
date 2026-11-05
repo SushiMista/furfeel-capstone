@@ -17,10 +17,16 @@ void main() {
     // App-side owner copy added in this pass.
     'lib/insights/biometrics.dart',
     'lib/screens/auth/consent_page.dart',
+<<<<<<< HEAD
     'lib/screens/observations/media_thread_page.dart',
     'lib/screens/vitals/detailed_log_page.dart',
     'lib/screens/home/multi_dog_home.dart',
     'lib/widgets/wellness_card.dart',
+=======
+    'lib/screens/vitals/detailed_log_page.dart',
+    'lib/screens/home/multi_dog_home.dart',
+    'lib/insights/month_summary.dart',
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
     'lib/util/exports.dart',
     // Owner-delight pass copy.
     'lib/insights/owner_moments.dart',

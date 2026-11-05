@@ -99,8 +99,14 @@ class _HomeTabState extends State<HomeTab> {
       clinicId: widget.dog.clinicId,
     );
 
+<<<<<<< HEAD
     final bottom = MediaQuery.paddingOf(context).bottom;
     return RefreshIndicator(
+=======
+    final padding = MediaQuery.paddingOf(context);
+    final bottom = padding.bottom;
+    final content = RefreshIndicator(
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
       onRefresh: widget.onRefresh,
       child: ListView(
         controller: _scroll,
@@ -114,9 +120,17 @@ class _HomeTabState extends State<HomeTab> {
             dog: widget.dog,
             level: level,
             latestUpdatedAt: widget.reading?.capturedAt,
+<<<<<<< HEAD
             openAlerts: widget.alerts.where((a) => a.status == 'open').length,
             hasCareTip: careGuidance != null,
             onBack: widget.onBack,
+=======
+            device: widget.device,
+            reading: widget.reading,
+            openAlerts: widget.alerts.where((a) => a.status == 'open').length,
+            hasCareTip: careGuidance != null,
+            showPaw: widget.onBack == null,
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
             scroll: _scroll,
           ),
           Padding(
@@ -129,8 +143,11 @@ class _HomeTabState extends State<HomeTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+<<<<<<< HEAD
                 HarnessBattery(device: widget.device, reading: widget.reading),
                 const SizedBox(height: FurFeelTokens.space3),
+=======
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
                 if (widget.dog.isBirthday(DateTime.now())) ...[
                   _BirthdayBanner(dog: widget.dog).entrance(context),
                   const SizedBox(height: FurFeelTokens.space3),
@@ -172,6 +189,81 @@ class _HomeTabState extends State<HomeTab> {
         ],
       ),
     );
+<<<<<<< HEAD
+=======
+
+    final onBack = widget.onBack;
+    if (onBack == null) return content;
+    // Scrolls with the hero, then sticks under the status bar so a pushed dog
+    // screen can always go back. Darkens as it sticks to read on the sheet.
+    final restTop = padding.top + FurFeelTokens.space5;
+    final stuckTop = padding.top + FurFeelTokens.space1;
+    return Stack(
+      children: [
+        content,
+        AnimatedBuilder(
+          animation: _scroll,
+          builder: (context, _) {
+            final offset = _scroll.hasClients ? _scroll.offset : 0.0;
+            final top = restTop - offset;
+            final stuck = ((stuckTop - top) / 40).clamp(0.0, 1.0);
+            return Positioned(
+              top: top < stuckTop ? stuckTop : top,
+              left: FurFeelTokens.space4,
+              child: _BackPill(
+                onTap: onBack,
+                color: Color.lerp(
+                  Colors.white.withValues(alpha: 0.15),
+                  Colors.black.withValues(alpha: 0.3),
+                  stuck,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Back control in the battery pill's style, inside a 40pt tap target.
+class _BackPill extends StatelessWidget {
+  const _BackPill({required this.onTap, required this.color});
+
+  final VoidCallback onTap;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Back',
+      child: Semantics(
+        button: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: GlassPill(
+                color: color,
+                child: const SizedBox(
+                  height: 17,
+                  child: Icon(
+                    Icons.arrow_back_ios_new,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
   }
 }
 
@@ -185,9 +277,17 @@ class _ImmersiveHero extends StatefulWidget {
     required this.dog,
     required this.level,
     required this.latestUpdatedAt,
+<<<<<<< HEAD
     required this.openAlerts,
     required this.hasCareTip,
     this.onBack,
+=======
+    required this.device,
+    required this.reading,
+    required this.openAlerts,
+    required this.hasCareTip,
+    required this.showPaw,
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
     this.scroll,
   });
 
@@ -195,9 +295,17 @@ class _ImmersiveHero extends StatefulWidget {
   final Dog dog;
   final StressLevel? level;
   final DateTime? latestUpdatedAt;
+<<<<<<< HEAD
   final int openAlerts;
   final bool hasCareTip;
   final VoidCallback? onBack;
+=======
+  final Device? device;
+  final TelemetryReading? reading;
+  final int openAlerts;
+  final bool hasCareTip;
+  final bool showPaw;
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
   final ScrollController? scroll;
 
   @override
@@ -261,6 +369,7 @@ class _ImmersiveHeroState extends State<_ImmersiveHero> {
       description: description,
       backgroundImage: _photoUrl,
       scroll: widget.scroll,
+<<<<<<< HEAD
       leading: widget.onBack == null
           ? const HeaderCircleButton(icon: Icons.pets)
           : HeaderCircleButton(
@@ -268,6 +377,12 @@ class _ImmersiveHeroState extends State<_ImmersiveHero> {
               tooltip: 'Back',
               onTap: widget.onBack,
             ),
+=======
+      leading: widget.showPaw
+          ? const HeaderCircleButton(icon: Icons.pets)
+          : null,
+      trailing: HarnessBattery(device: widget.device, reading: widget.reading),
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
       chips: [
         if (widget.latestUpdatedAt != null)
           HeaderChip(

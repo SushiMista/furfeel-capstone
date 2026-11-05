@@ -3,6 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/screens/home/root_shell.dart';
+<<<<<<< HEAD
+=======
+
+import 'package:furfeel_mobile/widgets/stress_calendar.dart';
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
 
 import 'fakes.dart';
 
@@ -178,12 +183,24 @@ void main() {
 
       await tester.tap(navTab('Alerts'));
       await tester.pumpAndSettle();
+<<<<<<< HEAD
       expect(find.text('Biscuit is showing high stress'), findsOneWidget);
 
       await tester.tap(find.text('Acknowledge'));
       await tester.pumpAndSettle();
       expect(repo.acknowledgedIds, ['a1']);
       expect(find.text('Acknowledge'), findsNothing);
+=======
+      expect(find.text('Stress level is high'), findsOneWidget);
+      expect(find.text('NEEDS ATTENTION'), findsOneWidget);
+
+      await tester.tap(find.text('Got it'));
+      await tester.pumpAndSettle();
+      expect(repo.acknowledgedIds, ['a1']);
+      expect(find.text('Got it'), findsNothing);
+      expect(find.text('All clear'), findsOneWidget);
+      expect(find.text('EARLIER'), findsOneWidget);
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
     },
   );
 
@@ -211,12 +228,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // All tab shows both; Harness tab filters to device alerts.
-    expect(find.text('Stress is high'), findsOneWidget);
-    expect(find.text('Harness went offline'), findsOneWidget);
+    expect(find.text('Stress level is high'), findsOneWidget);
+    expect(find.text('Device stopped sending data'), findsOneWidget);
     await tester.tap(find.text('Harness'));
     await tester.pumpAndSettle();
-    expect(find.text('Stress is high'), findsNothing);
-    expect(find.text('Harness went offline'), findsOneWidget);
+    expect(find.text('Stress level is high'), findsNothing);
+    expect(find.text('Device stopped sending data'), findsOneWidget);
 
     // Muting the harness type persists to user_settings.
     await tester.tap(find.byType(Switch));
@@ -335,6 +352,7 @@ void main() {
       findsWidgets,
     ); // account card
     expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Pair harness'), findsOneWidget);
     // The dog list sits below the fold of the lazy ListView — scroll to it.
     await tester.scrollUntilVisible(
       find.textContaining('Home only'),
@@ -345,6 +363,7 @@ void main() {
     expect(find.textContaining('Home only'), findsOneWidget); // Mochi
   });
 
+<<<<<<< HEAD
   testWidgets('trends tab shows the calm hero, chart, insights, and log link', (
     tester,
   ) async {
@@ -361,11 +380,24 @@ void main() {
           moderate: 0,
           high: high,
         );
+=======
+  testWidgets('trends tab shows the month, its calendar and useful links', (
+    tester,
+  ) async {
+    final today = DateTime.now();
+    final monthDays = today.day;
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
     final repo = FakeRepository(
       dogs: const [_dog],
       dailySummaries: [
-        for (var i = 0; i < 7; i++) summary(i, 90, 10), // this week 90%
-        for (var i = 7; i < 14; i++) summary(i, 50, 50), // last week 50%
+        for (var i = 1; i <= monthDays; i++)
+          DailyStressSummary(
+            day: DateTime(today.year, today.month, i),
+            calm: 90,
+            mild: 0,
+            moderate: 0,
+            high: 10,
+          ),
       ],
     );
     await tester.pumpWidget(app(repo));
@@ -374,6 +406,7 @@ void main() {
     await tester.tap(navTab('Trends'));
     await tester.pumpAndSettle();
 
+<<<<<<< HEAD
     expect(find.text('Calm time this week'), findsOneWidget);
     expect(find.text('90%'), findsOneWidget);
     expect(find.textContaining('vs last week'), findsOneWidget);
@@ -390,6 +423,18 @@ void main() {
     ); // insight card
     expect(find.text('View detailed log'), findsOneWidget);
     expect(find.textContaining('not a diagnosis'), findsOneWidget);
+=======
+    expect(find.byType(StressCalendar), findsOneWidget);
+    expect(find.text('Previous month'), findsNothing);
+    expect(find.byTooltip('Previous month'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('All readings'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('All readings'), findsOneWidget);
+    expect(find.text('Share a report'), findsOneWidget);
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
   });
 
   testWidgets(
@@ -402,11 +447,18 @@ void main() {
       await tester.tap(navTab('Trends'));
       await tester.pumpAndSettle();
 
+<<<<<<< HEAD
+=======
+      expect(find.text('Getting to know Biscuit'), findsOneWidget);
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
       expect(
         find.textContaining('Trends appear after a day or two'),
         findsOneWidget,
       );
+<<<<<<< HEAD
       expect(find.text('Calm time this week'), findsNothing);
+=======
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
     },
   );
 }

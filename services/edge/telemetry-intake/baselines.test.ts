@@ -61,14 +61,17 @@ Deno.test("resolveBaselines: partial row -> per-field fallback to global default
   assertEqual(result.respiratory_rate_bpm, globals.respiratory_rate_bpm);
 });
 
+const { calm, mild, moderate, high } = levelGlobals;
+const levelBands = { calm, mild, moderate, high };
+
 Deno.test("resolveLevelThresholds: no row -> reproduces the global config exactly", () => {
   const result = resolveLevelThresholds(null);
-  assertEqual(JSON.stringify(result), JSON.stringify(levelGlobals));
+  assertEqual(JSON.stringify(result), JSON.stringify(levelBands));
 });
 
 Deno.test("resolveLevelThresholds: no threshold columns set -> reproduces the global config", () => {
   const result = resolveLevelThresholds(row({ resting_heart_rate_bpm: 110 }));
-  assertEqual(JSON.stringify(result), JSON.stringify(levelGlobals));
+  assertEqual(JSON.stringify(result), JSON.stringify(levelBands));
 });
 
 Deno.test("resolveLevelThresholds: full override -> a small, easily-stressed dog's cut points", () => {

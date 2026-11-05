@@ -3,78 +3,106 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
 import 'package:furfeel_mobile/models/models.dart';
 import 'package:furfeel_mobile/screens/home/chat_tab.dart';
+<<<<<<< HEAD
+=======
+import 'package:furfeel_mobile/widgets/alert_card.dart';
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
 
 import 'fakes.dart';
 
 const _biscuit = Dog(id: 'dog-1', ownerUserId: 'user-1', name: 'Biscuit');
 const _mochi = Dog(id: 'dog-2', ownerUserId: 'user-1', name: 'Mochi');
 
-MediaSubmission _submission({
-  String id = 'm1',
-  String? note,
-  String? reviewNote,
-  DateTime? reviewedAt,
-}) =>
-    MediaSubmission(
-      id: id,
-      dogId: 'dog-1',
-      storagePath: 'media/$id.jpg',
-      mediaType: 'image',
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      note: note,
-      reviewNote: reviewNote,
-      reviewedAt: reviewedAt,
-    );
-
-Widget app(FakeRepository repo, List<Dog> dogs) => SettingsScope(
+Widget wrap(FakeRepository repo, Widget home) => SettingsScope(
       controller: SettingsController(repo),
       child: MaterialApp(
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(disableAnimations: true),
           child: child!,
         ),
-        home: Scaffold(body: ChatTab(repository: repo, dogs: dogs)),
+        home: home,
       ),
     );
 
-void main() {
-  testWidgets('a single-dog owner skips the picker and lands on the threads',
-      (tester) async {
-    final repo = FakeRepository(
-      dogs: const [_biscuit],
-      mediaSubmissions: [_submission(note: 'He was pacing after the walk')],
+Widget messages(FakeRepository repo, List<Dog> dogs) =>
+    wrap(repo, Scaffold(body: ChatTab(repository: repo, dogs: dogs)));
+
+Alert _alert() => Alert(
+      id: 'a1',
+      dogId: 'dog-1',
+      severity: 'warning',
+      type: 'moderate_stress',
+      message: 'Biscuit seems a bit stressed.',
+      status: 'open',
+      createdAt: DateTime.now(),
     );
-    await tester.pumpWidget(app(repo, const [_biscuit]));
+
+TelemetryReading _reading() => TelemetryReading(
+      id: 'r1',
+      dogId: 'dog-1',
+      capturedAt: DateTime(2026, 11, 5, 15, 8),
+      heartRateBpm: 87,
+      ambientTemperatureC: 24.6,
+    );
+
+void main() {
+  testWidgets('Messages lists every dog with its latest message and unread count',
+      (tester) async {
+    final repo = FakeRepository(dogs: const [_biscuit, _mochi])
+      ..dogMessageThreads = [
+        DogMessageThread(
+          dogId: 'dog-2',
+          lastAt: DateTime.now(),
+          lastBody: 'Keep him somewhere quiet',
+          unreadCount: 2,
+        ),
+      ];
+    await tester.pumpWidget(messages(repo, const [_biscuit, _mochi]));
     await tester.pumpAndSettle();
 
+<<<<<<< HEAD
     // Straight to the conversation list — no one-row dog picker in the way.
     expect(find.text('Messages'), findsNothing);
     expect(find.text('Conversations'), findsOneWidget);
     expect(find.text('He was pacing after the walk'), findsOneWidget);
+=======
+    expect(find.text('Keep him somewhere quiet'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
+    expect(find.text('Start a conversation'), findsOneWidget);
+    expect(find.textContaining('For emergencies'), findsOneWidget);
+    // Latest conversation sorts first.
+    expect(
+      tester.getTopLeft(find.text('Mochi')).dy,
+      lessThan(tester.getTopLeft(find.text('Biscuit')).dy),
+    );
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
   });
 
-  testWidgets('a multi-dog owner picks a dog first, then opens its threads',
+  testWidgets('a message-only conversation works with no photo or video',
       (tester) async {
-    final repo = FakeRepository(
-      dogs: const [_biscuit, _mochi],
-      mediaSubmissions: [_submission(note: 'Restless this morning')],
-    );
-    await tester.pumpWidget(app(repo, const [_biscuit, _mochi]));
+    final repo = FakeRepository(dogs: const [_biscuit]);
+    await tester.pumpWidget(messages(repo, const [_biscuit]));
     await tester.pumpAndSettle();
-
-    expect(find.text('Messages'), findsOneWidget);
-    expect(find.text('Biscuit'), findsOneWidget);
-    expect(find.text('Mochi'), findsOneWidget);
 
     await tester.tap(find.text('Biscuit'));
     await tester.pumpAndSettle();
+    expect(repo.markedReadDogIds, ['dog-1']);
 
-    expect(find.widgetWithText(AppBar, 'Biscuit'), findsOneWidget);
-    expect(find.text('Restless this morning'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'He is pacing tonight');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pumpAndSettle();
+
+    expect(repo.sentDogMessages.single.body, 'He is pacing tonight');
+    expect(repo.sentDogMessages.single.hasMedia, isFalse);
+    expect(find.text('He is pacing tonight'), findsOneWidget);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, isEmpty);
   });
 
-  testWidgets('the clinic\'s latest note is pinned above the conversations',
+  testWidgets('own and clinic messages are told apart, and only yours are editable',
       (tester) async {
+<<<<<<< HEAD
     final repo = FakeRepository(
       dogs: const [_biscuit],
       mediaSubmissions: [_submission(note: 'A photo from today')],
@@ -114,27 +142,113 @@ void main() {
           note: 'Already looked at',
           reviewNote: 'Looks normal to me.',
           reviewedAt: DateTime.now(),
+=======
+    final repo = FakeRepository(dogs: const [_biscuit])
+      ..dogMessages = [
+        DogMessage(
+          id: 'm1',
+          dogId: 'dog-1',
+          authorUserId: 'user-1',
+          body: 'Mine',
+          createdAt: DateTime.now(),
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
         ),
-      ],
-    );
-    await tester.pumpWidget(app(repo, const [_biscuit]));
+        DogMessage(
+          id: 'm2',
+          dogId: 'dog-1',
+          authorUserId: 'vet-1',
+          authorName: 'Dr. Reyes',
+          body: 'From the clinic',
+          createdAt: DateTime.now(),
+        ),
+      ];
+    await tester.pumpWidget(wrap(repo, DogChatPage(repository: repo, dog: _biscuit)));
     await tester.pumpAndSettle();
 
-    // Word, not colour alone (docs/19).
-    expect(find.text('Awaiting your clinic'), findsOneWidget);
-    expect(find.text('Reviewed'), findsOneWidget);
+    expect(find.text('Dr. Reyes'), findsOneWidget);
+
+    await tester.longPress(find.text('From the clinic'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete'), findsNothing);
+
+    await tester.longPress(find.text('Mine'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Delete'), findsOneWidget);
   });
 
-  testWidgets('an empty chat explains how a conversation starts', (tester) async {
+  testWidgets('a clinic note is pinned above the conversation', (tester) async {
+    final repo = FakeRepository(dogs: const [_biscuit])
+      ..vetNoteFeed = [
+        VetNoteFeedItem(
+          id: 'n1',
+          note: 'Recheck next week',
+          authorName: 'Dr. Reyes',
+          createdAt: DateTime.now(),
+        ),
+      ];
+    await tester.pumpWidget(wrap(repo, DogChatPage(repository: repo, dog: _biscuit)));
+    await tester.pumpAndSettle();
+    expect(find.text('Recheck next week'), findsOneWidget);
+  });
+
+  testWidgets('an attached alert can be sent alone, with its reading', (tester) async {
     final repo = FakeRepository(dogs: const [_biscuit]);
-    await tester.pumpWidget(app(repo, const [_biscuit]));
+    await tester.pumpWidget(wrap(
+      repo,
+      DogChatPage(
+        repository: repo,
+        dog: _biscuit,
+        alert: _alert(),
+        reading: _reading(),
+      ),
+    ));
     await tester.pumpAndSettle();
 
-    expect(find.text('No conversations yet'), findsOneWidget);
-    // Honest about the current substrate: a thread hangs off a shared
-    // observation, so starting one needs a photo or video.
-    expect(find.textContaining('Share a photo or video of Biscuit'),
-        findsOneWidget);
-    expect(find.text('Share an observation'), findsOneWidget);
+    expect(find.text('Stress level is up'), findsOneWidget);
+    expect(find.textContaining('87 bpm · 24.6°C'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pumpAndSettle();
+    expect(repo.sentDogMessages.single.alertId, 'a1');
+    expect(repo.sentDogMessages.single.readingId, 'r1');
+  });
+
+  testWidgets('removing the alert sends nothing about it', (tester) async {
+    final repo = FakeRepository(dogs: const [_biscuit]);
+    await tester.pumpWidget(wrap(
+      repo,
+      DogChatPage(
+        repository: repo,
+        dog: _biscuit,
+        alert: _alert(),
+        reading: _reading(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Remove alert'));
+    await tester.pump();
+    expect(find.text('Stress level is up'), findsNothing);
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.send)).onPressed,
+        isNull);
+
+    await tester.enterText(find.byType(TextField), 'Just a question');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pumpAndSettle();
+    expect(repo.sentDogMessages.single.alertId, isNull);
+    expect(repo.sentDogMessages.single.readingId, isNull);
+  });
+
+  testWidgets('Message vet is on open alerts and hands over the alert', (tester) async {
+    Alert? tapped;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: AlertCard(alert: _alert(), onMessageVet: (a) => tapped = a),
+      ),
+    ));
+    await tester.tap(find.text('Message vet'));
+    expect(tapped?.id, 'a1');
   });
 }

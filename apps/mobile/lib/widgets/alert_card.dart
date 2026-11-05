@@ -3,18 +3,19 @@ import 'package:flutter/services.dart';
 
 import '../models/models.dart';
 import '../theme/furfeel_tokens.dart';
+import '../util/motion.dart';
 
 /// Visual language for one alert severity: word + colors, never color alone
 /// (docs/19). Shared by the card chip and the leading icon badge.
 ({String label, Color fg, Color bg}) alertSeverityStyle(BuildContext context, String severity) =>
     switch (severity) {
       'critical' => (
-          label: 'Critical',
+          label: 'Check soon',
           fg: context.ff.statusHighFg,
           bg: context.ff.statusHighBg,
         ),
       'warning' => (
-          label: 'Warning',
+          label: 'Heads up',
           fg: context.ff.statusModerateFg,
           bg: context.ff.statusModerateBg,
         ),
@@ -35,21 +36,53 @@ IconData alertTypeIcon(String type) => switch (type) {
       _ => Icons.notifications_outlined,
     };
 
-/// Warm alert card (docs/19): severity-tinted icon badge + severity chip,
-/// the event time up front, a clear "Acknowledge" button while open;
-/// acknowledged alerts fade to muted.
+/// Short plain title per alert type; the stored message becomes small print.
+/// Null for unknown types, where the message has to stand alone.
+String? alertHeadline(String type) => switch (type) {
+      'high_stress' => 'Stress level is high',
+      'moderate_stress' => 'Stress level is up',
+      'device_offline' => 'Device stopped sending data',
+      'low_battery' => 'Battery is low',
+      _ => null,
+    };
+
+/// Small print under [alertHeadline]. Offline messages keep their stored form
+/// because the dashboard parses the device code out of them.
+String alertDetails(BuildContext context, Alert alert) {
+  final offline = RegExp(
+    r'^Device (\S+) stopped sending data \(last seen \S+ (\d{2}):(\d{2})',
+  ).firstMatch(alert.message);
+  if (offline == null) return alert.message;
+  final lastSeen = MaterialLocalizations.of(context).formatTimeOfDay(
+    TimeOfDay(hour: int.parse(offline[2]!), minute: int.parse(offline[3]!)),
+  );
+  return '${offline[1]} · Last seen $lastSeen';
+}
+
+/// One alert as a single line of meaning (docs/19): type icon, short title,
+/// and when. Tapping drops down the details and tip. Open alerts sit on a tinted
+/// card with Got it in reach; past alerts are quiet list rows.
 class AlertCard extends StatefulWidget {
-  const AlertCard({super.key, required this.alert, this.onAcknowledge});
+  const AlertCard({
+    super.key,
+    required this.alert,
+    this.onAcknowledge,
+    this.onMessageVet,
+  });
 
   final Alert alert;
   final Future<void> Function(Alert alert)? onAcknowledge;
+  final void Function(Alert alert)? onMessageVet;
 
   @override
   State<AlertCard> createState() => _AlertCardState();
 }
 
 class _AlertCardState extends State<AlertCard> {
+  static const _iconSize = 32.0;
+
   bool _busy = false;
+  bool _expanded = false;
 
   Future<void> _acknowledge() async {
     // Light haptic on Acknowledge (docs/19 §5a micro-interactions).
@@ -65,141 +98,165 @@ class _AlertCardState extends State<AlertCard> {
   @override
   Widget build(BuildContext context) {
     final alert = widget.alert;
-    final acknowledged = !alert.isOpen;
+    final open = alert.isOpen;
     final severity = alertSeverityStyle(context, alert.severity);
+    final headline = alertHeadline(alert.type);
+    final tip = open ? _tipFor(alert.type) : null;
+    final when = _friendlyTime(context, alert.createdAt);
+    final details = headline == null
+        ? null
+        : [
+            if (!open) alert.status == 'acknowledged' ? 'Seen' : 'Resolved',
+            alertDetails(context, alert),
+          ].join(' · ');
+    final canExpand = details != null || tip != null;
+    final indent = _iconSize + FurFeelTokens.space3;
+    final captionStyle = TextStyle(
+      fontSize: FurFeelTokens.typeCaptionSize,
+      color: context.ff.inkMuted,
+    );
 
-    return Opacity(
-      opacity: acknowledged ? 0.6 : 1,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: FurFeelTokens.space3),
-        padding: const EdgeInsets.all(FurFeelTokens.space4),
-        decoration: BoxDecoration(
-          color: alert.severity == 'critical' && !acknowledged
-              ? context.ff.statusHighBg
-              : context.ff.surfaceAlt,
-          borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
-          border: Border(
-            left: BorderSide(
-              width: 4,
-              color: acknowledged ? context.ff.hairline : severity.fg,
-            ),
+    final row = Row(
+      children: [
+        Container(
+          width: _iconSize,
+          height: _iconSize,
+          decoration: BoxDecoration(
+            color: open ? severity.bg : context.ff.surfaceAlt,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            alertTypeIcon(alert.type),
+            size: 18,
+            color: open ? severity.fg : context.ff.inkMuted,
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Severity-tinted type icon: the visual aid that reads before
-            // any text does.
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: acknowledged ? context.ff.surface : severity.bg,
-                shape: BoxShape.circle,
+        const SizedBox(width: FurFeelTokens.space3),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                headline ?? alert.message,
+                style: TextStyle(
+                  fontWeight: open ? FontWeight.w700 : FontWeight.w500,
+                  color: open ? context.ff.ink : context.ff.inkMuted,
+                ),
               ),
-              child: Icon(
-                alertTypeIcon(alert.type),
-                size: 20,
-                color: acknowledged ? context.ff.inkMuted : severity.fg,
-              ),
-            ),
-            const SizedBox(width: FurFeelTokens.space3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _friendlyTime(alert.createdAt) +
-                              (acknowledged ? ' · ${alert.status}' : ''),
-                          style: TextStyle(
-                            fontSize: FurFeelTokens.typeCaptionSize,
-                            fontWeight: FontWeight.w600,
-                            color: context.ff.inkMuted,
-                          ),
-                        ),
-                      ),
-                      // Severity chip — the alert's level as a word.
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FurFeelTokens.space2,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: acknowledged ? context.ff.surface : severity.bg,
-                          borderRadius:
-                              BorderRadius.circular(FurFeelTokens.radiusPill),
-                        ),
-                        child: Text(
-                          severity.label,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: acknowledged
-                                ? context.ff.inkMuted
-                                : severity.fg,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: FurFeelTokens.space1),
+              Text(open ? '${severity.label} · $when' : when, style: captionStyle),
+            ],
+          ),
+        ),
+        if (canExpand)
+          AnimatedRotation(
+            turns: _expanded ? 0.5 : 0,
+            duration: FurFeelTokens.motionFast,
+            child: Icon(Icons.expand_more, size: 20, color: context.ff.inkMuted),
+          ),
+      ],
+    );
+
+    final dropDownBody = !_expanded
+        ? const SizedBox(width: double.infinity)
+        : Padding(
+            padding: EdgeInsets.only(left: indent, top: FurFeelTokens.space2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (details != null) Text(details, style: captionStyle),
+                if (tip != null) ...[
+                  const SizedBox(height: FurFeelTokens.space2),
                   Text(
-                    alert.message,
+                    tip,
                     style: TextStyle(
-                      fontWeight: FontWeight.w700,
+                      fontSize: FurFeelTokens.typeCaptionSize,
                       color: context.ff.ink,
                     ),
                   ),
-                  // Owner-delight pass: a simple "what you can do" per alert
-                  // type, right where the worry is. Observational + practical.
-                  if (alert.isOpen && _tipFor(alert.type) != null) ...[
-                    const SizedBox(height: FurFeelTokens.space2),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.tips_and_updates_outlined,
-                            size: 16, color: context.ff.warm),
-                        const SizedBox(width: FurFeelTokens.space2),
-                        Expanded(
-                          child: Text(
-                            _tipFor(alert.type)!,
-                            style: TextStyle(
-                              fontSize: FurFeelTokens.typeCaptionSize,
-                              color: context.ff.ink,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (alert.isOpen && widget.onAcknowledge != null) ...[
-                    const SizedBox(height: FurFeelTokens.space3),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: _busy ? null : _acknowledge,
-                        style: TextButton.styleFrom(
-                          backgroundColor: context.ff.surface,
-                          foregroundColor: context.ff.brandStrong,
-                          minimumSize: const Size(0, FurFeelTokens.touchTargetMin),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: FurFeelTokens.space4),
-                          shape: const StadiumBorder(),
-                          textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        child: Text(_busy ? 'Acknowledging…' : 'Acknowledge'),
-                      ),
-                    ),
-                  ],
                 ],
-              ),
+              ],
             ),
-          ],
+          );
+    // AnimatedSize throws on a zero duration, so reduced motion skips it.
+    final dropDown = context.reduceMotion
+        ? dropDownBody
+        : AnimatedSize(
+            duration: FurFeelTokens.motionFast,
+            alignment: Alignment.topLeft,
+            child: dropDownBody,
+          );
+
+    final actionStyle = TextButton.styleFrom(
+      backgroundColor: context.ff.surface,
+      foregroundColor: context.ff.brandStrong,
+      minimumSize: const Size(0, FurFeelTokens.touchTargetMin),
+      padding: const EdgeInsets.symmetric(horizontal: FurFeelTokens.space4),
+      shape: const StadiumBorder(),
+      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+    );
+    final actions = [
+      if (open && widget.onAcknowledge != null)
+        TextButton(
+          onPressed: _busy ? null : _acknowledge,
+          style: actionStyle,
+          child: Text(_busy ? 'Saving…' : 'Got it'),
         ),
+      if (widget.onMessageVet != null && (open || _expanded))
+        TextButton(
+          onPressed: () => widget.onMessageVet!(alert),
+          style: actionStyle,
+          child: const Text('Message vet'),
+        ),
+    ];
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Semantics(
+          button: canExpand,
+          expanded: canExpand ? _expanded : null,
+          child: InkWell(
+            onTap: canExpand
+                ? () => setState(() => _expanded = !_expanded)
+                : null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [row, dropDown],
+            ),
+          ),
+        ),
+        if (actions.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(left: indent, top: FurFeelTokens.space2),
+            child: Wrap(
+              spacing: FurFeelTokens.space2,
+              runSpacing: FurFeelTokens.space2,
+              children: actions,
+            ),
+          ),
+      ],
+    );
+
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        margin: open
+            ? const EdgeInsets.only(bottom: FurFeelTokens.space2)
+            : EdgeInsets.zero,
+        padding: open
+            ? const EdgeInsets.all(FurFeelTokens.space3)
+            : const EdgeInsets.symmetric(vertical: FurFeelTokens.space3),
+        decoration: open
+            ? BoxDecoration(
+                color: alert.severity == 'critical'
+                    ? context.ff.statusHighBg
+                    : context.ff.surfaceAlt,
+                borderRadius: BorderRadius.circular(FurFeelTokens.radiusMd),
+              )
+            : BoxDecoration(
+                border: Border(bottom: BorderSide(color: context.ff.hairline)),
+              ),
+        child: content,
       ),
     );
   }
@@ -211,21 +268,23 @@ String? _tipFor(String type) => switch (type) {
         'A quiet, familiar spot and your company usually help — the Care '
             'Insights card on Home has a tip for right now.',
       'device_offline' =>
-        'Check the strap and Wi-Fi range, then give it a minute to reconnect.',
+        "It can take a minute to reconnect once it's back in range.",
       'low_battery' => 'Pop the harness on the charger when you get a chance.',
       _ => null,
     };
 
-String _friendlyTime(DateTime time) {
+String _friendlyTime(BuildContext context, DateTime time) {
   final now = DateTime.now();
   final diff = now.difference(time);
   if (diff.inMinutes < 1) return 'just now';
   if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-  if (diff.inHours < 24 && now.day == time.day) {
-    return 'today at ${_hhmm(time)}';
-  }
-  return '${time.year}-${_pad(time.month)}-${_pad(time.day)} ${_hhmm(time)}';
+  final strings = MaterialLocalizations.of(context);
+  final clock = strings.formatTimeOfDay(TimeOfDay.fromDateTime(time));
+  final daysAgo =
+      DateUtils.dateOnly(now).difference(DateUtils.dateOnly(time)).inDays;
+  return switch (daysAgo) {
+    0 => 'Today at $clock',
+    1 => 'Yesterday at $clock',
+    _ => '${strings.formatShortMonthDay(time)} at $clock',
+  };
 }
-
-String _hhmm(DateTime t) => '${_pad(t.hour)}:${_pad(t.minute)}';
-String _pad(int n) => n.toString().padLeft(2, '0');
