@@ -12,6 +12,7 @@ import 'package:furfeel_mobile/theme/furfeel_tokens.dart';
 import 'package:furfeel_mobile/util/friendly_time.dart';
 import 'package:furfeel_mobile/util/motion.dart';
 import 'package:furfeel_mobile/widgets/curved_status_header.dart';
+import 'package:furfeel_mobile/widgets/harness_battery.dart';
 
 /// ADDED (QA): one screen per vital. The Home grid opens this with the current
 /// reading; it shows the typical resting range for the dog (their clinic-set
@@ -85,12 +86,14 @@ class VitalDetailPage extends StatefulWidget {
     required this.dog,
     required this.kind,
     this.reading,
+    this.device,
   });
 
   final FurFeelRepository repository;
   final Dog dog;
   final VitalKind kind;
   final TelemetryReading? reading;
+  final Device? device;
 
   @override
   State<VitalDetailPage> createState() => _VitalDetailPageState();
@@ -450,7 +453,9 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
 
     final unit = _unit(settings);
     return Scaffold(
-      body: ListView(
+      body: Stack(
+        children: [
+          ListView(
         controller: _scroll,
         clipBehavior: Clip.none,
         padding: EdgeInsets.zero,
@@ -471,10 +476,9 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                 label: _lastMetricUpdateLabel(),
               ),
             ],
-            leading: HeaderCircleButton(
-              icon: Icons.arrow_back_ios_new,
-              tooltip: 'Back',
-              onTap: () => Navigator.of(context).maybePop(),
+            trailing: HarnessBattery(
+              device: widget.device,
+              reading: widget.reading,
             ),
           ),
           Padding(
@@ -707,6 +711,12 @@ class _VitalDetailPageState extends State<VitalDetailPage> {
                 ).entrance(context, index: 3),
               ],
             ),
+          ),
+        ],
+          ),
+          StickyBackPill(
+            scroll: _scroll,
+            onTap: () => Navigator.of(context).maybePop(),
           ),
         ],
       ),

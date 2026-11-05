@@ -15,28 +15,28 @@ Widget app(Widget child, {bool reduceMotion = false, bool dark = false}) =>
     );
 
 void main() {
-  testWidgets('shows the FurFeel wordmark and tagline', (tester) async {
+  testWidgets('shows the FurFeel wordmark with no tagline', (tester) async {
     await tester.pumpWidget(app(const SplashPage()));
     await tester.pumpAndSettle();
 
     // The wordmark is two-tone RichText ("Fur" + "Feel"), so match the
     // rendered string rather than a single Text widget.
     expect(find.textContaining('Fur', findRichText: true), findsWidgets);
-    expect(find.text('Know how your dog is feeling'), findsOneWidget);
+    expect(find.text('Know how your dog is feeling'), findsNothing);
   });
 
   testWidgets('cold start shows no loader', (tester) async {
     await tester.pumpWidget(app(const SplashPage()));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    // A launch that resolves in a few hundred ms should never flash a bar.
-    expect(find.byType(LinearProgressIndicator), findsNothing);
+    // A launch that resolves in a few hundred ms should never flash a spinner.
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
   // Reduced motion so the logo's entrance doesn't leave flutter_animate
-  // timers pending; the indeterminate bar never settles, so these can't use
+  // timers pending; the spinner never settles, so these can't use
   // pumpAndSettle either way.
-  testWidgets('the loading variant holds its bar back, then shows it',
+  testWidgets('the loading variant holds its spinner back, then shows it',
       (tester) async {
     await tester.pumpWidget(
       app(const SplashPage.loading(), reduceMotion: true),
@@ -44,10 +44,10 @@ void main() {
 
     // Not merely transparent — not built, so a fast load renders nothing.
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
   testWidgets('the wait before the loader applies under reduced motion too',
@@ -59,7 +59,7 @@ void main() {
 
     // The delay exists to avoid a flash, which is not a motion preference —
     // skipping it here would give reduced-motion users the worse behaviour.
-    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
   // The native Android splash paints @color/splash_background (generated from

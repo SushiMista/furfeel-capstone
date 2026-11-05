@@ -201,11 +201,22 @@ class CurvedStatusHeader extends StatelessWidget {
             ),
           ),
           // The wide edge-to-edge curve.
-          const SizedBox(height: FurFeelTokens.space6), // More space before the curve
+          const SizedBox(height: FurFeelTokens.space6),
+          // Keeps the full curve's shape and crops the flat sheet beneath it,
+          // so content sits close without flattening the arc.
           ClipRect(
-            child: CustomPaint(
-              size: const Size(double.infinity, 120), // Increased height for a deeper curve
-              painter: _CurvePainter(sheet),
+            child: SizedBox(
+              height: 56,
+              width: double.infinity,
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: 120,
+                maxHeight: 120,
+                child: CustomPaint(
+                  size: const Size(double.infinity, 120),
+                  painter: _CurvePainter(sheet),
+                ),
+              ),
             ),
           ),
         ],
@@ -243,6 +254,67 @@ class HeaderChip extends StatelessWidget {
                   fontWeight: FontWeight.w300)),
         ],
       ),
+    );
+  }
+}
+
+/// Back control for pages with a [CurvedStatusHeader]: scrolls with the hero,
+/// then sticks under the status bar so a pushed page can always go back. It
+/// darkens as it sticks to stay readable on the sheet. Place it in a [Stack].
+class StickyBackPill extends StatelessWidget {
+  const StickyBackPill({super.key, required this.scroll, required this.onTap});
+
+  final ScrollController scroll;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final padding = MediaQuery.paddingOf(context);
+    final restTop = padding.top + FurFeelTokens.space5;
+    final stuckTop = padding.top + FurFeelTokens.space1;
+    return AnimatedBuilder(
+      animation: scroll,
+      builder: (context, _) {
+        final offset = scroll.hasClients ? scroll.offset : 0.0;
+        final top = restTop - offset;
+        final stuck = ((stuckTop - top) / 40).clamp(0.0, 1.0);
+        return Positioned(
+          top: top < stuckTop ? stuckTop : top,
+          left: FurFeelTokens.space4,
+          child: Tooltip(
+            message: 'Back',
+            child: Semantics(
+              button: true,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onTap,
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: GlassPill(
+                      color: Color.lerp(
+                        Colors.white.withValues(alpha: 0.15),
+                        Colors.black.withValues(alpha: 0.3),
+                        stuck,
+                      ),
+                      child: const SizedBox(
+                        height: 17,
+                        child: Icon(
+                          Icons.arrow_back_ios_new,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
