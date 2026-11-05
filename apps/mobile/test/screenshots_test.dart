@@ -2,7 +2,12 @@
 // Run:  flutter test test/screenshots_test.dart --update-goldens
 // Output: test/screenshots/*.png  (full scrollable page per file, real charts).
 //
+<<<<<<< HEAD
 // Not a correctness test — it only regenerates docs images. Uses DemoRepository
+=======
+// Not a correctness test — it only regenerates docs images, so it skips
+// unless run with --update-goldens. Uses DemoRepository
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
 // so there's no network/auth and the data is deterministic.
 import 'dart:async';
 import 'dart:io';
@@ -18,7 +23,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:furfeel_mobile/data/demo_repository.dart';
 import 'package:furfeel_mobile/data/furfeel_repository.dart';
 import 'package:furfeel_mobile/data/settings_controller.dart';
+<<<<<<< HEAD
 import 'package:furfeel_mobile/models/models.dart';
+=======
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
 import 'package:furfeel_mobile/screens/auth/consent_page.dart';
 import 'package:furfeel_mobile/screens/auth/splash_page.dart';
 import 'package:furfeel_mobile/screens/auth/welcome_page.dart';
@@ -26,8 +34,11 @@ import 'package:furfeel_mobile/screens/dogs/care_tips_page.dart';
 import 'package:furfeel_mobile/screens/dogs/dog_detail_page.dart';
 import 'package:furfeel_mobile/screens/home/empty_account_page.dart';
 import 'package:furfeel_mobile/screens/home/root_shell.dart';
+<<<<<<< HEAD
 import 'package:furfeel_mobile/screens/observations/media_thread_page.dart';
 import 'package:furfeel_mobile/screens/observations/observation_page.dart';
+=======
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
 import 'package:furfeel_mobile/screens/observations/vet_review_page.dart';
 import 'package:furfeel_mobile/screens/settings/about_pages.dart';
 import 'package:furfeel_mobile/screens/settings/account_page.dart';
@@ -38,7 +49,10 @@ import 'package:furfeel_mobile/screens/vitals/history_page.dart';
 import 'package:furfeel_mobile/screens/vitals/vital_detail_page.dart';
 import 'package:furfeel_mobile/theme/furfeel_theme.dart';
 
+<<<<<<< HEAD
 import 'fakes.dart';
+=======
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
 
 const _w = 390.0; // logical phone width
 const _dpr = 2.0; // crisp for docs without being huge
@@ -176,7 +190,11 @@ void main() {
     if (!e.toString().contains('font')) throw e;
   })!;
 
+<<<<<<< HEAD
   testWidgets('demo tabs', (t) async {
+=======
+  testWidgets('demo tabs', skip: !autoUpdateGoldenFiles, (t) async {
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
     ignoreDocGenNoise();
     await guarded(() async {
       await _surface(t, _probe);
@@ -199,7 +217,11 @@ void main() {
     });
   });
 
+<<<<<<< HEAD
   testWidgets('all other screens', timeout: const Timeout(Duration(minutes: 30)), (t) async {
+=======
+  testWidgets('all other screens', skip: !autoUpdateGoldenFiles, timeout: const Timeout(Duration(minutes: 30)), (t) async {
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
     ignoreDocGenNoise();
     await guarded(() async {
       final repo = DemoRepository();
@@ -210,6 +232,7 @@ void main() {
       final client = SupabaseClient('https://demo.supabase.co', 'anon');
       client.auth.stopAutoRefresh();
 
+<<<<<<< HEAD
       // Media thread needs a concrete submission + a reply; demo media is empty.
       final mediaRepo = FakeRepository()
         ..mediaMessages = [
@@ -232,15 +255,21 @@ void main() {
         reviewNote: 'Normal stress response to loud noise — no concern.',
         reviewedAt: DateTime(2026, 7, 16, 11),
       );
+=======
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
 
       final screens = <(String, Widget)>[
         ('dog_detail', DogDetailPage(repository: repo, dog: dog, dogsCount: 1)),
         ('history', HistoryView(repository: repo, dog: dog)),
         ('vital_heart_rate', VitalDetailPage(repository: repo, dog: dog, kind: VitalKind.heartRate)),
         ('detailed_log', DetailedLogPage(repository: repo, dog: dog)),
+<<<<<<< HEAD
         ('observation', ObservationPage(repository: repo, dog: dog)),
         ('vet_review', VetReviewPage(repository: repo, dog: dog)),
         ('media_thread', MediaThreadPage(repository: mediaRepo, dog: dog, submission: submission)),
+=======
+        ('vet_review', VetReviewPage(repository: repo, dog: dog)),
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
         ('care_tips', CareTipsPage(repository: repo)),
         ('settings', const SettingsPage()),
         ('account', AccountPage(repository: repo, onSignOut: () async {})),

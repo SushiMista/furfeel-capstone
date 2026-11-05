@@ -239,6 +239,7 @@ class CareGuidance {
       );
 }
 
+<<<<<<< HEAD
 /// One message in a media-submission conversation (media_messages): the owner
 /// and the clinic replying back and forth under a submitted photo/video.
 class MediaMessage {
@@ -256,18 +257,96 @@ class MediaMessage {
   final String mediaSubmissionId;
   final String authorUserId;
   final String body;
+=======
+/// One message in a dog's conversation with the clinic (dog_messages,
+/// ADR-026). Text, media and an attached alert are each optional, but a message
+/// always has at least one. Supplementary only: NEVER a classifier input.
+class DogMessage {
+  const DogMessage({
+    required this.id,
+    required this.dogId,
+    required this.createdAt,
+    this.authorUserId,
+    this.authorName,
+    this.authorAvatarPath,
+    this.body,
+    this.mediaPath,
+    this.mediaType,
+    this.alertType,
+    this.heartRateBpm,
+    this.ambientTemperatureC,
+    this.readingCapturedAt,
+    this.editedAt,
+  });
+
+  final String id;
+  final String dogId;
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
   final DateTime createdAt;
+  final String? authorUserId;
   final String? authorName;
   final String? authorAvatarPath;
+  final String? body;
+  final String? mediaPath;
+  final String? mediaType; // image | video
+  final String? alertType;
+  final int? heartRateBpm;
+  final double? ambientTemperatureC;
+  final DateTime? readingCapturedAt;
+  final DateTime? editedAt;
 
-  factory MediaMessage.fromMap(Map<String, dynamic> map) => MediaMessage(
-        id: map['id'] as String,
-        mediaSubmissionId: map['media_submission_id'] as String,
-        authorUserId: map['author_user_id'] as String,
-        body: map['body'] as String,
-        createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
-        authorName: (map['author'] as Map<String, dynamic>?)?['name'] as String?,
-        authorAvatarPath: (map['author'] as Map<String, dynamic>?)?['avatar_path'] as String?,
+  factory DogMessage.fromMap(Map<String, dynamic> map) {
+    final author = map['author'] as Map<String, dynamic>?;
+    final alert = map['alert'] as Map<String, dynamic>?;
+    final reading = map['reading'] as Map<String, dynamic>?;
+    return DogMessage(
+      id: map['id'] as String,
+      dogId: map['dog_id'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
+      authorUserId: map['author_user_id'] as String?,
+      authorName: author?['name'] as String?,
+      authorAvatarPath: author?['avatar_path'] as String?,
+      body: map['body'] as String?,
+      mediaPath: map['media_path'] as String?,
+      mediaType: map['media_type'] as String?,
+      alertType: alert?['type'] as String?,
+      heartRateBpm: _toInt(reading?['heart_rate_bpm']),
+      ambientTemperatureC: _toDouble(reading?['ambient_temperature_c']),
+      readingCapturedAt: reading?['captured_at'] == null
+          ? null
+          : DateTime.parse(reading!['captured_at'] as String).toLocal(),
+      editedAt: map['edited_at'] == null
+          ? null
+          : DateTime.parse(map['edited_at'] as String).toLocal(),
+    );
+  }
+}
+
+/// A dog's conversation as a row in Messages (dog_message_threads RPC).
+class DogMessageThread {
+  const DogMessageThread({
+    required this.dogId,
+    required this.lastAt,
+    this.lastBody,
+    this.lastHasMedia = false,
+    this.lastHasAlert = false,
+    this.unreadCount = 0,
+  });
+
+  final String dogId;
+  final DateTime lastAt;
+  final String? lastBody;
+  final bool lastHasMedia;
+  final bool lastHasAlert;
+  final int unreadCount;
+
+  factory DogMessageThread.fromMap(Map<String, dynamic> map) => DogMessageThread(
+        dogId: map['dog_id'] as String,
+        lastAt: DateTime.parse(map['last_at'] as String).toLocal(),
+        lastBody: map['last_body'] as String?,
+        lastHasMedia: map['last_has_media'] as bool? ?? false,
+        lastHasAlert: map['last_has_alert'] as bool? ?? false,
+        unreadCount: (map['unread_count'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -681,13 +760,38 @@ class UserSettings {
 
   /// Per-type alert mute helpers (docs/04 Settings — Health/Stress/Battery
   /// toggles). Keys are app-level categories, not `alerts.type` values.
-  bool isAlertCategoryEnabled(String category) => !mutedAlertTypes.contains(category);
+  static const _alertCategoryTypes = {
+    'stress': ['moderate_stress', 'high_stress'],
+    'battery': ['low_battery'],
+    'connection': ['device_offline'],
+  };
 
-  UserSettings withAlertCategoryEnabled(String category, bool enabled) => copyWith(
-        mutedAlertTypes: enabled
-            ? mutedAlertTypes.where((t) => t != category).toList()
-            : [...mutedAlertTypes, if (!mutedAlertTypes.contains(category)) category],
-      );
+  bool isAlertCategoryEnabled(String category) =>
+      !_alertCategoryTypes[category]!.every(mutedAlertTypes.contains);
+
+  UserSettings withAlertCategoryEnabled(String category, bool enabled) {
+    final types = _alertCategoryTypes[category]!;
+    return copyWith(
+      mutedAlertTypes: enabled
+          ? mutedAlertTypes.where((t) => !types.contains(t)).toList()
+          : {...mutedAlertTypes, ...types}.toList(),
+    );
+  }
+
+  /// Whether [time] falls in quiet hours, including spans past midnight.
+  bool isQuietAt(DateTime time) {
+    int? minutes(String? hhmm) {
+      final parts = hhmm?.split(':');
+      if (parts == null || parts.length < 2) return null;
+      final h = int.tryParse(parts[0]), m = int.tryParse(parts[1]);
+      return h == null || m == null ? null : h * 60 + m;
+    }
+
+    final start = minutes(quietHoursStart), end = minutes(quietHoursEnd);
+    if (start == null || end == null || start == end) return false;
+    final now = time.hour * 60 + time.minute;
+    return start < end ? now >= start && now < end : now >= start || now < end;
+  }
 
   static const _unset = Object();
 

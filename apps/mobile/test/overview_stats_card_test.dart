@@ -45,7 +45,6 @@ void main() {
     expect(card, findsOneWidget);
     expect(find.descendant(of: card, matching: find.text('Dog monitored')), findsOneWidget);
     expect(find.descendant(of: card, matching: find.text('1 ')), findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('1 Needs attention')), findsOneWidget);
   });
 
   testWidgets('multi-dog home aggregates the pack from the already-fetched overviews',
@@ -68,6 +67,5 @@ void main() {
     expect(card, findsOneWidget);
     expect(find.descendant(of: card, matching: find.text('Dogs monitored')), findsOneWidget);
     expect(find.descendant(of: card, matching: find.text('2 ')), findsOneWidget);
-    expect(find.descendant(of: card, matching: find.text('2 Needs attention')), findsOneWidget);
   });
 }

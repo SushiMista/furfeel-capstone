@@ -123,7 +123,7 @@ Keep every animation short and gentle; motion should reassure, never distract.
 - **Stress pill/badge:** soft-bg fill + colored text + status dot + word. The single most-used component; identical logic in both apps.
 - **Vital card:** label, big tabular value, unit, tiny trend sparkline, muted "updated Xs ago."
 - **Dog card (dashboard board):** name + breed + stress pill leading; calm dogs recede, above-calm dogs get a soft status tint and float to the top.
-- **Alert card:** severity-colored left border, message, timestamp, one clear **Acknowledge** button; acknowledged → muted.
+- **Alert card:** one line of meaning: type icon, short title by alert type, severity word and time. Tapping drops down the message and tip. Open alerts sit on a tinted card under *Needs attention* with one clear **Got it** button (**Acknowledge** on the dashboard); past alerts are quiet rows under *Earlier*. Severity is always a word, never colour alone.
 - **Empty states:** friendly + encouraging with a small illustration ("No alerts — Biscuit is doing great 🐾"), never a bare "No data."
 - **Nav:** dashboard = left sidebar (Overview, Board, Alerts, Reports, Admin); mobile = a **floating pill bar — Home · Alerts · Trends · Profile — plus a detached Chat box** beside it (2026-07-24). The mobile bar is **icon-only**: selection is shown by swapping to the *filled* glyph plus a soft brand pill, never colour alone, and every destination keeps its name in `Semantics` (a badged tab announces as "Alerts, 3 new").
 
