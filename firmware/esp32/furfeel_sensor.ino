@@ -840,20 +840,13 @@ void updateBatteryAndDisplay() {
     display.setCursor(0, 0);
     display.println("FurFeel Monitor");
 
-    // Row 2: Temperature and humidity
+    // Row 2: Temperature
     display.setCursor(0, 8);
     display.print("Temp:");
     if (isnan(temperature)) display.print("--");
     else {
         display.print(temperature, 1);
         display.print("C");
-    }
-
-    display.print(" Hum:");
-    if (isnan(humidity)) display.print("--");
-    else {
-        display.print(humidity, 0);
-        display.print("%");
     }
 
     // Row 3: Heart rate
@@ -887,12 +880,9 @@ void updateBatteryAndDisplay() {
         display.print("--%");
     }
 
+    // Row 7: Status
     display.setCursor(0, 48);
-    display.print("MAX:");
-    display.print(!max30102Ready ? "NOT FOUND" : !fingerDetected ? "CHECK CONTACT" :
-                  beatAvg > 0 ? "PULSE DETECTED" : "WAITING FOR PULSE");
-    display.setCursor(0, 56);
-    display.print("Stress:");
+    display.print("Status:");
     if (WiFi.status() != WL_CONNECTED) display.print("OFFLINE");
     else if (lastStressLevel.length() == 0) display.print("PENDING");
     else if (millis() - lastStressMs > 30000) display.print("STALE");
