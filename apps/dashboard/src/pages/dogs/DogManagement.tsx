@@ -4,7 +4,6 @@ import {
   Search,
   PawPrint,
   Radio,
-  ExternalLink,
   Edit,
   Plus,
   Unlink,
@@ -18,6 +17,7 @@ import {
   getMediaSignedUrl,
   uploadDogPhoto,
   fetchDevicesReadOnly,
+  fetchMonitoringBoard,
   type Dog,
   type DeviceWithDog,
 } from "../../lib/queries.ts";
@@ -27,7 +27,8 @@ import {
   updateDevice,
 } from "../../lib/adminQueries.ts";
 import { seedInitialBiotelemetry } from "../../lib/biotelemetrySeeder.ts";
-import type { User as AppUser, DogSex } from "../../../../../packages/shared/types/index.ts";
+import { StressLevelBadge } from "../../components/StressLevelBadge.tsx";
+import type { User as AppUser, DogSex, StressLevel } from "../../../../../packages/shared/types/index.ts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
@@ -61,6 +62,7 @@ export function DogManagement() {
   const [unpairingTarget, setUnpairingTarget] = useState<{ device: DeviceWithDog; dog: Dog } | null>(null);
   const [recentlyUpdatedDogId, setRecentlyUpdatedDogId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [stressLevels, setStressLevels] = useState<Map<string, StressLevel>>(new Map());
 
   // Edit form state
   const [editName, setEditName] = useState("");
@@ -78,15 +80,23 @@ export function DogManagement() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [dList, devList, uList] = await Promise.all([
+      const [dList, devList, uList, board] = await Promise.all([
         fetchDogs(supabase),
         fetchDevicesReadOnly(supabase).catch(() => [] as DeviceWithDog[]),
         fetchAllUsers(supabase).catch(() => [] as AppUser[]),
+        fetchMonitoringBoard(supabase).catch(() => []),
       ]);
 
       setDogs(dList);
       setDevices(devList);
       setUsers(uList);
+      setStressLevels(
+        new Map(
+          board.flatMap(({ dog, latestClassification }) =>
+            latestClassification ? [[dog.id, latestClassification.stress_level]] : [],
+          ),
+        ),
+      );
       setError(null);
 
       // Load signed photos for dogs with photo_path
@@ -365,12 +375,7 @@ export function DogManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="m-0 text-2xl font-black text-ink tracking-tight">
-            Patient Dogs Directory
-          </h1>
-          <p className="text-sm text-ink-muted mt-1">
-            Manage admitted canines, update physiological records, and bind telemetry hardware collars.
-          </p>
+          <h1 className="m-0 text-2xl font-bold text-ink">Patient Dogs</h1>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -444,12 +449,14 @@ export function DogManagement() {
               <THead>
                 <Tr className="border-t-0 bg-surface-alt/40">
                   <Th className="w-12"></Th>
-                  <Th>Patient Name</Th>
-                  <Th>Breed & Sex</Th>
-                  <Th>Weight / Age</Th>
-                  <Th>Pet Owner</Th>
-                  <Th>Telemetry Collar</Th>
-                  <Th className="text-right">Actions</Th>
+                  <Th>Patient</Th>
+                  <Th>Status</Th>
+                  <Th>Age</Th>
+                  <Th>Owner</Th>
+                  <Th>Collar</Th>
+                  <Th>
+                    <span className="sr-only">Actions</span>
+                  </Th>
                 </Tr>
               </THead>
               <TBody>
@@ -458,12 +465,18 @@ export function DogManagement() {
                   const assignedDevice = dogDeviceMap.get(d.id);
                   const photoUrl = signedPhotoUrls[d.id];
                   const isRecentlyUpdated = d.id === recentlyUpdatedDogId;
+                  const level = stressLevels.get(d.id);
 
                   return (
                     <Tr
                       key={d.id}
+                      onClick={(e) => {
+                        // Links and buttons in the row keep their own actions.
+                        if ((e.target as HTMLElement).closest("a, button")) return;
+                        navigate(`/dogs/${d.id}`);
+                      }}
                       className={cn(
-                        "transition-all duration-300",
+                        "cursor-pointer transition-all duration-300",
                         isRecentlyUpdated
                           ? "bg-brand-soft/50 dark:bg-brand-soft/20 border-l-4 border-brand font-semibold shadow-xs"
                           : "hover:bg-surface-alt/30",
@@ -486,43 +499,42 @@ export function DogManagement() {
                           <div className="flex items-center gap-2">
                             <Link
                               to={`/dogs/${d.id}`}
-                              className="font-black text-sm text-ink hover:text-brand hover:underline flex items-center gap-1.5"
+                              className="text-sm font-bold text-ink hover:text-brand hover:underline"
                             >
-                              <span>{d.name}</span>
-                              <ExternalLink size={12} className="opacity-50" />
+                              {d.name}
                             </Link>
                             {isRecentlyUpdated && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-brand bg-brand-soft px-2 py-0.5 rounded-full border border-brand/30 animate-pulse">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-brand bg-brand-soft px-1.5 py-0.5 rounded-full">
                                 <Sparkles size={10} /> Updated
                               </span>
                             )}
                           </div>
-                          {d.notes && (
-                            <span className="text-[11px] text-ink-muted line-clamp-1 max-w-[200px]" title={d.notes}>
-                              {d.notes}
-                            </span>
-                          )}
+                          <span className="text-[11px] capitalize text-ink-muted">
+                            {[d.breed || "Unspecified", d.sex, d.weight_kg != null && `${d.weight_kg} kg`]
+                              .filter((part) => part && part !== "unknown")
+                              .join(" · ")}
+                          </span>
                         </div>
                       </Td>
 
-                      {/* Breed & Sex */}
+                      {/* Status */}
                       <Td>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-semibold text-ink">{d.breed || "Unspecified"}</span>
-                          <span className="text-[11px] text-ink-muted capitalize">{d.sex || "unknown"}</span>
-                        </div>
+                        {assignedDevice?.status === "offline" ? (
+                          <span className="inline-flex rounded-full bg-surface-alt px-2.5 py-0.5 text-xs font-semibold text-ink-muted">
+                            Offline
+                          </span>
+                        ) : level ? (
+                          <StressLevelBadge level={level} />
+                        ) : (
+                          <span className="text-xs text-ink-muted">No data</span>
+                        )}
                       </Td>
 
-                      {/* Weight / Age */}
+                      {/* Age */}
                       <Td>
-                        <div className="flex flex-col gap-0.5 text-xs text-ink-muted">
-                          <span className="font-semibold text-ink">
-                            {d.weight_kg != null ? `${d.weight_kg} kg` : "—"}
-                          </span>
-                          <span className="text-[11px]" title={d.birthdate ?? undefined}>
-                            {formatDogAge(d.birthdate) ?? "No birth date"}
-                          </span>
-                        </div>
+                        <span className="text-xs text-ink" title={d.birthdate ?? undefined}>
+                          {formatDogAge(d.birthdate) ?? "No birth date"}
+                        </span>
                       </Td>
 
                       {/* Pet Owner */}
@@ -544,7 +556,8 @@ export function DogManagement() {
                             <Radio size={13} className="text-brand" />
                             <Link
                               to={`/devices?device_code=${assignedDevice.device_code}`}
-                              className="font-mono font-bold text-brand hover:underline"
+                              title={assignedDevice.device_code}
+                              className="font-semibold text-brand hover:underline"
                             >
                               {collarName(assignedDevice)}
                             </Link>
@@ -573,27 +586,15 @@ export function DogManagement() {
 
                       {/* Actions */}
                       <Td className="text-right pr-4">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => navigate(`/dogs/${d.id}`)}
-                            className="h-8 text-xs font-bold"
-                          >
-                            Live Vitals
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleOpenEdit(d)}
-                            className="h-8 w-8 p-0"
-                            title="Edit Dog Profile"
-                          >
-                            <Edit size={14} />
-                          </Button>
-                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleOpenEdit(d)}
+                        >
+                          <Edit size={14} aria-hidden="true" />
+                          Edit
+                        </Button>
                       </Td>
                     </Tr>
                   );
