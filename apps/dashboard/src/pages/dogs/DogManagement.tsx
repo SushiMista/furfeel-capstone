@@ -566,7 +566,7 @@ export function DogManagement() {
                             className="text-[11px] h-7 px-2 flex items-center gap-1 text-brand border-dashed border-brand/40 hover:bg-brand-soft"
                           >
                             <Radio size={12} />
-                            <span>+ Assign Collar</span>
+                            <span>Assign Collar</span>
                           </Button>
                         )}
                       </Td>

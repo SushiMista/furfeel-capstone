@@ -677,7 +677,7 @@ export function PatientIntake() {
                   }`}
                 >
                   <Sparkles size={14} />
-                  <span>+ Build New Collar</span>
+                  <span>Build New Collar</span>
                 </button>
                 <button
                   type="button"

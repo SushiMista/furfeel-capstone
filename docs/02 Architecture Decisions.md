@@ -345,3 +345,14 @@ Guardrails unchanged: messages and media are supplementary and NEVER a classifie
 
 All dogs currently belong to one clinic, so every dog can use Chat. Reassess the clinic-less case and device-policy scoping before onboarding a second clinic.
 
+
+## ADR-027: Raw Telemetry Outlives Its Dog
+Status: Accepted (2026-11-05, requested by project owner)
+
+ADR-003 says raw telemetry is never deleted, but `telemetry_readings.dog_id` was `on delete cascade`, so any dog delete removed its readings, including deletes from the mobile app.
+
+We dropped that foreign key and kept `dog_id` as a plain uuid, so readings stay attributable after the `dogs` row is gone. `admin_delete_dog` and `admin_bulk_delete_dogs` no longer delete telemetry. The foreign key was also what rejected unknown dog ids, so the staff insert policy now checks that the dog exists.
+
+We chose this over soft-deleting dogs because an `archived_at` column would need a filter on every dog query in both clients and every policy. Readings for a deleted dog match no RLS policy, so clients can't see them.
+
+Derived and clinical records (classifications, labels, alerts, notes, baselines) are still deleted with the dog. Device purge and account deletion still remove telemetry and are not covered here.

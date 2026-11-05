@@ -33,15 +33,12 @@ export function formatPhilippineTime(dateInput: string | Date | number): string 
   return formatter.format(date);
 }
 
-/** Formats alert message text, removing redundant embedded '(last seen ...)' timestamps since the timestamp is displayed separately on the card.
- * Example input: "Device FURFEEL-DEV-0002 stopped sending data (last seen 2026-08-22 17:16 UTC)."
- * Example output: "Device FURFEEL-DEV-0002 stopped sending data."
- */
-export function formatAlertMessage(message: string): string {
-  if (!message) return "";
-
-  // Remove redundant (last seen ...) timestamp
-  return message
-    .replace(/\s*\(last seen [^)]+\)\.?/gi, "")
-    .trim();
+export function timeAgo(iso: string): string {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
 }

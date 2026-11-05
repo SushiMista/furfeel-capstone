@@ -48,7 +48,7 @@ describe("AlertCard", () => {
     expect(screen.getAllByText(/acknowledged/i).length).toBeGreaterThan(0);
   });
 
-  it("renders Investigate Dog link and Check Device link for device_offline alerts", () => {
+  it("shows plain wording with dog and collar links for device_offline alerts", () => {
     render(
       <MemoryRouter>
         <AlertCard
@@ -60,8 +60,22 @@ describe("AlertCard", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Investigate Dog")).toBeInTheDocument();
-    expect(screen.getByText("Check Device")).toBeInTheDocument();
-    expect(screen.getByText("Device FURFEEL-DEV-0002 stopped sending data")).toBeInTheDocument();
+    expect(screen.getByText("Open dog")).toBeInTheDocument();
+    expect(screen.getByText("Check collar")).toBeInTheDocument();
+    expect(screen.getByText("Device stopped sending data")).toBeInTheDocument();
+    expect(screen.getByText(/FURFEEL-DEV-0002 · Last seen 2026-08-22 17:16 UTC/)).toBeInTheDocument();
+  });
+
+  it("collapses repeats behind a toggle", async () => {
+    render(
+      <MemoryRouter>
+        <AlertCard alert={alert()} earlier={[alert({ id: "a2" }), alert({ id: "a3" })]} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/3 alerts/)).toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show repeats" }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 });
