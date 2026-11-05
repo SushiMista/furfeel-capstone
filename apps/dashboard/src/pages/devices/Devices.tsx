@@ -1,15 +1,13 @@
 import { friendlyError } from "../../lib/errors.ts";
-import { useCallback, useEffect, useState, useMemo, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Radio,
   Plus,
   Edit,
   Trash2,
   AlertTriangle,
   Search,
-  Cpu,
-  Dog as DogIcon,
+  ChevronDown,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import { useCurrentRole } from "../../lib/useCurrentRole.ts";
@@ -21,24 +19,85 @@ import {
 } from "../../lib/adminQueries.ts";
 import { recordAuditLog, fetchPendingDeviceDeletionRequests } from "../../lib/auditLogger.ts";
 import { seedInitialBiotelemetry } from "../../lib/biotelemetrySeeder.ts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
+import { Card, CardContent, CardHeader } from "../../components/ui/card.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
-import { Badge } from "../../components/ui/badge.tsx";
 import { Dialog } from "../../components/ui/dialog.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { Input, Label, Select } from "../../components/ui/input.tsx";
 import { useToast } from "../../components/ui/toast.tsx";
-import { formatPhilippineTime } from "../../lib/time.ts";
+import { cn } from "../../lib/cn.ts";
+import { collarRank, collarState, needsAttention } from "../../lib/deviceStatus.ts";
+import { formatPhilippineTime, timeAgo } from "../../lib/time.ts";
 import type { DeviceStatus } from "../../../../../packages/shared/types/index.ts";
 
-const STATUS_BADGE: Record<string, "default" | "neutral" | "outline"> = {
-  active: "default",
-  offline: "outline",
-  inactive: "neutral",
-  maintenance: "neutral",
-};
+type CollarFilter = "all" | "attention" | "unassigned" | "maintenance" | "inactive" | "deletion_requested";
+
+/** Row menu. Fixed to the viewport so the table's scroll area can't clip it. */
+function ManageMenu({
+  firmware,
+  children,
+}: {
+  firmware: string;
+  children: (close: () => void) => React.ReactNode;
+}) {
+  const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setPosition(null), []);
+
+  useEffect(() => {
+    if (!position) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) close();
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [position, close]);
+
+  return (
+    <div ref={ref} className="inline-block">
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        aria-expanded={Boolean(position)}
+        onClick={(e) => {
+          if (position) return close();
+          const rect = e.currentTarget.getBoundingClientRect();
+          // Keep the menu on screen for rows near the bottom of the window.
+          const top = Math.min(rect.bottom + 4, window.innerHeight - 136);
+          setPosition({ top, right: window.innerWidth - rect.right });
+        }}
+      >
+        Manage
+        <ChevronDown size={13} aria-hidden="true" />
+      </Button>
+      {position && (
+        <div
+          role="menu"
+          style={position}
+          className="fixed z-40 w-48 rounded-xl border border-hairline bg-surface p-1.5 text-left shadow-lg"
+        >
+          {children(close)}
+          <p className="m-0 border-t border-hairline px-2 pt-1.5 text-xs text-ink-muted">
+            Firmware {firmware}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const menuItem =
+  "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-60";
 
 export function Devices() {
   const [searchParams] = useSearchParams();
@@ -56,8 +115,7 @@ export function Devices() {
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [assignmentFilter, setAssignmentFilter] = useState("all");
+  const [filter, setFilter] = useState<CollarFilter>("all");
 
   // Modals state
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -103,35 +161,30 @@ export function Devices() {
   }, [load]);
 
   // Filtered devices
+  const matchesFilter = useCallback(
+    (d: DeviceWithDog, id: CollarFilter) => {
+      if (id === "attention") return needsAttention(d);
+      if (id === "unassigned") return !d.dog_id;
+      if (id === "deletion_requested") return deletionRequests.has(d.id);
+      return id === "all" || d.status === id;
+    },
+    [deletionRequests],
+  );
+
   const filteredDevices = useMemo(() => {
-    return devices.filter((d) => {
-      const q = searchQuery.toLowerCase().trim();
-      const hasDelRequest = deletionRequests.has(d.id);
-
-      const matchesSearch =
-        !q ||
-        d.device_code.toLowerCase().includes(q) ||
-        (d.display_name ?? "").toLowerCase().includes(q) ||
-        (d.dog?.name && d.dog.name.toLowerCase().includes(q)) ||
-        (d.firmware_version && d.firmware_version.toLowerCase().includes(q));
-
-      let matchesStatus = true;
-      if (statusFilter === "deletion_requested") {
-        matchesStatus = hasDelRequest;
-      } else if (statusFilter !== "all") {
-        matchesStatus = d.status === statusFilter;
-      }
-
-      let matchesAssignment = true;
-      if (assignmentFilter === "assigned") {
-        matchesAssignment = Boolean(d.dog_id);
-      } else if (assignmentFilter === "unassigned") {
-        matchesAssignment = !d.dog_id;
-      }
-
-      return matchesSearch && matchesStatus && matchesAssignment;
-    });
-  }, [devices, searchQuery, statusFilter, assignmentFilter, deletionRequests]);
+    const q = searchQuery.toLowerCase().trim();
+    return devices
+      .filter(
+        (d) =>
+          matchesFilter(d, filter) &&
+          (!q ||
+            d.device_code.toLowerCase().includes(q) ||
+            (d.display_name ?? "").toLowerCase().includes(q) ||
+            d.dog?.name?.toLowerCase().includes(q) ||
+            d.firmware_version?.toLowerCase().includes(q)),
+      )
+      .sort((a, b) => collarRank(a) - collarRank(b) || a.device_code.localeCompare(b.device_code));
+  }, [devices, filter, matchesFilter, searchQuery]);
 
   // Open Edit Dialog
   function handleOpenEdit(dev: DeviceWithDog) {
@@ -390,13 +443,7 @@ export function Devices() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="m-0 text-2xl font-black text-ink tracking-tight flex items-center gap-2.5">
-            <Radio className="text-brand h-7 w-7" />
-            <span>Device Hardware Fleet</span>
-          </h1>
-          <p className="text-sm text-ink-muted mt-1">
-            Build, assign, and manage telemetry sensor collars linked to your clinical operations.
-          </p>
+          <h1 className="m-0 text-2xl font-bold text-ink">Device Management</h1>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -423,7 +470,7 @@ export function Devices() {
           </div>
           <button
             type="button"
-            onClick={() => setStatusFilter("deletion_requested")}
+            onClick={() => setFilter("deletion_requested")}
             className="font-bold text-brand hover:underline"
           >
             View Requests →
@@ -434,50 +481,49 @@ export function Devices() {
       {/* Main Table Card */}
       <Card className="border-hairline shadow-xs">
         <CardHeader className="pb-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg font-bold text-ink">
-                Hardware Inventory ({filteredDevices.length})
-              </CardTitle>
-              <CardDescription>
-                Live collar telemetry state, firmware revisions, and patient dog bindings.
-              </CardDescription>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  ["all", "All"],
+                  ["attention", "Needs attention"],
+                  ["unassigned", "Unassigned"],
+                  ["maintenance", "Maintenance"],
+                  ["inactive", "Inactive"],
+                  ["deletion_requested", "Delete requested"],
+                ] as const
+              ).map(([id, label]) => {
+                const count = devices.filter((d) => matchesFilter(d, id)).length;
+                // Rarer filters appear only when a collar is in that state.
+                if (count === 0 && !["all", "attention", "unassigned"].includes(id)) return null;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={filter === id}
+                    onClick={() => setFilter(id)}
+                    className={cn(
+                      "cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                      filter === id
+                        ? "border-brand bg-brand text-white"
+                        : "border-hairline bg-surface text-ink-muted hover:bg-surface-alt hover:text-ink",
+                    )}
+                  >
+                    {label} {count}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Filter & Search Bar */}
-            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
-              <div className="relative w-full sm:w-56">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-                <Input
-                  placeholder="Search code, dog, FW..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 text-xs h-9"
-                />
-              </div>
-
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-xs h-9 w-full sm:w-36"
-              >
-                <option value="all">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="offline">Offline</option>
-                <option value="inactive">Inactive</option>
-                <option value="maintenance">Maintenance</option>
-                {pendingCount > 0 && <option value="deletion_requested">⚠️ Pending Deletion ({pendingCount})</option>}
-              </Select>
-
-              <Select
-                value={assignmentFilter}
-                onChange={(e) => setAssignmentFilter(e.target.value)}
-                className="text-xs h-9 w-full sm:w-36"
-              >
-                <option value="all">All Collars</option>
-                <option value="assigned">Assigned to Dog</option>
-                <option value="unassigned">Unassigned</option>
-              </Select>
+            <div className="relative w-full md:w-56">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
+              <Input
+                aria-label="Search collars"
+                placeholder="Search collars"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 text-xs h-9"
+              />
             </div>
           </div>
         </CardHeader>
@@ -491,127 +537,119 @@ export function Devices() {
             <Table>
               <THead>
                 <Tr className="border-t-0 bg-surface-alt/40">
-                  <Th className="pl-4">Device Code</Th>
-                  <Th>Status</Th>
-                  <Th>Assigned Patient</Th>
+                  <Th className="pl-4">Collar</Th>
+                  <Th>Assigned to</Th>
                   <Th>Battery</Th>
-                  <Th>Firmware</Th>
-                  <Th>Last Seen</Th>
-                  <Th className="text-right pr-4">Actions</Th>
+                  <Th>Last seen</Th>
+                  <Th>
+                    <span className="sr-only">Actions</span>
+                  </Th>
                 </Tr>
               </THead>
               <TBody>
                 {filteredDevices.map((d) => {
                   const delRequest = deletionRequests.get(d.id);
+                  const deletePending = Boolean(delRequest || d.status === "maintenance");
+                  const firmware = d.firmware_version ?? "0.1.0";
 
                   return (
                     <Tr key={d.id} className="hover:bg-surface-alt/30 transition-colors">
-                      {/* Code */}
-                      <Td className="pl-4 font-mono font-black text-xs text-ink">
-                        <div className="flex items-center gap-2">
-                          <Cpu size={14} className="text-brand opacity-80" />
-                          <div className="flex flex-col">
-                            {d.display_name && (
-                              <span className="font-sans font-bold">{d.display_name}</span>
-                            )}
-                            <span className={d.display_name ? "font-normal text-ink-muted" : undefined}>
-                              {d.device_code}
-                            </span>
-                          </div>
-                        </div>
-                      </Td>
-
-                      {/* Status */}
-                      <Td>
-                        <div className="flex flex-col gap-1 items-start">
-                          <Badge variant={STATUS_BADGE[d.status] ?? "neutral"} className="capitalize text-[11px]">
-                            {d.status}
-                          </Badge>
-                          {(delRequest || d.status === "maintenance") && (
-                            <span
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded"
-                              title={delRequest ? `Requested by ${delRequest.requestedBy}: ${delRequest.reason}` : "Awaiting Admin Review"}
-                            >
-                              <AlertTriangle size={10} /> Pending Admin Deletion
-                            </span>
+                      <Td className="pl-4">
+                        <span className="block text-sm font-semibold text-ink">
+                          {d.display_name ?? d.device_code}
+                        </span>
+                        {d.display_name && (
+                          <span className="block text-[11px] text-ink-muted">{d.device_code}</span>
+                        )}
+                        <span
+                          className={cn(
+                            "block text-[11px]",
+                            needsAttention(d) ? "font-semibold text-high-fg" : "text-ink-muted",
                           )}
-                        </div>
-                      </Td>
-
-                      {/* Assigned Dog */}
-                      <Td>
-                        {d.dog ? (
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                            <DogIcon size={13} className="text-brand" />
-                            <span>{d.dog.name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-ink-muted italic">— unassigned —</span>
+                        >
+                          {collarState(d)}
+                        </span>
+                        {deletePending && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-moderate-fg"
+                            title={delRequest ? `Requested by ${delRequest.requestedBy}: ${delRequest.reason}` : "Waiting for an admin"}
+                          >
+                            <AlertTriangle size={11} aria-hidden="true" /> Delete requested
+                          </span>
                         )}
                       </Td>
 
-                      {/* Battery */}
-                      <Td className="tabular-nums text-xs font-medium text-ink">
-                        {d.battery_percent != null ? `${d.battery_percent}%` : "—"}
+                      <Td className="text-xs">
+                        {d.dog ? (
+                          <span className="font-semibold text-ink">{d.dog.name}</span>
+                        ) : (
+                          <span className="text-ink-muted">No dog</span>
+                        )}
                       </Td>
 
-                      {/* Firmware */}
-                      <Td className="text-xs text-ink-muted font-mono">{d.firmware_version ?? "0.1.0"}</Td>
-
-                      {/* Last Seen */}
-                      <Td className="text-[11px] text-ink-muted">
-                        {d.last_seen_at ? formatPhilippineTime(d.last_seen_at) : "never"}
+                      <Td>
+                        {d.battery_percent != null ? (
+                          <span className="flex items-center gap-2 text-xs tabular-nums text-ink">
+                            <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-alt">
+                              <span
+                                className={cn(
+                                  "block h-full rounded-full",
+                                  d.battery_percent <= 15 ? "bg-high-fg" : "bg-brand",
+                                )}
+                                style={{ width: `${Math.min(100, Math.max(0, d.battery_percent))}%` }}
+                              />
+                            </span>
+                            {d.battery_percent}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-ink-muted">—</span>
+                        )}
                       </Td>
 
-                      {/* Actions */}
+                      <Td
+                        className="text-xs text-ink-muted"
+                        title={d.last_seen_at ? formatPhilippineTime(d.last_seen_at) : undefined}
+                      >
+                        {d.last_seen_at ? timeAgo(d.last_seen_at) : "Never"}
+                      </Td>
+
                       <Td className="text-right pr-4">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Edit / Reassign button */}
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleOpenEdit(d)}
-                            className="h-8 text-xs font-bold flex items-center gap-1"
-                          >
-                            <Edit size={13} />
-                            <span>Edit / Assign</span>
-                          </Button>
-
-                          {/* Vet: Request Deletion / Admin: Direct Delete */}
-                          {isAdmin ? (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => setAdminDeleteDevice(d)}
-                              className="h-8 w-8 p-0 text-high-fg hover:bg-high-soft"
-                              title="Admin: Purge Device"
-                            >
-                              <Trash2 size={13} />
-                            </Button>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              disabled={Boolean(delRequest || d.status === "maintenance")}
-                              onClick={() => {
-                                setRequestingDeleteDevice(d);
-                                setDeletionReason("");
-                              }}
-                              className={`h-8 px-2 text-[11px] font-semibold flex items-center gap-1 ${
-                                delRequest || d.status === "maintenance"
-                                  ? "opacity-60 cursor-not-allowed bg-amber-500/10 text-amber-700 border-amber-300"
-                                  : "text-high-fg hover:bg-high-soft"
-                              }`}
-                              title={delRequest || d.status === "maintenance" ? "Deletion request already queued for Administrator" : "Request Deletion from Admin"}
-                            >
-                              <Trash2 size={12} />
-                              <span>{delRequest || d.status === "maintenance" ? "Pending Admin" : "Request Delete"}</span>
-                            </Button>
+                        <ManageMenu firmware={firmware}>
+                          {(close) => (
+                            <>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={cn(menuItem, "text-ink")}
+                                onClick={() => {
+                                  close();
+                                  handleOpenEdit(d);
+                                }}
+                              >
+                                <Edit size={14} aria-hidden="true" />
+                                Edit or assign
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={!isAdmin && deletePending}
+                                className={cn(menuItem, "text-high-fg")}
+                                onClick={() => {
+                                  close();
+                                  if (isAdmin) {
+                                    setAdminDeleteDevice(d);
+                                  } else {
+                                    setRequestingDeleteDevice(d);
+                                    setDeletionReason("");
+                                  }
+                                }}
+                              >
+                                <Trash2 size={14} aria-hidden="true" />
+                                {isAdmin ? "Delete" : deletePending ? "Delete requested" : "Request delete"}
+                              </button>
+                            </>
                           )}
-                        </div>
+                        </ManageMenu>
                       </Td>
                     </Tr>
                   );
