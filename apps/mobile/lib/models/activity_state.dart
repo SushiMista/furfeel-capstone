@@ -26,6 +26,12 @@ ActivityState activityStateFrom({String? posture, double? motionActivity}) {
       return (motionActivity ?? 0) >= kVeryActiveMotionFloor
           ? ActivityState.veryActive
           : ActivityState.moving;
+    case 'walking':
+      return ActivityState.moving;
+    case 'running':
+      return ActivityState.veryActive;
+    case 'trembling':
+      return ActivityState.veryActive;
     default:
       // No posture (older payloads / 'unknown'): fall back to intensity only.
       if (motionActivity == null) return ActivityState.noSignal;

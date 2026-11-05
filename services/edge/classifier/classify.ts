@@ -87,8 +87,12 @@ export function classifyStress(
   }
 
   const postureRule = rules.posture_moving_with_high_motion;
+  const isMoving =
+    reading.posture === postureRule.posture ||
+    reading.posture === "walking" ||
+    reading.posture === "running";
   if (
-    reading.posture === postureRule.posture &&
+    isMoving &&
     reading.motion_activity !== null &&
     reading.motion_activity >= postureRule.motion_activity_min
   ) {

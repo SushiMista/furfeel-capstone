@@ -1,4 +1,12 @@
-export type Posture = "standing" | "sitting" | "lying" | "moving" | "unknown";
+export type Posture =
+  | "standing"
+  | "sitting"
+  | "lying"
+  | "moving"
+  | "walking"
+  | "running"
+  | "trembling"
+  | "unknown";
 
 /** POST /telemetry request body (docs/07 Sensor Data Pipeline, docs/10 API and Backend
  * Services). device_code and captured_at are required; every sensor field is optional

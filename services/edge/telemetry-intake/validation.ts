@@ -7,6 +7,9 @@ const VALID_POSTURES: readonly Posture[] = [
   "sitting",
   "lying",
   "moving",
+  "walking",
+  "running",
+  "trembling",
   "unknown",
 ];
 

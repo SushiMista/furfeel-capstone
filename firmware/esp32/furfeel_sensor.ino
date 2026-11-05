@@ -91,6 +91,11 @@ float winGyroZ[WINDOW_SIZE];
 String currentPosture = "unknown";
 float currentMotion = 0;
 
+// Posture stabilization buffer (majority voting over 3 consecutive 1s windows)
+const int DEBOUNCE_WINDOW = 3;
+String postureHistory[DEBOUNCE_WINDOW] = {"standing", "standing", "standing"};
+int postureHistoryIdx = 0;
+
 //================ MAX30102 ================
 
 MAX30105 particleSensor;
@@ -493,11 +498,46 @@ void capturePostureWindow() {
     }
 
     float normalized = (gyroMagSum / WINDOW_SIZE) / 250.0;
-
-    currentMotion = normalized < 0 ? 0 :
+    float rawMotion = normalized < 0 ? 0 :
                     (normalized > 1 ? 1 : normalized);
 
-    currentPosture = String(postureModel.predictLabel(feats));
+    // Exponential Moving Average (EMA) for smooth motion activity
+    currentMotion = (currentMotion * 0.6f) + (rawMotion * 0.4f);
+
+    String rawLabel = String(postureModel.predictLabel(feats));
+    String candidate = rawLabel;
+
+    // Physical kinetic gating:
+    // If motion is practically zero, the dog cannot be walking or running
+    if (currentMotion < 0.10f && (candidate == "walking" || candidate == "running")) {
+        candidate = "standing";
+    }
+    // If motion is high, the dog cannot be lying flat
+    if (currentMotion > 0.45f && candidate == "lying") {
+        candidate = "walking";
+    }
+
+    // Debounce buffer / majority voting filter
+    postureHistory[postureHistoryIdx] = candidate;
+    postureHistoryIdx = (postureHistoryIdx + 1) % DEBOUNCE_WINDOW;
+
+    // Count votes in the last 3 seconds
+    int votes0 = 0, votes1 = 0, votes2 = 0;
+    for (int i = 0; i < DEBOUNCE_WINDOW; i++) {
+        if (postureHistory[i] == postureHistory[0]) votes0++;
+        if (postureHistory[i] == postureHistory[1]) votes1++;
+        if (postureHistory[i] == postureHistory[2]) votes2++;
+    }
+
+    // Only switch if candidate has at least 2 out of 3 votes
+    if (votes0 >= 2) {
+        currentPosture = postureHistory[0];
+    } else if (votes1 >= 2) {
+        currentPosture = postureHistory[1];
+    } else if (votes2 >= 2) {
+        currentPosture = postureHistory[2];
+    }
+    // Otherwise keep currentPosture unchanged (avoids rapid 1-second flicker)
 }
 
 //================ HEART RATE ==============
