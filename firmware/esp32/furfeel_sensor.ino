@@ -97,6 +97,13 @@ MAX30105 particleSensor;
 TwoWire I2C_MAX = TwoWire(1);
 
 bool max30102Ready = false;
+// Optical acquisition defaults, not validated canine calibration or stress rules.
+// Tune against skin-contact recordings and a simultaneous reference pulse.
+const byte MAX_LED_CURRENT = 0x3F;
+const long MAX_CONTACT_IR_MIN = 50000;
+const unsigned long MAX_BEAT_TIMEOUT_MS = 5000;
+String lastStressLevel = "";
+unsigned long lastStressMs = 0;
 
 //================ OLED + BATTERY ==========
 
@@ -119,11 +126,12 @@ unsigned long lastDisplayMs = 0;
 
 const byte RATE_SIZE = 8;
 
-byte rates[RATE_SIZE];
+float rates[RATE_SIZE];
 byte rateSpot = 0;
 byte validReadings = 0;
 
-long lastBeat = 0;
+unsigned long lastBeat = 0;
+unsigned long lastAcceptedBeat = 0;
 
 float beatsPerMinute = 0;
 float beatAvg = 0;
@@ -297,9 +305,9 @@ void setup() {
     max30102Ready = particleSensor.begin(I2C_MAX);
 
     if (max30102Ready) {
-        particleSensor.setup(0x3F, 4, 2, 400, 411, 4096);
-        particleSensor.setPulseAmplitudeRed(0x3F);
-        particleSensor.setPulseAmplitudeIR(0x3F);
+        particleSensor.setup(MAX_LED_CURRENT, 4, 2, 400, 411, 4096);
+        particleSensor.setPulseAmplitudeRed(MAX_LED_CURRENT);
+        particleSensor.setPulseAmplitudeIR(MAX_LED_CURRENT);
         particleSensor.setPulseAmplitudeGreen(0);
 
         Serial.println("MAX30102 detected");
@@ -503,25 +511,40 @@ void updateHeartRate() {
     }
 
     irValue = particleSensor.getIR();
-    fingerDetected = (irValue > 50000);
+    fingerDetected = (irValue > MAX_CONTACT_IR_MIN);
 
     if (!fingerDetected) {
         beatsPerMinute = 0;
         beatAvg = 0;
         validReadings = 0;
         rateSpot = 0;
+        lastBeat = 0;
+        lastAcceptedBeat = 0;
         return;
     }
 
+    unsigned long now = millis();
+    if (lastAcceptedBeat != 0 && now - lastAcceptedBeat > MAX_BEAT_TIMEOUT_MS) {
+        beatsPerMinute = 0;
+        beatAvg = 0;
+        validReadings = 0;
+        rateSpot = 0;
+        lastBeat = 0;
+        lastAcceptedBeat = 0;
+    }
     if (checkForBeat(irValue)) {
-        long delta = millis() - lastBeat;
-        lastBeat = millis();
+        unsigned long previousBeat = lastBeat;
+        unsigned long delta = now - previousBeat;
+        lastBeat = now;
+        if (previousBeat == 0) return;
 
         if (delta > 0) {
             beatsPerMinute = 60.0 / (delta / 1000.0);
 
-            if (beatsPerMinute > 35 && beatsPerMinute < 220) {
-                rates[rateSpot++] = (byte)beatsPerMinute;
+            // docs/07 input validation bounds; these are not normal resting ranges.
+            if (beatsPerMinute >= 20 && beatsPerMinute <= 300) {
+                lastAcceptedBeat = now;
+                rates[rateSpot++] = beatsPerMinute;
                 rateSpot %= RATE_SIZE;
 
                 if (validReadings < RATE_SIZE) {
@@ -785,9 +808,6 @@ void printReadings() {
     Serial.print("Flex Value: ");
     Serial.println(analogRead(FLEX_PIN));
 
-    Serial.print("Motion: ");
-    Serial.println(currentMotion, 3);
-
     Serial.print("Posture: ");
     Serial.println(currentPosture);
 
@@ -821,7 +841,7 @@ void updateBatteryAndDisplay() {
     display.println("FurFeel Monitor");
 
     // Row 2: Temperature and humidity
-    display.setCursor(0, 9);
+    display.setCursor(0, 8);
     display.print("Temp:");
     if (isnan(temperature)) display.print("--");
     else {
@@ -837,7 +857,7 @@ void updateBatteryAndDisplay() {
     }
 
     // Row 3: Heart rate
-    display.setCursor(0, 18);
+    display.setCursor(0, 16);
     display.print("Heart Rate:");
     if (beatAvg > 0) {
         display.print((int)beatAvg);
@@ -847,23 +867,18 @@ void updateBatteryAndDisplay() {
     }
 
     // Row 4: Respiratory rate
-    display.setCursor(0, 27);
+    display.setCursor(0, 24);
     display.print("Resp Rate:");
     display.print(respiratoryRate);
     display.print("/min");
 
     // Row 5: Posture
-    display.setCursor(0, 36);
+    display.setCursor(0, 32);
     display.print("Posture:");
     display.print(currentPosture);
 
-    // Row 6: Motion
-    display.setCursor(0, 45);
-    display.print("Motion:");
-    display.print(currentMotion, 2);
-
-    // Row 7: Battery percentage only
-    display.setCursor(0, 54);
+    // Row 6: Battery percentage only
+    display.setCursor(0, 40);
     display.print("Battery:");
     if (batteryGaugeReady && !isnan(batteryPercent)) {
         display.print(batteryPercent, 0);
@@ -872,6 +887,19 @@ void updateBatteryAndDisplay() {
         display.print("--%");
     }
 
+    display.setCursor(0, 48);
+    display.print("MAX:");
+    display.print(!max30102Ready ? "NOT FOUND" : !fingerDetected ? "CHECK CONTACT" :
+                  beatAvg > 0 ? "PULSE DETECTED" : "WAITING FOR PULSE");
+    display.setCursor(0, 56);
+    display.print("Stress:");
+    if (WiFi.status() != WL_CONNECTED) display.print("OFFLINE");
+    else if (lastStressLevel.length() == 0) display.print("PENDING");
+    else if (millis() - lastStressMs > 30000) display.print("STALE");
+    else if (lastStressLevel == "calm") display.print("CALM");
+    else if (lastStressLevel == "mild") display.print("MILD");
+    else if (lastStressLevel == "moderate") display.print("MODERATE");
+    else if (lastStressLevel == "high") display.print("HIGH STRESS");
     display.display();
 }
 
@@ -958,6 +986,22 @@ void sendTelemetry() {
         return;
     }
 
+    // Device health: send the same battery reading shown on Serial/OLED.
+    // Omit unavailable readings instead of reporting an invented percentage.
+    if (batteryGaugeReady && isfinite(batteryPercent)) {
+        int written = snprintf(
+            payload + len,
+            sizeof(payload) - len,
+            ",\"battery_percent\":%.0f",
+            batteryPercent
+        );
+        if (written < 0 || written >= (int)(sizeof(payload) - len)) {
+            Serial.println("Telemetry payload too large.");
+            return;
+        }
+        len += written;
+    }
+
     snprintf(
         payload + len,
         sizeof(payload) - len,
@@ -986,7 +1030,23 @@ void sendTelemetry() {
     Serial.println("========== SUPABASE ==========");
     Serial.print("HTTP: ");
     Serial.println(code);
-    Serial.println(https.getString());
+    String response = https.getString();
+    Serial.println(response);
+    // Display only the existing server classifier's allow-listed result.
+    if (code == 202) {
+        int key = response.indexOf("\"stress_level\"");
+        int colon = key < 0 ? -1 : response.indexOf(':', key + 14);
+        int start = colon < 0 ? -1 : response.indexOf('"', colon + 1);
+        int end = start < 0 ? -1 : response.indexOf('"', start + 1);
+        if (end > start) {
+            String level = response.substring(start + 1, end);
+            if (level == "calm" || level == "mild" ||
+                level == "moderate" || level == "high") {
+                lastStressLevel = level;
+                lastStressMs = millis();
+            }
+        }
+    }
     Serial.println("==============================");
 
     https.end();
