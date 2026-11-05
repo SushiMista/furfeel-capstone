@@ -428,11 +428,10 @@ export async function deleteDog(client: SupabaseClient, dogId: string): Promise<
     client.from("stress_labels").delete().eq("dog_id", dogId),
     client.from("dog_baselines").delete().eq("dog_id", dogId),
     client.from("stress_classifications").delete().eq("dog_id", dogId),
-    client.from("telemetry_readings").delete().eq("dog_id", dogId),
   ]);
 
   const { error } = await client.from("dogs").delete().eq("id", dogId);
-  if (error) throw friendlyDeleteError(error, "telemetry history or media submissions");
+  if (error) throw friendlyDeleteError(error, "media submissions");
 }
 
 export async function bulkDeleteDogs(

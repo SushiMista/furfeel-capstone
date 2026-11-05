@@ -2695,7 +2695,7 @@ function DogsTab({
       <ConfirmDeleteDialog
         open={bulkDeleteOpen}
         title={`Bulk Delete Dogs (${selectedIds.size})`}
-        description={`Are you sure you want to permanently delete these ${selectedIds.size} dog patient profiles? This action cannot be undone.`}
+        description={`Are you sure you want to permanently delete these ${selectedIds.size} dog patient profiles? Raw sensor readings are kept. This action cannot be undone.`}
         busy={bulkDeleting}
         onConfirm={handleBulkDelete}
         onClose={() => setBulkDeleteOpen(false)}
@@ -3068,7 +3068,7 @@ function DogsTab({
         title="Delete Patient Record"
         description={
           pendingDelete
-            ? `Delete patient "${pendingDelete.name}"? This will permanently remove their profile. Telemetry history attached to active devices should be unassigned first.`
+            ? `Delete patient "${pendingDelete.name}"? This will permanently remove their profile, notes and alerts. Raw sensor readings are kept.`
             : ""
         }
         busy={deleting}

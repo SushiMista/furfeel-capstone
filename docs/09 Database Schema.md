@@ -146,6 +146,8 @@ Only one device may be assigned to a dog at a time (`idx_devices_unique_dog_id` 
 ### telemetry_readings
 High-volume table. Index on `(dog_id, captured_at desc)` and `(device_id, captured_at desc)`.
 
+> **Raw telemetry outlives its dog (ADR-027).** `dog_id` has no foreign key, so deleting a dog leaves its readings in place; the insert policy checks that the dog exists instead.
+
 | column | type | constraints |
 |---|---|---|
 | id | uuid | PK |
