@@ -17,12 +17,35 @@ class Insight {
     required this.tone,
     required this.title,
     required this.body,
+    this.tipLead,
+    this.tipRest = '',
   });
 
   final InsightKind kind;
   final InsightTone tone;
   final String title;
   final String body;
+
+  /// One-line version for Trends: a bold lead, then the rest of the sentence.
+  /// Null when this insight isn't shown as a tip.
+  final String? tipLead;
+  final String tipRest;
+}
+
+/// The single most useful tip: a dog's daily pattern first, then what helps,
+/// then alerts, and only then the reminder about thin data.
+Insight? bestTip(List<Insight> insights) {
+  for (final kind in const [
+    InsightKind.dayPart,
+    InsightKind.activity,
+    InsightKind.alerts,
+    InsightKind.coverage,
+  ]) {
+    for (final insight in insights) {
+      if (insight.kind == kind && insight.tipLead != null) return insight;
+    }
+  }
+  return null;
 }
 
 /// Pooled calm share over a set of days; null when there's no data at all.
@@ -145,6 +168,8 @@ List<Insight> buildInsights({
         body: '$dogName tends to be most relaxed ${calmest.name} and most '
             'tense ${tensest.name}. If you can, save exciting things for the '
             'calm window and keep the tense one low-key.',
+        tipLead: 'Most tense ${tensest.name},',
+        tipRest: ' and calmest ${calmest.name}.',
       ));
     }
   }
@@ -170,6 +195,8 @@ List<Insight> buildInsights({
           body: 'On $dogName\'s more active days, calm time averages '
               '${_pct(activeShare)}% vs ${_pct(quietShare)}% on quieter days. '
               'Regular exercise seems to agree with $dogName.',
+          tipLead: 'Active days look calmer,',
+          tipRest: ' ${_pct(activeShare)}% calm vs ${_pct(quietShare)}%.',
         ));
       } else if (delta <= -0.10) {
         insights.add(Insight(
@@ -179,6 +206,8 @@ List<Insight> buildInsights({
           body: 'On gentler days, $dogName\'s calm time averages '
               '${_pct(quietShare)}% vs ${_pct(activeShare)}% on busy ones. '
               'A slower pace may suit $dogName right now.',
+          tipLead: 'Quieter days look calmer,',
+          tipRest: ' ${_pct(quietShare)}% calm vs ${_pct(activeShare)}%.',
         ));
       }
     }
@@ -197,6 +226,8 @@ List<Insight> buildInsights({
       tone: InsightTone.positive,
       title: 'No alerts this week',
       body: 'Down from $lastWeek last week — a genuinely good sign.',
+      tipLead: 'No alerts this week,',
+      tipRest: ' down from $lastWeek last week.',
     ));
   } else if (lastWeek > 0 && thisWeek < lastWeek) {
     insights.add(Insight(
@@ -205,6 +236,8 @@ List<Insight> buildInsights({
       title: 'Fewer alerts this week',
       body: '$thisWeek this week vs $lastWeek last week — rough moments are '
           'getting rarer.',
+      tipLead: 'Fewer alerts this week,',
+      tipRest: ' $thisWeek vs $lastWeek last week.',
     ));
   } else if (thisWeek > lastWeek && thisWeek >= 3) {
     insights.add(Insight(
@@ -213,6 +246,8 @@ List<Insight> buildInsights({
       title: 'More alerts than usual',
       body: '$thisWeek alerts this week vs $lastWeek last week. If this keeps '
           'up, it\'s worth mentioning to your clinic.',
+      tipLead: 'More alerts than usual,',
+      tipRest: ' $thisWeek vs $lastWeek last week.',
     ));
   }
 
@@ -229,6 +264,8 @@ List<Insight> buildInsights({
       title: 'Not much data lately',
       body: 'The harness has sent only a little data in the last few days, so '
           'trends are less reliable. Check the strap, battery, and Wi-Fi.',
+      tipLead: 'Not much data lately.',
+      tipRest: ' Check the strap, battery, and Wi-Fi.',
     ));
   }
 

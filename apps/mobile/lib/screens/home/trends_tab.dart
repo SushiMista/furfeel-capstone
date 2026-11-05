@@ -195,15 +195,16 @@ class _TrendsTabState extends State<TrendsTab> {
     );
     final isCurrentMonth = _month == _monthOf(now);
     final earliest = DateTime(now.year, now.month - _monthsBack);
-    // These speak about right now, so they only belong on the current month.
-    // Patterns beat week-over-week: the headline already covers how it went.
-    final notes = !isCurrentMonth ? const <Insight>[] : buildInsights(
-      dogName: dog.name,
-      daily: widget.daily,
-      hourly: widget.hourly,
-      alerts: widget.alerts,
-      now: now,
-    ).where((i) => i.kind != InsightKind.weeklyTrend).take(2).toList();
+    // Tips speak about right now, so they only belong on the current month.
+    final tip = !isCurrentMonth
+        ? null
+        : bestTip(buildInsights(
+            dogName: dog.name,
+            daily: widget.daily,
+            hourly: widget.hourly,
+            alerts: widget.alerts,
+            now: now,
+          ));
     final hasData = widget.daily.any((d) => d.total > 0);
 
     return RefreshIndicator(
@@ -295,64 +296,43 @@ class _TrendsTabState extends State<TrendsTab> {
           ),
           SizedBox(height: 5 * scale),
           _CalendarKey(scale: scale),
-          if (notes.isNotEmpty) ...[
-            SizedBox(height: 20 * scale),
-            Text(
-              'Worth knowing',
-              style: _type(context, 15 * scale, weight: FontWeight.w600),
-            ),
-            SizedBox(height: 4 * scale),
-            for (final (i, note) in notes.indexed)
-              Container(
-                padding: EdgeInsets.symmetric(vertical: 9 * scale),
-                decoration: BoxDecoration(
-                  border: i == notes.length - 1
-                      ? null
-                      : Border(bottom: BorderSide(color: context.ff.hairline)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      note.title,
-                      style: _type(context, 13.5 * scale, weight: FontWeight.w600),
-                    ),
-                    Text(
-                      note.body,
-                      style: _type(
-                        context,
-                        12.5 * scale,
-                        height: 1.4,
-                        color: context.ff.inkMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          if (tip != null && days != null) ...[
+            SizedBox(height: 16 * scale),
+            _TipNote(tip: tip, scale: scale),
           ],
-          SizedBox(height: 6 * scale),
+          SizedBox(height: 10 * scale),
           Row(
             children: [
-              _TextLink(
-                label: _sharing ? 'Building…' : 'Share a report',
-                scale: scale,
-                onTap: hasData && !_sharing ? _shareWeeklyReport : null,
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.ios_share,
+                  label: _sharing ? 'Building…' : 'Share report',
+                  scale: scale,
+                  onTap: hasData && !_sharing ? _shareWeeklyReport : null,
+                ),
               ),
-              SizedBox(width: 18 * scale),
-              _TextLink(
-                label: 'All readings',
-                scale: scale,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) =>
-                        DetailedLogPage(repository: widget.repository, dog: dog),
+              SizedBox(width: 8 * scale),
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.format_list_bulleted,
+                  label: 'All readings',
+                  scale: scale,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DetailedLogPage(
+                        repository: widget.repository,
+                        dog: dog,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ],
           ),
+          SizedBox(height: 14 * scale),
           Text(
             'Trends support your care decisions, not a diagnosis.',
+            textAlign: TextAlign.center,
             style: _type(context, 11.5 * scale, color: context.ff.inkMuted),
           ),
         ],
@@ -474,31 +454,85 @@ class _MonthArrow extends StatelessWidget {
   }
 }
 
-class _TextLink extends StatelessWidget {
-  const _TextLink({required this.label, required this.scale, this.onTap});
+class _TipNote extends StatelessWidget {
+  const _TipNote({required this.tip, required this.scale});
 
+  final Insight tip;
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: 13 * scale,
+        vertical: 11 * scale,
+      ),
+      decoration: BoxDecoration(
+        color: context.ff.brandSoft,
+        borderRadius: BorderRadius.circular(14 * scale),
+      ),
+      child: Text.rich(
+        TextSpan(
+          text: tip.tipLead,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+          children: [
+            TextSpan(
+              text: tip.tipRest,
+              style: const TextStyle(fontWeight: FontWeight.w400),
+            ),
+          ],
+        ),
+        style: _type(context, 13.5 * scale, height: 1.4),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.scale,
+    this.onTap,
+  });
+
+  final IconData icon;
   final String label;
   final double scale;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      enabled: onTap != null,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+    final color = onTap == null ? context.ff.inkMuted : context.ff.brand;
+    return Material(
+      color: context.ff.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(13 * scale),
+        side: BorderSide(color: context.ff.hairline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-            label,
-            style: _type(
-              context,
-              13 * scale,
-              weight: FontWeight.w600,
-              color: onTap == null ? context.ff.inkMuted : context.ff.brand,
-            ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: FurFeelTokens.touchTargetMin,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16 * scale, color: color),
+              SizedBox(width: 6 * scale),
+              Text(
+                label,
+                style: _type(
+                  context,
+                  13 * scale,
+                  weight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -66,6 +66,32 @@ void main() {
     });
   });
 
+  group('bestTip', () {
+    Insight of(InsightKind kind, {String? lead = 'Lead'}) => Insight(
+          kind: kind,
+          tone: InsightTone.neutral,
+          title: 't',
+          body: 'b',
+          tipLead: lead,
+        );
+
+    test('the daily pattern outranks what helps, alerts and data reminders', () {
+      final tips = [
+        of(InsightKind.coverage),
+        of(InsightKind.alerts),
+        of(InsightKind.activity),
+        of(InsightKind.dayPart),
+      ];
+      expect(bestTip(tips)?.kind, InsightKind.dayPart);
+      expect(bestTip(tips.sublist(0, 2))?.kind, InsightKind.alerts);
+    });
+
+    test('week-over-week never shows, because the headline covers it', () {
+      expect(bestTip([of(InsightKind.weeklyTrend, lead: null)]), isNull);
+      expect(bestTip(const []), isNull);
+    });
+  });
+
   group('buildInsights', () {
     test('improving week produces a positive trend insight', () {
       final insights = buildInsights(

@@ -384,7 +384,7 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('All readings'), findsOneWidget);
-    expect(find.text('Share a report'), findsOneWidget);
+    expect(find.text('Share report'), findsOneWidget);
   });
 
   testWidgets(
