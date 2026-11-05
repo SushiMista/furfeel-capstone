@@ -1,3 +1,4 @@
+import { dayLevel } from "./stressDay.ts";
 import type {
   Alert,
   StressClassification,
@@ -124,4 +125,11 @@ export function buildDogReport(
     openAlertCount: alerts.filter((a) => a.status === "open").length,
     alertsBySeverity,
   };
+}
+
+/** One observational line for a period. Reports what the data showed, never why. */
+export function reportHeadline(report: DogReport): string {
+  const level = dayLevel({ day: "", avg_motion: null, ...report.stressBreakdown });
+  if (!level) return "No stress readings in this period";
+  return level === "calm" ? "Mostly calm in this period" : `Mostly ${level} stress in this period`;
 }

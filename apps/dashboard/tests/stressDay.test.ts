@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { reportHeadline, type DogReport } from "../src/lib/report.ts";
 import { dayLevel, dayWord } from "../src/lib/stressDay.ts";
 
 const day = (calm: number, mild: number, moderate: number, high: number) => ({
@@ -26,5 +27,16 @@ describe("dayLevel", () => {
     expect(dayLevel(day(1, 2, 5, 0))).toBe("moderate");
     expect(dayLevel(day(1, 3, 3, 3))).toBe("high");
     expect(dayWord("high")).toBe("A high-stress day");
+  });
+});
+
+describe("reportHeadline", () => {
+  const report = (calm: number, mild: number, moderate: number, high: number) =>
+    ({ stressBreakdown: { calm, mild, moderate, high } }) as DogReport;
+
+  it("reports what the period showed, using the same rule as a calendar day", () => {
+    expect(reportHeadline(report(0, 0, 0, 0))).toBe("No stress readings in this period");
+    expect(reportHeadline(report(93, 5, 2, 0))).toBe("Mostly calm in this period");
+    expect(reportHeadline(report(1, 2, 5, 0))).toBe("Mostly moderate stress in this period");
   });
 });

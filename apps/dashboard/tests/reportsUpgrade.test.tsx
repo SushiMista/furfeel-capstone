@@ -21,6 +21,7 @@ vi.mock("../src/lib/queries.ts", async () => {
   const actual = await vi.importActual<typeof queries>("../src/lib/queries.ts");
   return {
     ...actual,
+    fetchDailyStressSummary: vi.fn().mockResolvedValue([]),
     fetchDogs: vi.fn().mockResolvedValue([
       { id: "dog-1", name: "Biscuit", breed: "Golden Retriever" },
       { id: "dog-2", name: "Bochi Day", breed: "Poodle" },

@@ -1,6 +1,6 @@
 import { friendlyError } from "../../lib/errors.ts";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, PawPrint, Printer, Search } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { PawPrint, Printer, Search } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
   fetchAlertsSince,
@@ -13,14 +13,16 @@ import { fetchClinics } from "../../lib/adminQueries.ts";
 import {
   buildDogReport,
   buildHighlights,
+  reportHeadline,
   type DogReport,
   type VitalSummary,
 } from "../../lib/report.ts";
 import { StressLevelBadge, stressLevelColor } from "../../components/StressLevelBadge.tsx";
+import { StressCalendar } from "../../components/StressCalendar.tsx";
 import { TelemetryChart } from "../../components/TelemetryChart.tsx";
 import { Card, CardContent } from "../../components/ui/card.tsx";
 import { Button } from "../../components/ui/button.tsx";
-import { Input, Label, Select } from "../../components/ui/input.tsx";
+import { Input } from "../../components/ui/input.tsx";
 import { Table, TBody, Td, Th, THead, Tr } from "../../components/ui/table.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
@@ -115,6 +117,7 @@ export function Reports() {
   const [dogId, setDogId] = useState<string>("");
   const [dogSearch, setDogSearch] = useState("");
   const [hours, setHours] = useState(24);
+  const [showRecord, setShowRecord] = useState(false);
   const [report, setReport] = useState<DogReport | null>(null);
   const [readings, setReadings] = useState<TelemetryReading[]>([]);
   const [periodAlerts, setPeriodAlerts] = useState<Alert[]>([]);
@@ -138,28 +141,15 @@ export function Reports() {
 
   const dog = dogs.find((d) => d.id === dogId) ?? null;
 
-  // Filtered dog list for searchable combobox
-  const filteredDogs = useMemo(() => {
-    if (!dogSearch.trim()) return dogs;
-    const query = dogSearch.toLowerCase();
-    return dogs.filter(
-      (d) => d.name.toLowerCase().includes(query) || (d.breed && d.breed.toLowerCase().includes(query)),
-    );
-  }, [dogs, dogSearch]);
+  // The picker shows the chosen dog, and typing narrows its native list.
+  useEffect(() => {
+    if (dog) setDogSearch(dog.name);
+  }, [dog]);
 
-  // Prev / Next Patient Navigation
-  const currentIndex = useMemo(() => dogs.findIndex((d) => d.id === dogId), [dogs, dogId]);
-
-  const goToPrevDog = () => {
-    if (currentIndex > 0) {
-      setDogId(dogs[currentIndex - 1].id);
-    }
-  };
-
-  const goToNextDog = () => {
-    if (currentIndex >= 0 && currentIndex < dogs.length - 1) {
-      setDogId(dogs[currentIndex + 1].id);
-    }
+  const pickDog = (value: string) => {
+    setDogSearch(value);
+    const match = dogs.find((d) => d.name.toLowerCase() === value.trim().toLowerCase());
+    if (match) setDogId(match.id);
   };
 
   useEffect(() => {
@@ -217,91 +207,47 @@ export function Reports() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-4 print-hidden">
-        <h1 className="m-0 text-2xl font-bold text-ink">Analytics &amp; Reports</h1>
-        <Button variant="secondary" onClick={() => window.print()}>
-          <Printer size={14} className="mr-1.5" /> Print / Save PDF Report
-        </Button>
-      </div>
+      <h1 className="m-0 text-2xl font-bold text-ink print-hidden">Analytics &amp; Reports</h1>
 
-      {/* Searchable Dog Finder & Period Controls */}
       <Card className="print-hidden">
-        <CardContent className="p-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Searchable Dog Finder */}
-            <div className="flex flex-col gap-1.5 lg:col-span-2">
-              <Label htmlFor="report-dog-search">Search Patient / Select Dog</Label>
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-muted" />
-                  <Input
-                    id="report-dog-search"
-                    type="text"
-                    placeholder="Search dog by name or breed..."
-                    value={dogSearch}
-                    onChange={(e) => setDogSearch(e.target.value)}
-                    className="pl-8 text-xs"
-                  />
-                </div>
-                <Select
-                  id="report-dog"
-                  value={dogId}
-                  onChange={(e) => setDogId(e.target.value)}
-                  className="flex-1 text-xs"
-                >
-                  {filteredDogs.length === 0 ? (
-                    <option value="">No matching dogs</option>
-                  ) : (
-                    filteredDogs.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name} {d.breed ? `(${d.breed})` : ""}
-                      </option>
-                    ))
-                  )}
-                </Select>
-                {/* Prev / Next Buttons */}
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={goToPrevDog}
-                    disabled={currentIndex <= 0}
-                    title="Previous Patient"
-                    className="h-9 w-9 p-0"
-                  >
-                    <ChevronLeft size={16} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={goToNextDog}
-                    disabled={currentIndex >= dogs.length - 1}
-                    title="Next Patient"
-                    className="h-9 w-9 p-0"
-                  >
-                    <ChevronRight size={16} />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Time Period Selector */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="report-period">Report Period</Label>
-              <Select
-                id="report-period"
-                value={hours}
-                onChange={(e) => setHours(Number(e.target.value))}
-                className="text-xs"
-              >
-                {PERIODS.map((p) => (
-                  <option key={p.hours} value={p.hours}>
-                    {p.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
+        <CardContent className="flex flex-wrap items-center gap-2 p-3">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-muted" aria-hidden="true" />
+            <Input
+              list="report-dogs"
+              aria-label="Patient"
+              placeholder="Search dog by name or breed..."
+              value={dogSearch}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => pickDog(e.target.value)}
+              onBlur={() => dog && setDogSearch(dog.name)}
+              className="pl-8 text-xs"
+            />
+            <datalist id="report-dogs">
+              {dogs.map((d) => (
+                <option key={d.id} value={d.name} label={d.breed ?? undefined} />
+              ))}
+            </datalist>
           </div>
+          {PERIODS.map((p) => (
+            <button
+              key={p.hours}
+              type="button"
+              aria-pressed={hours === p.hours}
+              onClick={() => setHours(p.hours)}
+              className={cn(
+                "cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                hours === p.hours
+                  ? "border-brand bg-brand text-white"
+                  : "border-hairline bg-surface text-ink-muted hover:bg-surface-alt hover:text-ink",
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+          <Button variant="secondary" size="sm" className="ml-auto" onClick={() => window.print()}>
+            <Printer size={14} aria-hidden="true" /> Print / save PDF
+          </Button>
         </CardContent>
       </Card>
 
@@ -312,8 +258,89 @@ export function Reports() {
       )}
       {loading && <CardSkeleton lines={5} />}
 
+      {!loading && report && dog && (
+        <div className="print-hidden flex flex-col gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="m-0 text-lg font-bold text-ink">{reportHeadline(report)}</h2>
+              <p className="m-0 text-sm text-ink-muted">
+                {report.readingCount} readings
+                {report.alertCount > 0 &&
+                  `, ${report.openAlertCount} of ${report.alertCount} alerts still open`}
+                .
+                {report.invalidReadingCount > 0 &&
+                  ` ${report.invalidReadingCount} readings were flagged invalid and left out.`}
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 lg:grid-cols-[6fr_5fr]">
+            <Card>
+              <CardContent className="p-4">
+                <StressCalendar dogId={dog.id} />
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-col gap-4">
+              <Card>
+                <CardContent className="flex flex-col gap-2 p-4">
+                  <h3 className="m-0 text-base font-semibold text-ink">Stress mix</h3>
+                  {LEVELS.map((level) => {
+                    const pct =
+                      report.classificationCount > 0
+                        ? Math.round((report.stressBreakdown[level] / report.classificationCount) * 100)
+                        : 0;
+                    return (
+                      <div key={level} className="grid grid-cols-[5rem_1fr_2.5rem] items-center gap-2 text-xs">
+                        <span className="capitalize text-ink">{level}</span>
+                        <span className="h-2 overflow-hidden rounded-full bg-surface-alt">
+                          <span
+                            className="block h-full rounded-full"
+                            style={{ width: `${pct}%`, background: `var(--ff-status-${level}-fg)` }}
+                          />
+                        </span>
+                        <span className="text-right tabular-nums text-ink-muted">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-2">
+                  <Table>
+                    <THead>
+                      <Tr className="border-t-0">
+                        <Th>Vital</Th>
+                        <Th>Unit</Th>
+                        <Th>Min</Th>
+                        <Th>Avg</Th>
+                        <Th>Max</Th>
+                      </Tr>
+                    </THead>
+                    <TBody>
+                      <MetricRow label="Heart" unit="bpm" summary={report.heartRate} />
+                      <MetricRow label="Breathing" unit="br/min" summary={report.respiratoryRate} />
+                    </TBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <Button
+            variant="secondary"
+            className="self-start"
+            aria-expanded={showRecord}
+            onClick={() => setShowRecord((value) => !value)}
+          >
+            {showRecord ? "Hide full record" : "Show full record"}
+          </Button>
+        </div>
+      )}
+
       {!loading && report && dog && period && (
-        <Card className="print-plain">
+        <Card className={cn("print-plain", !showRecord && "hidden print:block")}>
           <CardContent className="p-6">
             {/* Record Masthead */}
             <div className="print-color-exact print-avoid-break flex flex-wrap items-end justify-between gap-4 rounded-md bg-brand p-4 text-white">
