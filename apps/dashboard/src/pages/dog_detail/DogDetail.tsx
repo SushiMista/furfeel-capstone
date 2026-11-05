@@ -1,5 +1,5 @@
 import { friendlyError } from "../../lib/errors.ts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   Activity,
@@ -7,21 +7,22 @@ import {
   BarChart3,
   BellRing,
   Check,
+  ChevronDown,
   Edit3,
   FileText,
   HeartPulse,
   MapPin,
+  MessageSquare,
+  PawPrint,
   Pill,
-  SlidersHorizontal,
-  Stethoscope,
-  Thermometer,
+    Thermometer,
   Users,
   Wind,
   type LucideIcon,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
-  acknowledgeAlert,
+  acknowledgeAlerts,
   fetchClassificationHistory,
   fetchClinicalInterventions,
   fetchDailyStressSummary,
@@ -31,57 +32,92 @@ import {
   fetchDeviceForDog,
   fetchRecentAlerts,
   fetchTelemetryHistory,
-  fetchStressLabels,
+  fetchVetNotes,
+  getMediaSignedUrl,
   updateDogWardAndAdmission,
   type DailyStressSummaryRow,
-  type StressLabelWithVet,
+  type VetNoteWithAuthor,
 } from "../../lib/queries.ts";
-import { ConfirmOverridePanel } from "../vet_review/VetReview.tsx";
+import { Conversation } from "../messages/Messages.tsx";
 import { useAuth } from "../../lib/useAuth.ts";
 import { TelemetryChart } from "../../components/TelemetryChart.tsx";
 import { StressMixChart } from "../../components/StressMixChart.tsx";
 import { StressTimeline } from "../../components/StressTimeline.tsx";
-import { StressLevelBadge } from "../../components/StressLevelBadge.tsx";
+import { StressCalendar } from "../../components/StressCalendar.tsx";
 import { MicroSparkline } from "../../components/MicroSparkline.tsx";
 import { AlertCard } from "../../components/AlertCard.tsx";
 import { VetNotes } from "../../components/VetNotes.tsx";
 import { ClinicalInterventionsList } from "../../components/ClinicalInterventionsList.tsx";
-import { ThresholdEditor } from "../../components/ThresholdEditor.tsx";
 import { ManageDogOwners } from "../../components/ManageDogOwners.tsx";
 import { HarnessBattery } from "../../components/HarnessBattery.tsx";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Input, Select } from "../../components/ui/input.tsx";
 import { Button } from "../../components/ui/button.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { useToast } from "../../components/ui/toast.tsx";
 import { cn } from "../../lib/cn.ts";
+import { dogTint } from "../../lib/dogTint.ts";
+import { groupAlerts } from "../../lib/alertCopy.ts";
 import type {
   Alert,
   ClinicalIntervention,
   Dog,
   Device,
   StressClassification,
+  StressLevel,
   TelemetryReading,
   User,
 } from "../../../../../packages/shared/types/index.ts";
 
 import { formatPosture } from "../../lib/posture.ts";
-import { formatPhilippineTime } from "../../lib/time.ts";
+import { timeAgo } from "../../lib/time.ts";
 
 const HISTORY_LIMIT = 50;
 
 /** Section tabs (docs/05): redesigned with icons & matching Board Controls style. */
 const TABS = [
-  { id: "alerts", label: "Alerts", icon: BellRing },
   { id: "telemetry", label: "Live telemetry", icon: Activity },
+  { id: "alerts", label: "Alert history", icon: BellRing },
   { id: "interventions", label: "Treatments & Meds", icon: Pill },
   { id: "stress", label: "Stress history", icon: BarChart3 },
   { id: "notes", label: "Vet notes", icon: FileText },
-  { id: "thresholds", label: "Thresholds", icon: SlidersHorizontal },
-  { id: "review", label: "Vet review", icon: Stethoscope },
+  { id: "messages", label: "Messages", icon: MessageSquare },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
+
+/** Status hero colours, matching the mobile Home hero (ADR-023). */
+const LEVELS: Record<StressLevel, { phrase: string; hero: string }> = {
+  calm: { phrase: "is calm", hero: "bg-calm-soft text-calm-fg" },
+  mild: { phrase: "is mildly stressed", hero: "bg-mild-soft text-mild-fg" },
+  moderate: { phrase: "is moderately stressed", hero: "bg-moderate-soft text-moderate-fg" },
+  high: { phrase: "is highly stressed", hero: "bg-high-soft text-high-fg" },
+};
+
+function DogPhoto({ dog }: { dog: Dog }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!dog.photo_path) return;
+    let cancelled = false;
+    getMediaSignedUrl(supabase, dog.photo_path)
+      .then((signed) => {
+        if (!cancelled) setUrl(signed);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [dog.photo_path]);
+
+  return url ? (
+    <img src={url} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+  ) : (
+    <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-white", dogTint(dog.id))}>
+      <PawPrint size={26} aria-hidden="true" />
+    </div>
+  );
+}
 
 /** Vital card (docs/19 §7, docs/21 Phase 2): icon + label header, big tabular
  * value, small unit, and a recent-trend micro-sparkline. */
@@ -99,12 +135,12 @@ function Vital({
   series?: number[];
 }) {
   return (
-    <div className="flex min-w-28 flex-1 flex-col gap-1.5 rounded-md bg-surface-alt px-4 py-3">
+    <div className="flex min-w-28 flex-1 flex-col gap-1.5 rounded-xl border border-hairline bg-surface px-4 py-3 shadow-xs">
       <div className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
         <Icon size={14} aria-hidden="true" className="text-brand" />
         {label}
       </div>
-      <div className="text-xl sm:text-2xl lg:text-3xl font-bold leading-tight tabular-nums text-ink truncate">
+      <div className="text-xl sm:text-2xl font-bold leading-tight tabular-nums text-ink truncate">
         {value ?? "—"}
         {unit && <span className="ml-1 text-xs font-normal text-ink-muted">{unit}</span>}
       </div>
@@ -136,7 +172,7 @@ export function DogDetail() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [mixSummary, setMixSummary] = useState<DailyStressSummaryRow[]>([]);
   const [stressMixDays, setStressMixDays] = useState<number>(14);
-  const [labels, setLabels] = useState<StressLabelWithVet[]>([]);
+  const [notes, setNotes] = useState<VetNoteWithAuthor[]>([]);
   const [interventions, setInterventions] = useState<ClinicalIntervention[]>([]);
   const [owners, setOwners] = useState<User[]>([]);
   const [device, setDevice] = useState<Device | null>(null);
@@ -147,7 +183,7 @@ export function DogDetail() {
   const [savingWard, setSavingWard] = useState(false);
   const [tab, setTabState] = useState<TabId>(() => {
     const defaultTab = searchParams.get("tab") as TabId;
-    return TABS.some((t) => t.id === defaultTab) ? defaultTab : "alerts";
+    return TABS.some((t) => t.id === defaultTab) ? defaultTab : "telemetry";
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -163,16 +199,16 @@ export function DogDetail() {
   const load = useCallback(async () => {
     if (!dogId) return;
     try {
-      const [dogRow, history, classHistory, recentAlerts, mixRows, labelRows, interventionRows, ownerList, deviceRow] = await Promise.all([
+      const [dogRow, history, classHistory, recentAlerts, mixRows, interventionRows, ownerList, deviceRow, noteRows] = await Promise.all([
         fetchDog(supabase, dogId),
         fetchTelemetryHistory(supabase, dogId, HISTORY_LIMIT),
         fetchClassificationHistory(supabase, dogId, HISTORY_LIMIT),
         fetchRecentAlerts(supabase, dogId),
         fetchDailyStressSummary(supabase, dogId, stressMixDays),
-        fetchStressLabels(supabase, dogId),
         fetchClinicalInterventions(supabase, dogId),
         fetchDogOwners(supabase, dogId),
         fetchDeviceForDog(supabase, dogId),
+        fetchVetNotes(supabase, dogId),
       ]);
       setDog(dogRow);
       if (dogRow) {
@@ -183,10 +219,10 @@ export function DogDetail() {
       setClassifications(classHistory);
       setAlerts(recentAlerts);
       setMixSummary(mixRows);
-      setLabels(labelRows);
       setInterventions(interventionRows);
       setOwners(ownerList);
       setDevice(deviceRow);
+      setNotes(noteRows);
       setError(null);
     } catch (err) {
       setError(friendlyError(err, "load this dog"));
@@ -198,6 +234,28 @@ export function DogDetail() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const alertGroups = useMemo(() => groupAlerts(alerts), [alerts]);
+  const openGroups = alertGroups.filter((g) => g.latest.status === "open");
+
+  const acknowledge = async (ids: string[]) => {
+    const userId = session?.user.id;
+    if (!userId) return;
+    const updated = await acknowledgeAlerts(supabase, ids, userId);
+    const byId = new Map(updated.map((a) => [a.id, a]));
+    setAlerts((prev) => prev.map((a) => byId.get(a.id) ?? a));
+  };
+
+  const renderAlertGroup = ({ latest: alert, earlier }: (typeof alertGroups)[number]) => (
+    <AlertCard
+      key={alert.id}
+      alert={alert}
+      earlier={earlier}
+      onAcknowledge={() =>
+        acknowledge([alert, ...earlier].filter((a) => a.status === "open").map((a) => a.id))
+      }
+    />
+  );
 
   const handleSaveWard = async () => {
     if (!dogId) return;
@@ -280,6 +338,7 @@ export function DogDetail() {
     );
 
   const latest = classifications[classifications.length - 1] ?? null;
+  const level = latest?.stress_level;
   const latestReading = readings[readings.length - 1] ?? null;
 
   return (
@@ -295,54 +354,92 @@ export function DogDetail() {
         </Link>
       </div>
 
-      {/* Hero Header & Telemetry Vitals Card */}
-      <Card className="shadow-sm">
-        <CardContent className="p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div>
-              <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                {dog.breed ?? "Unknown breed"}
-              </p>
-              <h1 className="m-0 flex items-center gap-3 text-2xl font-bold text-ink">
-                {dog.name} {latest && <StressLevelBadge level={latest.stress_level} />}
+      {/* Status hero, matching mobile Home (ADR-023) */}
+      <div className={cn("rounded-2xl p-4", level ? LEVELS[level].hero : "bg-surface-alt text-ink")}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <DogPhoto dog={dog} />
+            <div className="min-w-0">
+              <h1 className="m-0 text-xl font-bold">
+                {dog.name} {level ? LEVELS[level].phrase : "has no stress reading yet"}
               </h1>
-            </div>
-
-            {/* Ward & Admission Status Badge Row */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand-soft px-3 py-1 text-xs font-bold text-brand-strong">
-                <MapPin size={13} className="text-brand" />
-                <span>{dog.ward_location || "Ward / Cage: Unassigned"}</span>
-              </div>
-              <span
-                className={cn(
-                  "rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-wider border",
-                  dog.admission_status === "in_surgery"
-                    ? "bg-purple-50 text-purple-700 border-purple-200"
-                    : dog.admission_status === "recovery"
-                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                      : dog.admission_status === "admitted"
-                        ? "bg-sky-50 text-sky-700 border-sky-200"
-                        : "bg-emerald-50 text-emerald-700 border-emerald-200",
-                )}
-              >
-                {dog.admission_status ? dog.admission_status.replace(/_/g, " ") : "Outpatient"}
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setEditingWard(!editingWard)}
-                className="h-8 px-2 text-xs font-semibold text-ink-muted hover:text-ink border border-hairline"
-              >
-                <Edit3 size={12} className="mr-1" />
-                {editingWard ? "Close" : "Edit Status"}
-              </Button>
+              <p className="m-0 text-xs text-ink-muted">
+                {[
+                  dog.breed,
+                  device && `Collar: ${collarName(device)}`,
+                  latestReading && timeAgo(latestReading.captured_at),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
             </div>
           </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              setTab("messages");
+              document.getElementById("dog-sections")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            <MessageSquare size={14} aria-hidden="true" />
+            Message owner
+          </Button>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-ink/10 pt-3 text-xs text-ink">
+          <span className="inline-flex items-center gap-1 font-medium">
+            <MapPin size={13} aria-hidden="true" />
+            {dog.ward_location || "No ward assigned"}
+          </span>
+          <span className="capitalize text-ink-muted">
+            · {dog.admission_status ? dog.admission_status.replace(/_/g, " ") : "outpatient"}
+          </span>
+          <HarnessBattery
+            percent={latestReading?.battery_percent ?? device?.battery_percent}
+            reportedAt={latestReading?.battery_percent != null ? latestReading.captured_at : null}
+            offline={device?.status === "offline"}
+          />
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setEditingWard(!editingWard)}>
+              <Edit3 size={12} aria-hidden="true" />
+              {editingWard ? "Close" : "Edit status"}
+            </Button>
+            <details className="group relative">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-ink hover:bg-surface/60 [&::-webkit-details-marker]:hidden">
+                <Users size={13} aria-hidden="true" />
+                {owners.length === 1 ? "1 owner" : `${owners.length} owners`}
+                <ChevronDown
+                  size={13}
+                  aria-hidden="true"
+                  className="transition-transform group-open:rotate-180"
+                />
+              </summary>
+              <div className="absolute right-0 z-30 mt-1 w-64 rounded-xl border border-hairline bg-surface p-2 shadow-lg">
+                <ul className="m-0 list-none p-0">
+                  {owners.map((o) => (
+                    <li key={o.id} className="truncate px-2 py-1">
+                      <span className="block truncate font-medium text-ink">{o.name}</span>
+                      <span className="block truncate text-ink-muted">{o.email}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="mt-1 w-full"
+                  onClick={() => setEditingOwners(true)}
+                >
+                  Manage owners
+                </Button>
+              </div>
+            </details>
+          </span>
+        </div>
+      </div>
 
           {/* Inline Ward Location & Status Quick-Editor */}
           {editingWard && (
-            <div className="mb-4 rounded-xl border border-brand/30 bg-brand-soft/30 p-3.5 flex flex-wrap items-center gap-3 animate-in fade-in-50 duration-150">
+            <div className="rounded-xl border border-brand/30 bg-brand-soft/30 p-3.5 flex flex-wrap items-center gap-3 animate-in fade-in-50 duration-150">
               <div className="flex flex-col gap-1 min-w-44 flex-1">
                 <label className="text-[11px] font-bold text-ink">Ward / Cage Location</label>
                 <Input
@@ -382,78 +479,71 @@ export function DogDetail() {
             </div>
           )}
 
-          {/* Registered Owners Bar */}
-          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <HarnessBattery percent={latestReading?.battery_percent ?? device?.battery_percent} reportedAt={latestReading?.battery_percent != null ? latestReading.captured_at : null} offline={device?.status === "offline"} />
-            {device && <span className="text-xs text-ink-muted">Collar: {collarName(device)}</span>}
-          </div>
-          {(
-            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-hairline/70 bg-surface-alt/40 px-3 py-2 text-xs">
-              <span className="font-bold text-ink flex items-center gap-1.5 shrink-0">
-                <Users size={13} className="text-brand" />
-                <span>{owners.length > 1 ? `Registered Owners (${owners.length}):` : "Registered Owner:"}</span>
-              </span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {owners.map((o) => (
-                  <span
-                    key={o.id}
-                    className="inline-flex items-center gap-1 rounded-lg bg-surface px-2 py-0.5 border border-hairline font-medium text-ink shadow-2xs"
-                  >
-                    <span>{o.name}</span>
-                    <span className="text-[10px] text-ink-muted">({o.email})</span>
-                  </span>
-                ))}
-              </div>
-              <Button variant="secondary" size="sm" className="ml-auto" onClick={() => setEditingOwners(true)}>
-                <Users size={14} /> Manage owners
-              </Button>
-            </div>
-          )}
           {editingOwners && <ManageDogOwners dog={dog} owners={owners} onClose={() => setEditingOwners(false)} onSaved={(updated) => {
             setOwners(updated);
             setEditingOwners(false);
             toast("success", "Owner accounts added to this dog.");
           }} />}
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Vital
-              label="Heart rate"
-              icon={HeartPulse}
-              value={latestReading?.heart_rate_bpm}
-              unit="bpm"
-              series={seriesOf(readings, (r) => r.heart_rate_bpm)}
-            />
-            <Vital
-              label="Respiratory"
-              icon={Wind}
-              value={latestReading?.respiratory_rate_bpm}
-              unit="bpm"
-              series={seriesOf(readings, (r) => r.respiratory_rate_bpm)}
-            />
-            <Vital
-              label="Posture"
-              icon={Activity}
-              value={formatPosture(latestReading?.posture).label}
-              series={seriesOf(readings, (r) => r.motion_activity)}
-            />
-            <Vital
-              label="Ambient Temp"
-              icon={Thermometer}
-              value={latestReading?.ambient_temperature_c}
-              unit="°C"
-              series={seriesOf(readings, (r) => r.ambient_temperature_c)}
-            />
-          </div>
-          {latestReading && (
-            <p className="m-0 mt-3 text-xs text-ink-muted">
-              Last updated: {formatPhilippineTime(latestReading.captured_at)}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Vital
+          label="Heart rate"
+          icon={HeartPulse}
+          value={latestReading?.heart_rate_bpm}
+          unit="bpm"
+          series={seriesOf(readings, (r) => r.heart_rate_bpm)}
+        />
+        <Vital
+          label="Breathing"
+          icon={Wind}
+          value={latestReading?.respiratory_rate_bpm}
+          unit="br/min"
+          series={seriesOf(readings, (r) => r.respiratory_rate_bpm)}
+        />
+        <Vital
+          label="Posture"
+          icon={Activity}
+          value={formatPosture(latestReading?.posture).label}
+          series={seriesOf(readings, (r) => r.motion_activity)}
+        />
+        <Vital
+          label="Room temp"
+          icon={Thermometer}
+          value={latestReading?.ambient_temperature_c}
+          unit="°C"
+          series={seriesOf(readings, (r) => r.ambient_temperature_c)}
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
+        <Card>
+          <CardContent className="p-4">
+            <StressCalendar dogId={dog.id} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Open alerts and notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {openGroups.length === 0 ? (
+              <p className="m-0 mb-2 text-sm text-ink-muted">No open alerts</p>
+            ) : (
+              openGroups.map(renderAlertGroup)
+            )}
+            {notes[0] && (
+              <p className="m-0 text-xs text-ink-muted">
+                Vet note, {timeAgo(notes[0].created_at)}: {notes[0].note}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Sticky Segmented Control Navigation Bar */}
-      <div className="sticky top-4 z-20 rounded-2xl border border-hairline bg-surface/90 backdrop-blur-md p-1.5 shadow-sm">
+      <div id="dog-sections" className="sticky top-4 z-20 scroll-mt-4 rounded-2xl border border-hairline bg-surface/90 backdrop-blur-md p-1.5 shadow-sm">
         <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar" role="tablist">
           {TABS.map((t) => {
             const active = tab === t.id;
@@ -494,27 +584,13 @@ export function DogDetail() {
           {tab === "alerts" && (
             <Card>
               <CardHeader>
-                <CardTitle>Alerts</CardTitle>
+                <CardTitle>Alert history</CardTitle>
               </CardHeader>
               <CardContent>
                 {alerts.length === 0 ? (
                   <EmptyState>No alerts — {dog.name} is doing great 🐾</EmptyState>
                 ) : (
-                  alerts.map((a) => (
-                    <AlertCard
-                      key={a.id}
-                      alert={a}
-                      dogName={dog.name}
-                      onAcknowledge={async (alert) => {
-                        const userId = session?.user.id;
-                        if (!userId) return;
-                        const updated = await acknowledgeAlert(supabase, alert.id, userId);
-                        if (updated) {
-                          setAlerts((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-                        }
-                      }}
-                    />
-                  ))
+                  alertGroups.map(renderAlertGroup)
                 )}
               </CardContent>
             </Card>
@@ -583,32 +659,10 @@ export function DogDetail() {
 
           {tab === "notes" && <VetNotes dogId={dog.id} />}
 
-          {tab === "thresholds" && <ThresholdEditor dogId={dog.id} />}
-
-          {tab === "review" && (
-            <>
-              <ConfirmOverridePanel
-                dogId={dog.id}
-                latest={latest}
-                labels={labels}
-                onSaved={load}
-              />
-
-              <Card className="mt-5">
-                <CardHeader>
-                  <CardTitle>Messages</CardTitle>
-                  <CardDescription>
-                    Owner messages, photos and videos. Supplementary context, not used by the
-                    stress classifier.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link to={`/messages?dog=${dogId}`} className="text-sm font-semibold text-brand">
-                    Open conversation
-                  </Link>
-                </CardContent>
-              </Card>
-            </>
+          {tab === "messages" && (
+            <Card className="h-[32rem] overflow-hidden">
+              <Conversation dog={dog} embedded />
+            </Card>
           )}
     </div>
   );

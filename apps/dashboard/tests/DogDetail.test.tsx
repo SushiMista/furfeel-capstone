@@ -30,10 +30,11 @@ vi.mock("../src/lib/queries.ts", async (importOriginal) => ({
   fetchTelemetryHistory: vi.fn().mockResolvedValue([]),
   fetchClassificationHistory: vi.fn().mockResolvedValue([]),
   fetchDailyStressSummary: vi.fn().mockResolvedValue([]),
-  fetchStressLabels: vi.fn().mockResolvedValue([]),
+  fetchAlertsSince: vi.fn().mockResolvedValue([]),
   fetchClinicalInterventions: vi.fn().mockResolvedValue([]),
   fetchDogOwners: vi.fn().mockResolvedValue([]),
   fetchDeviceForDog: vi.fn().mockResolvedValue(null),
+  fetchVetNotes: vi.fn().mockResolvedValue([]),
   updateDogWardAndAdmission: vi.fn().mockResolvedValue(undefined),
   fetchRecentAlerts: vi.fn().mockResolvedValue([
     {
@@ -62,24 +63,31 @@ function renderPage() {
 }
 
 describe("DogDetail section tabs (docs/05 information architecture)", () => {
-  it("defaults to Alerts with an open-count badge, and switches sections on tab click", async () => {
+  it("shows open alerts beside the status, and switches sections on tab click", async () => {
     renderPage();
 
-    // Hero + default tab: the alert list is visible, telemetry is not.
+    // Hero + open alerts are always on screen; telemetry is the default section.
     expect(await screen.findByRole("heading", { name: /Biscuit/ })).toBeInTheDocument();
     expect(screen.getByText(/Biscuit is showing high stress/)).toBeInTheDocument();
-    expect(screen.queryByText("Live telemetry", { selector: "h3, [class*=title]" })).not.toBeInTheDocument();
-
-    const alertsTab = screen.getByRole("tab", { name: /Alerts/ });
-    expect(alertsTab).toHaveAttribute("aria-selected", "true");
-    expect(alertsTab).toHaveTextContent("1"); // open-alert badge
-
-    // Switching tabs swaps the section without losing the hero.
-    await userEvent.click(screen.getByRole("tab", { name: "Live telemetry" }));
-    expect(screen.queryByText(/Biscuit is showing high stress/)).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Live telemetry" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
+
+    const alertsTab = screen.getByRole("tab", { name: /Alert history/ });
+    expect(alertsTab).toHaveTextContent("1"); // open-alert badge
+
+    // Switching tabs swaps the section without losing the hero.
+    await userEvent.click(alertsTab);
+    expect(alertsTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByText(/Biscuit is showing high stress/)).toHaveLength(2);
+  });
+
+  it("offers Messages instead of Thresholds and Vet review", async () => {
+    renderPage();
+
+    expect(await screen.findByRole("tab", { name: "Messages" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Thresholds" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Vet review" })).not.toBeInTheDocument();
   });
 });

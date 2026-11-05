@@ -39,7 +39,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 function ReviewRedirect() {
   const { dogId } = useParams<{ dogId: string }>();
-  return <Navigate to={`/dogs/${dogId}?tab=review`} replace />;
+  return <Navigate to={`/dogs/${dogId}?tab=messages`} replace />;
 }
 
 function RoleBasedRoot() {

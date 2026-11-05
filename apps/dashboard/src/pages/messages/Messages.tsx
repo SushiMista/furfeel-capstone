@@ -100,7 +100,16 @@ function MessageBubble({ message, mine }: { message: DogMessage; mine: boolean }
   );
 }
 
-function Conversation({ dog, onRead }: { dog: Dog; onRead: () => void }) {
+export function Conversation({
+  dog,
+  onRead,
+  embedded = false,
+}: {
+  dog: Dog;
+  onRead?: () => void;
+  /** On the dog's own page, where the name and link would repeat. */
+  embedded?: boolean;
+}) {
   const { session } = useAuth();
   const toast = useToast();
   const userId = session?.user.id;
@@ -115,7 +124,7 @@ function Conversation({ dog, onRead }: { dog: Dog; onRead: () => void }) {
       setMessages(await fetchDogMessages(supabase, dog.id));
       if (userId) {
         await markDogMessagesRead(supabase, dog.id, userId);
-        onRead();
+        onRead?.();
       }
     } catch (err) {
       toast("error", friendlyError(err, "load these messages"));
@@ -161,12 +170,14 @@ function Conversation({ dog, onRead }: { dog: Dog; onRead: () => void }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
-        <h2 className="m-0 text-base font-semibold text-ink">{dog.name}</h2>
-        <Link to={`/dogs/${dog.id}`} className="text-sm text-brand">
-          View patient
-        </Link>
-      </div>
+      {!embedded && (
+        <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
+          <h2 className="m-0 text-base font-semibold text-ink">{dog.name}</h2>
+          <Link to={`/dogs/${dog.id}`} className="text-sm text-brand">
+            View patient
+          </Link>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {loading ? (
           <CardSkeleton />
