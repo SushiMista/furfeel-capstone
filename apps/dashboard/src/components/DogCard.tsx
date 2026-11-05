@@ -1,24 +1,22 @@
-// ADDED: photo dog-card (docs/05 monitoring board): profile photo in a
-// status-color ring, vitals, a mini stress-trend ribbon, and in-place photo
-// upload — monitored dogs recognizable at a glance, not just rows.
+// Monitoring board card (docs/05), matching the mobile app: full photo, a
+// gradient in the stress colour, and glass chips with what staff need at a
+// glance. Photos can be changed in place.
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Activity,
   Bell,
-  Building2,
   Camera,
   HeartPulse,
   MapPin,
+  PawPrint,
   RefreshCw,
   Thermometer,
-  User,
   Wind,
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.ts";
 import { getMediaSignedUrl, uploadDogPhoto, type MonitoringBoardRow } from "../lib/queries.ts";
 import { formatPosture } from "../lib/posture.ts";
-import { StressLevelBadge } from "./StressLevelBadge.tsx";
 import { HarnessBattery } from "./HarnessBattery.tsx";
 import { cn } from "../lib/cn.ts";
 import { dogTint } from "../lib/dogTint.ts";
@@ -35,25 +33,24 @@ function timeAgo(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function MetricItem({
+/** Frosted chip for the card's photo, matching the mobile app. */
+function GlassChip({
   icon: Icon,
-  value,
-  unit,
-  label,
+  children,
+  title,
 }: {
-  icon: React.ElementType;
-  value: string;
-  unit?: string;
-  label: string;
+  icon?: React.ElementType;
+  children: React.ReactNode;
+  title?: string;
 }) {
   return (
-    <div className="flex items-center gap-1.5 min-w-0" title={`${label}: ${value} ${unit ?? ""}`}>
-      <Icon size={14} className="text-brand shrink-0 opacity-80" aria-hidden="true" />
-      <div className="flex items-baseline gap-0.5 truncate">
-        <span className="text-xs font-bold tabular-nums text-ink">{value}</span>
-        {unit && <span className="text-[10px] text-ink-muted">{unit}</span>}
-      </div>
-    </div>
+    <span
+      title={title}
+      className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-md"
+    >
+      {Icon && <Icon size={12} aria-hidden="true" className="shrink-0" />}
+      {children}
+    </span>
   );
 }
 
@@ -145,6 +142,23 @@ export function DogCard({
   const online = (hasReading || device?.status === "active") && !isMaintenance;
   const offline = !hasReading && device?.status === "offline";
 
+  // Same gradient as the mobile card: clear over the photo, rising into the
+  // stress colour so urgent dogs stand out across a room.
+  const tone = level ? `var(--ff-status-${level}-fg)` : "var(--ff-brand-ink)";
+  const dark = `color-mix(in srgb, ${tone} 60%, black)`;
+  const collarStatus = online
+    ? "Collar active"
+    : isMaintenance
+      ? "Maintenance"
+      : offline
+        ? "Offline"
+        : "Unassigned";
+  const updated = uploadError
+    ? "Upload failed"
+    : latestReading
+      ? timeAgo(latestReading.captured_at)
+      : "Awaiting data";
+
   return (
     <div
       onClick={(e) => {
@@ -153,72 +167,67 @@ export function DogCard({
         navigate(`/dogs/${dog.id}`);
       }}
       className={cn(
-        "group relative flex flex-col sm:flex-row items-stretch gap-4 rounded-2xl border border-hairline bg-surface p-3.5",
-        "shadow-sm cursor-pointer transition-all duration-200",
-        "hover:shadow-xl hover:-translate-y-1 hover:border-brand/40 hover:ring-2 hover:ring-brand/20 active:scale-[0.992]",
-        level === "mild" && "bg-mild-soft/40 border-mild-fg/20 hover:bg-mild-soft/70",
-        level === "moderate" && "bg-moderate-soft/40 border-moderate-fg/20 hover:bg-moderate-soft/70",
-        level === "high" && "bg-high-soft/40 border-high-fg/20 hover:bg-high-soft/70",
+        "group relative h-80 overflow-hidden rounded-2xl shadow-sm cursor-pointer transition-all duration-200",
+        "hover:shadow-xl hover:-translate-y-1 active:scale-[0.992]",
+        !photoUrl && dogTint(dog.id),
       )}
     >
-      {/* Left Column: Photo Container with Floating Action Badge */}
-      <div className="relative shrink-0 w-full sm:w-32 h-32 sm:h-auto rounded-xl overflow-hidden bg-surface-alt border border-hairline/60">
-        {photoUrl ? (
-          <img
-            src={photoUrl}
-            alt={dog.name}
-            loading="lazy"
-            onError={() => setPhotoUrl(null)}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+      {photoUrl ? (
+        <img
+          src={photoUrl}
+          alt={dog.name}
+          loading="lazy"
+          onError={() => setPhotoUrl(null)}
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+      ) : (
+        <div className="absolute inset-x-0 top-10 flex justify-center text-white/70">
+          <PawPrint size={72} aria-hidden="true" />
+        </div>
+      )}
+
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(to bottom, rgba(0,0,0,.05), transparent 30%, color-mix(in srgb, ${dark} 60%, transparent) 60%, color-mix(in srgb, ${dark} 95%, transparent))`,
+        }}
+      />
+
+      {uploading && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px]">
+          <RefreshCw size={22} className="animate-spin text-white mb-1.5" />
+          <span className="text-[11px] font-bold text-white tracking-wide drop-shadow">Saving...</span>
+        </div>
+      )}
+
+      <div className="absolute inset-0 z-10 flex flex-col justify-between p-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <HarnessBattery
+            onPhoto
+            percent={latestReading?.battery_percent ?? device?.battery_percent}
+            reportedAt={latestReading?.captured_at}
+            offline={device?.status === "offline"}
           />
-        ) : (
-          <div
-            className={cn(
-              "flex h-full w-full items-center justify-center text-4xl select-none",
-              dogTint(dog.id),
-            )}
-          >
-            🐶
-          </div>
-        )}
-
-        {/* Uploading Overlay */}
-        {uploading && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] text-white">
-            <RefreshCw size={22} className="animate-spin text-white mb-1.5" />
-            <span className="text-[11px] font-bold text-white tracking-wide drop-shadow">Saving...</span>
-          </div>
-        )}
-
-        {/* Top-Right Floating Action Badge (Overlay on Image like reference design) */}
-        <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
-          {openAlertCount > 0 && (
-            <span
-              className="inline-flex items-center gap-0.5 rounded-full bg-high-fg text-white px-2 py-0.5 text-[10px] font-bold shadow-md"
-              title={`${openAlertCount} open alert(s)`}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              aria-label={dog.photo_path ? `Replace ${dog.name}'s photo` : `Add photo of ${dog.name}`}
+              title={dog.photo_path ? `Change photo of ${dog.name}` : `Add photo of ${dog.name}`}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100 focus-visible:opacity-100 disabled:opacity-60"
             >
-              <Bell size={10} aria-hidden="true" />
-              {openAlertCount}
-            </span>
-          )}
-
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-            aria-label={dog.photo_path ? `Replace ${dog.name}'s photo` : `Add photo of ${dog.name}`}
-            title={dog.photo_path ? `Change photo of ${dog.name}` : `Add photo of ${dog.name}`}
-            className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 backdrop-blur-md text-ink shadow-sm cursor-pointer",
-              "transition-all duration-150 hover:bg-white hover:scale-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed",
-            )}
-          >
-            {uploading ? (
-              <RefreshCw size={13} aria-hidden="true" className="animate-spin text-brand" />
-            ) : (
-              <Camera size={13} aria-hidden="true" />
-            )}
-          </button>
+              {uploading ? (
+                <RefreshCw size={13} aria-hidden="true" className="animate-spin" />
+              ) : (
+                <Camera size={13} aria-hidden="true" />
+              )}
+            </button>
+            <GlassChip>
+              {level && <span className="h-2 w-2 rounded-full bg-white" aria-hidden="true" />}
+              {level ? level[0].toUpperCase() + level.slice(1) : "No telemetry"}
+            </GlassChip>
+          </div>
         </div>
 
         <input
@@ -228,130 +237,54 @@ export function DogCard({
           className="hidden"
           onChange={handleFileChange}
         />
-      </div>
 
-      {/* Right Column: Dog Information, Vitals, and Status */}
-      <div className="flex flex-1 flex-col justify-between min-w-0 gap-2.5 py-0.5">
-        <HarnessBattery percent={latestReading?.battery_percent ?? device?.battery_percent} reportedAt={latestReading?.battery_percent != null ? latestReading.captured_at : null} offline={device?.status === "offline"} />
-        {/* Top Row: Name, Breed, and Stress Badge */}
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-1.5 text-white">
           <div className="min-w-0">
             <Link
               to={`/dogs/${dog.id}`}
-              className="block truncate text-base font-bold text-ink hover:text-brand transition-colors"
+              className="block truncate text-xl font-bold leading-tight text-white hover:underline"
             >
               {dog.name}
             </Link>
-            {dog.breed && <p className="truncate text-xs font-medium text-ink-muted">{dog.breed}</p>}
+            <p className="m-0 truncate text-xs text-white/80">
+              {[dog.breed, row.ownerName].filter(Boolean).join(" · ")}
+            </p>
           </div>
 
-          <div className="shrink-0">
-            {level ? (
-              <StressLevelBadge level={level} className="text-[11px] px-2 py-0.5 shadow-2xs" />
-            ) : (
-              <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-medium text-ink-muted">
-                No telemetry
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Location & Owner Meta Row */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
-          {dog.ward_location && (
-            <div className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-1.5 py-0.5 text-[11px] font-bold text-brand" title={`Hospital Ward: ${dog.ward_location}`}>
-              <MapPin size={11} className="shrink-0" />
-              <span>{dog.ward_location}</span>
-            </div>
-          )}
-          {dog.admission_status && dog.admission_status !== "outpatient" && (
-            <span
-              className={cn(
-                "rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-                dog.admission_status === "in_surgery"
-                  ? "bg-purple-100 text-purple-800 border border-purple-200"
-                  : dog.admission_status === "recovery"
-                    ? "bg-amber-100 text-amber-800 border border-amber-200"
-                    : dog.admission_status === "admitted"
-                      ? "bg-sky-100 text-sky-800 border border-sky-200"
-                      : "bg-emerald-100 text-emerald-800 border border-emerald-200",
+          {(dog.ward_location || (dog.admission_status && dog.admission_status !== "outpatient")) && (
+            <div className="flex flex-wrap gap-1.5">
+              {dog.ward_location && <GlassChip icon={MapPin}>{dog.ward_location}</GlassChip>}
+              {dog.admission_status && dog.admission_status !== "outpatient" && (
+                <GlassChip>
+                  <span className="capitalize">{dog.admission_status.replace(/_/g, " ")}</span>
+                </GlassChip>
               )}
-            >
-              {dog.admission_status.replace(/_/g, " ")}
-            </span>
-          )}
-          {row.ownerName && (
-            <div className="flex items-center gap-1 truncate" title={`Owner: ${row.ownerName}`}>
-              <User size={12} className="shrink-0 text-ink-muted/70" />
-              <span className="truncate">{row.ownerName}</span>
             </div>
           )}
-          {row.clinicName && (
-            <div className="flex items-center gap-1 truncate" title={`Clinic: ${row.clinicName}`}>
-              <Building2 size={12} className="shrink-0 text-ink-muted/70" />
-              <span className="truncate">{row.clinicName}</span>
-            </div>
-          )}
-        </div>
 
-        {/* Horizontal Vitals Metrics Bar (matching icon metric row in reference card) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-xl bg-surface-alt/70 border border-hairline/50 p-2">
-          <MetricItem
-            icon={HeartPulse}
-            value={latestReading?.heart_rate_bpm?.toString() ?? "—"}
-            unit="bpm"
-            label="Heart Rate"
-          />
-          <MetricItem
-            icon={Wind}
-            value={latestReading?.respiratory_rate_bpm?.toString() ?? "—"}
-            unit="bpm"
-            label="Respiration"
-          />
-          <MetricItem
-            icon={Activity}
-            value={formatPosture(latestReading?.posture).shortLabel}
-            label="Posture"
-          />
-          <MetricItem
-            icon={Thermometer}
-            value={latestReading?.ambient_temperature_c?.toString() ?? "—"}
-            unit="°C"
-            label="Ambient Temp"
-          />
-        </div>
-
-        {/* Footer Row: Device Status & Last Updated Timestamp */}
-        <div className="flex items-center justify-between gap-2 border-t border-hairline/60 pt-2 text-[11px] text-ink-muted">
-          <div className="flex items-center gap-1.5 font-medium truncate">
-            <span
-              className={cn(
-                "h-2 w-2 rounded-full shrink-0",
-                online ? "bg-calm-fg animate-pulse" : isMaintenance ? "bg-amber-500" : offline ? "bg-high-fg" : "bg-hairline",
-              )}
-              aria-hidden="true"
-            />
-            <span className={cn(online ? "text-calm-fg" : isMaintenance ? "text-amber-600" : offline ? "text-high-fg" : "text-ink-muted")}>
-              {online
-                ? `Collar Active ${device?.device_code ? `(${device.device_code})` : ""}`
-                : isMaintenance
-                  ? `Maintenance (${device?.device_code ?? ""})`
-                  : offline
-                    ? `Offline (${device?.device_code ?? ""})`
-                    : "Unassigned"}
-            </span>
+          <div className="flex flex-wrap gap-1.5">
+            <GlassChip icon={HeartPulse} title="Heart rate">
+              {latestReading?.heart_rate_bpm ?? "—"} bpm
+            </GlassChip>
+            <GlassChip icon={Wind} title="Respiration">
+              {latestReading?.respiratory_rate_bpm ?? "—"} bpm
+            </GlassChip>
+            <GlassChip icon={Thermometer} title="Ambient temperature">
+              {latestReading?.ambient_temperature_c ?? "—"}°C
+            </GlassChip>
+            <GlassChip icon={Activity} title="Posture">
+              {formatPosture(latestReading?.posture).shortLabel}
+            </GlassChip>
+            <GlassChip icon={Bell} title="Open alerts">
+              {openAlertCount}
+            </GlassChip>
           </div>
 
-          <div className="truncate text-[10px] text-ink-muted/80" aria-live="polite">
-            {uploadError
-              ? "Upload failed"
-              : latestReading
-                ? timeAgo(latestReading.captured_at)
-                : "Awaiting data"}
-          </div>
+          <p className="m-0 truncate text-[11px] text-white/75" aria-live="polite">
+            {collarStatus} · {updated}
+          </p>
         </div>
       </div>
     </div>
   );
 }
-

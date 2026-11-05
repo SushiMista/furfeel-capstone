@@ -25,6 +25,7 @@ import {
   fetchClassificationHistory,
   fetchClinicalInterventions,
   fetchDailyStressSummary,
+  collarName,
   fetchDog,
   fetchDogOwners,
   fetchDeviceForDog,
@@ -382,7 +383,10 @@ export function DogDetail() {
           )}
 
           {/* Registered Owners Bar */}
-          <div className="mb-3"><HarnessBattery percent={latestReading?.battery_percent ?? device?.battery_percent} reportedAt={latestReading?.battery_percent != null ? latestReading.captured_at : null} offline={device?.status === "offline"} /></div>
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <HarnessBattery percent={latestReading?.battery_percent ?? device?.battery_percent} reportedAt={latestReading?.battery_percent != null ? latestReading.captured_at : null} offline={device?.status === "offline"} />
+            {device && <span className="text-xs text-ink-muted">Collar: {collarName(device)}</span>}
+          </div>
           {(
             <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-hairline/70 bg-surface-alt/40 px-3 py-2 text-xs">
               <span className="font-bold text-ink flex items-center gap-1.5 shrink-0">

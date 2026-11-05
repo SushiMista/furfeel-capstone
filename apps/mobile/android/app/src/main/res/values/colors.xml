@@ -3,5 +3,5 @@
 <!-- Regenerate with: node packages/shared/scripts/generate_design_tokens.mjs -->
 <resources>
     <color name="splash_background">#F7F9FC</color>
-    <color name="brand">#2563EB</color>
+    <color name="brand">#2F56A7</color>
 </resources>

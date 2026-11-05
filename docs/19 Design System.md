@@ -30,7 +30,7 @@ Put these in `packages/shared/design_tokens.json`; generate the dashboard CSS va
 ### Brand (blue + white)
 | Token | Hex | Use |
 |---|---|---|
-| `brand` | `#2563EB` | primary blue — buttons, active nav, links, focus |
+| `brand` | `#2F56A7` | primary blue — buttons, active nav, links, focus |
 | `brand-strong` | `#1D4ED8` | hover / pressed |
 | `brand-ink` | `#1E3A8A` | headings accent, deep brand |
 | `brand-soft` | `#EAF1FE` | selected rows, chips, tinted panels |

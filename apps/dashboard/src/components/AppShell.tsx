@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
   Cpu,
   Dog,
   FileSearch,
@@ -54,11 +53,10 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
       { to: "/board", label: "Monitoring Board", icon: HeartPulse },
-      { to: "/intake", label: "Patient Intake", icon: PawPrint },
+      { to: "/admission", label: "Patient Admission", icon: PawPrint },
       { to: "/patients", label: "Patient Dogs", icon: Dog },
       { to: "/alerts", label: "Alerts Queue", icon: BellRing },
       { to: "/messages", label: "Messages", icon: MessageSquare },
-      { to: "/handover", label: "Handover Notes", icon: ClipboardList },
     ],
   },
   {

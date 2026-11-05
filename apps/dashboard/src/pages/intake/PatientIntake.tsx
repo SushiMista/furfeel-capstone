@@ -286,7 +286,7 @@ export function PatientIntake() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-4">
         <div>
           <h1 className="m-0 text-2xl font-black text-ink tracking-tight">
-            Patient Intake & Admission
+            Patient Admission & Registration
           </h1>
           <p className="m-0 mt-0.5 text-xs text-ink-muted">
             Complete clinical admission, link telemetry collar hardware, and associate pet owner account.
@@ -813,7 +813,7 @@ export function PatientIntake() {
               {/* Admission Checklist Progress Tracker */}
               <div className="flex flex-col gap-2.5">
                 <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-                  Intake Completion Checklist
+                  Registration Checklist
                 </span>
 
                 <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-alt/20 p-3">

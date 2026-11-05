@@ -20,7 +20,7 @@ import type {
 
 export type { Dog };
 
-const DEVICE_COLUMNS = "id, dog_id, device_code, status, last_seen_at, firmware_version, battery_percent, created_at";
+const DEVICE_COLUMNS = "id, dog_id, device_code, display_name, status, last_seen_at, firmware_version, battery_percent, created_at";
 const READING_COLUMNS =
   "id, device_id, dog_id, captured_at, received_at, heart_rate_bpm, " +
   "respiratory_rate_bpm, motion_activity, posture, ambient_temperature_c, humidity_percent, " +
@@ -119,7 +119,12 @@ export async function saveDogThresholds(
 }
 
 const DEVICE_LIST_COLUMNS =
-  "id, dog_id, device_code, status, last_seen_at, firmware_version, battery_percent, created_at, dog:dogs(name)";
+  "id, dog_id, device_code, display_name, status, last_seen_at, firmware_version, battery_percent, created_at, dog:dogs(name)";
+
+/** What people call a collar: its staff-given name, else its hardware code. */
+export function collarName(device: Pick<Device, "device_code" | "display_name">): string {
+  return device.display_name?.trim() || device.device_code;
+}
 
 export interface DeviceWithDog extends Device {
   dog: { name: string } | null;

@@ -72,6 +72,7 @@ export function Devices() {
 
   // Edit Form State
   const [editStatus, setEditStatus] = useState<DeviceStatus>("active");
+  const [editName, setEditName] = useState("");
   const [editFirmware, setEditFirmware] = useState("");
   const [editDogId, setEditDogId] = useState<string>("");
 
@@ -110,6 +111,7 @@ export function Devices() {
       const matchesSearch =
         !q ||
         d.device_code.toLowerCase().includes(q) ||
+        (d.display_name ?? "").toLowerCase().includes(q) ||
         (d.dog?.name && d.dog.name.toLowerCase().includes(q)) ||
         (d.firmware_version && d.firmware_version.toLowerCase().includes(q));
 
@@ -135,6 +137,7 @@ export function Devices() {
   function handleOpenEdit(dev: DeviceWithDog) {
     setEditingDevice(dev);
     setEditStatus(dev.status);
+    setEditName(dev.display_name ?? "");
     setEditFirmware(dev.firmware_version || "0.1.0");
     setEditDogId(dev.dog_id || "");
   }
@@ -170,19 +173,20 @@ export function Devices() {
       const targetDogId = editDogId || null;
 
       await updateDevice(supabase, editingDevice.id, {
+        display_name: editName.trim() || null,
         status: editStatus,
         firmware_version: editFirmware.trim() || null,
         dog_id: targetDogId,
       });
 
-      // Handle biotelemetry placeholder logic upon device reassignment
-      if (editingDevice.device_code === "FURFEEL-DEV-0002") {
-        if (targetDogId) {
-          // Clear simulated seed readings for target dog so real ESP32 stream starts clean
-          await supabase.from("stress_classifications").delete().eq("dog_id", targetDogId);
-          await supabase.from("telemetry_readings").delete().eq("dog_id", targetDogId);
-        }
+      // Only a real reassignment touches readings. Renaming a collar or changing
+      // its status must never clear or seed a dog's telemetry.
+      const reassigned = targetDogId !== prevDogId;
 
+      // Handle biotelemetry placeholder logic upon device reassignment
+      if (!reassigned) {
+        // Nothing to do.
+      } else if (editingDevice.device_code === "FURFEEL-DEV-0002") {
         // If previous dog was un-paired from real hardware, seed biotelemetry if they have a simulated collar assigned
         if (prevDogId && prevDogId !== targetDogId) {
           const { data: prevCollar } = await supabase
@@ -214,6 +218,7 @@ export function Devices() {
           d.id === editingDevice.id
             ? {
                 ...d,
+                display_name: editName.trim() || null,
                 status: editStatus,
                 firmware_version: editFirmware.trim() || null,
                 dog_id: targetDogId,
@@ -223,7 +228,7 @@ export function Devices() {
         ),
       );
 
-      toast("success", `Updated device ${editingDevice.device_code}`);
+      toast("success", `Updated ${editName.trim() || editingDevice.device_code}`);
       setEditingDevice(null);
       load().catch(() => {});
     } catch (err) {
@@ -505,7 +510,14 @@ export function Devices() {
                       <Td className="pl-4 font-mono font-black text-xs text-ink">
                         <div className="flex items-center gap-2">
                           <Cpu size={14} className="text-brand opacity-80" />
-                          <span>{d.device_code}</span>
+                          <div className="flex flex-col">
+                            {d.display_name && (
+                              <span className="font-sans font-bold">{d.display_name}</span>
+                            )}
+                            <span className={d.display_name ? "font-normal text-ink-muted" : undefined}>
+                              {d.device_code}
+                            </span>
+                          </div>
                         </div>
                       </Td>
 
@@ -705,6 +717,19 @@ export function Devices() {
                   </option>
                 ))}
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-dev-name" className="text-xs font-bold text-ink">
+                Collar Name
+              </Label>
+              <Input
+                id="edit-dev-name"
+                value={editName}
+                maxLength={60}
+                placeholder={editingDevice.device_code}
+                onChange={(e) => setEditName(e.target.value)}
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">

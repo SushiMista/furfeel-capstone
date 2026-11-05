@@ -1728,6 +1728,7 @@ function DevicesTab({
   const [viewingDevice, setViewingDevice] = useState<Device | null>(null);
 
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+  const [editName, setEditName] = useState("");
   const [editStatus, setEditStatus] = useState<DeviceStatus>("active");
   const [editDogId, setEditDogId] = useState<string>("");
   const [editSaving, setEditSaving] = useState(false);
@@ -1814,7 +1815,7 @@ function DevicesTab({
     }
   }
 
-  async function patch(device: Device, patchBody: { status?: DeviceStatus; dog_id?: string | null }) {
+  async function patch(device: Device, patchBody: { display_name?: string | null; status?: DeviceStatus; dog_id?: string | null }) {
     try {
       onChanged(await updateDevice(supabase, device.id, patchBody));
       onToast("success", `${device.device_code} updated`);
@@ -1829,6 +1830,7 @@ function DevicesTab({
     setEditSaving(true);
     try {
       await patch(editingDevice, {
+        display_name: editName.trim() || null,
         status: editStatus,
         dog_id: editDogId === "" ? null : editDogId,
       });
@@ -1926,7 +1928,16 @@ function DevicesTab({
                         className="accent-[#0088D6] rounded h-4 w-4 cursor-pointer"
                       />
                     </Td>
-                    <Td className="font-semibold">{d.device_code}</Td>
+                    <Td className="font-semibold">
+                      {d.display_name ? (
+                        <div className="flex flex-col">
+                          <span>{d.display_name}</span>
+                          <span className="text-xs font-normal text-ink-muted">{d.device_code}</span>
+                        </div>
+                      ) : (
+                        d.device_code
+                      )}
+                    </Td>
                     <Td>
                       <div className="flex flex-col gap-1 items-start">
                         <span className={cn("inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs capitalize", DEVICE_STATUS_BADGE_STYLE[d.status])}>
@@ -1965,6 +1976,7 @@ function DevicesTab({
                           title="Edit Status & Dog Assignment"
                           onClick={() => {
                             setEditingDevice(d);
+                            setEditName(d.display_name ?? "");
                             setEditStatus(d.status);
                             setEditDogId(d.dog_id ?? "");
                           }}
@@ -2091,6 +2103,7 @@ function DevicesTab({
                     const d = viewingDevice;
                     setViewingDevice(null);
                     setEditingDevice(d);
+                    setEditName(d.display_name ?? "");
                     setEditStatus(d.status);
                     setEditDogId(d.dog_id ?? "");
                   }}
@@ -2109,6 +2122,17 @@ function DevicesTab({
               <div className="flex flex-col gap-1">
                 <Label>Device</Label>
                 <div className="text-sm font-semibold text-ink">{editingDevice.device_code}</div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="edit-device-name">Collar Name</Label>
+                <Input
+                  id="edit-device-name"
+                  value={editName}
+                  maxLength={60}
+                  placeholder={editingDevice.device_code}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
               </div>
 
               <div className="flex flex-col gap-1">

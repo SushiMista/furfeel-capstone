@@ -67,7 +67,7 @@ export function DeviceAdoptionChart({ devices, dogs }: DeviceAdoptionChartProps)
     {
       category: "Available (In Stock)",
       count: unassignedAvailable,
-      fill: "var(--brand, #2563EB)",
+      fill: "var(--brand, #2F56A7)",
     },
     {
       category: "Maintenance / Inactive",
