@@ -19,6 +19,8 @@ vi.mock("../src/lib/queries.ts", () => ({
   markDogMessagesRead: vi.fn().mockResolvedValue(undefined),
   sendDogMessage: vi.fn().mockResolvedValue(undefined),
   getMediaSignedUrl: vi.fn().mockResolvedValue("https://example.test/photo.jpg"),
+  fetchMonitoringBoard: vi.fn(),
+  fetchMonitoringBoardRowForDog: vi.fn(),
 }));
 
 const thread = {
@@ -60,13 +62,19 @@ beforeEach(() => {
   ] as never);
   vi.mocked(queries.fetchDogMessageThreads).mockResolvedValue([thread]);
   vi.mocked(queries.fetchDogMessages).mockResolvedValue([message] as never);
+  vi.mocked(queries.fetchMonitoringBoard).mockResolvedValue([] as never);
+  vi.mocked(queries.fetchMonitoringBoardRowForDog).mockResolvedValue({
+    latestClassification: { stress_level: "high" },
+    latestReading: { heart_rate_bpm: 132, respiratory_rate_bpm: 41, captured_at: "2026-11-05T08:00:00Z" },
+    openAlertCount: 3,
+  } as never);
 });
 
 describe("Messages", () => {
   it("lists dogs with the latest conversation first and an unread count", async () => {
     renderInbox();
     expect(await screen.findByLabelText("3 unread")).toBeInTheDocument();
-    const names = screen.getAllByRole("button").map((b) => b.textContent);
+    const names = screen.getAllByRole("listitem").map((item) => item.textContent);
     expect(names[0]).toContain("Mochi");
     expect(names[1]).toContain("No messages yet");
   });
@@ -93,6 +101,49 @@ describe("Messages", () => {
         "Keep him somewhere quiet",
       ),
     );
+  });
+
+  it("puts unread first, then the most stressed dogs, and filters to unread", async () => {
+    const user = userEvent.setup();
+    vi.mocked(queries.fetchDogs).mockResolvedValue([
+      { id: "dog-1", name: "Biscuit" },
+      { id: "dog-3", name: "Pepper" },
+      { id: "dog-2", name: "Mochi" },
+    ] as never);
+    vi.mocked(queries.fetchMonitoringBoard).mockResolvedValue([
+      { dog: { id: "dog-3" }, latestClassification: { stress_level: "high" } },
+    ] as never);
+    renderInbox();
+
+    await screen.findByLabelText("3 unread");
+    await waitFor(() =>
+      expect(screen.getAllByRole("listitem").map((i) => i.textContent?.slice(0, 6))).toEqual([
+        expect.stringContaining("Mochi"),
+        expect.stringContaining("Pepper"),
+        expect.stringContaining("Biscui"),
+      ]),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Unread 1" }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  });
+
+  it("searches patients by name", async () => {
+    const user = userEvent.setup();
+    renderInbox();
+
+    await user.type(await screen.findByLabelText("Search patients"), "bisc");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("Biscuit")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Search patients"), "zzz");
+    expect(screen.getByText("No patients match your search.")).toBeInTheDocument();
+  });
+
+  it("shows the dog's status beside the chat", async () => {
+    renderInbox("/messages?dog=dog-2");
+    expect(await screen.findByText("132 bpm")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open dog" })).toHaveAttribute("href", "/dogs/dog-2");
   });
 
   it("describes a message with no text by what it contains", () => {

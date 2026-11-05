@@ -13,7 +13,6 @@ import {
   HeartPulse,
   MapPin,
   MessageSquare,
-  PawPrint,
   Pill,
     Thermometer,
   Users,
@@ -33,7 +32,6 @@ import {
   fetchRecentAlerts,
   fetchTelemetryHistory,
   fetchVetNotes,
-  getMediaSignedUrl,
   updateDogWardAndAdmission,
   type DailyStressSummaryRow,
   type VetNoteWithAuthor,
@@ -50,6 +48,7 @@ import { VetNotes } from "../../components/VetNotes.tsx";
 import { ClinicalInterventionsList } from "../../components/ClinicalInterventionsList.tsx";
 import { ManageDogOwners } from "../../components/ManageDogOwners.tsx";
 import { HarnessBattery } from "../../components/HarnessBattery.tsx";
+import { DogPhoto } from "../../components/DogPhoto.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { Input, Select } from "../../components/ui/input.tsx";
 import { Button } from "../../components/ui/button.tsx";
@@ -57,7 +56,6 @@ import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { useToast } from "../../components/ui/toast.tsx";
 import { cn } from "../../lib/cn.ts";
-import { dogTint } from "../../lib/dogTint.ts";
 import { groupAlerts } from "../../lib/alertCopy.ts";
 import type {
   Alert,
@@ -93,31 +91,6 @@ const LEVELS: Record<StressLevel, { phrase: string; hero: string }> = {
   moderate: { phrase: "is moderately stressed", hero: "bg-moderate-soft text-moderate-fg" },
   high: { phrase: "is highly stressed", hero: "bg-high-soft text-high-fg" },
 };
-
-function DogPhoto({ dog }: { dog: Dog }) {
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!dog.photo_path) return;
-    let cancelled = false;
-    getMediaSignedUrl(supabase, dog.photo_path)
-      .then((signed) => {
-        if (!cancelled) setUrl(signed);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [dog.photo_path]);
-
-  return url ? (
-    <img src={url} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
-  ) : (
-    <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-white", dogTint(dog.id))}>
-      <PawPrint size={26} aria-hidden="true" />
-    </div>
-  );
-}
 
 /** Vital card (docs/19 §7, docs/21 Phase 2): icon + label header, big tabular
  * value, small unit, and a recent-trend micro-sparkline. */
@@ -358,7 +331,7 @@ export function DogDetail() {
       <div className={cn("rounded-2xl p-4", level ? LEVELS[level].hero : "bg-surface-alt text-ink")}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <DogPhoto dog={dog} />
+            <DogPhoto dog={dog} className="h-14 w-14 rounded-xl" />
             <div className="min-w-0">
               <h1 className="m-0 text-xl font-bold">
                 {dog.name} {level ? LEVELS[level].phrase : "has no stress reading yet"}
@@ -661,7 +634,7 @@ export function DogDetail() {
 
           {tab === "messages" && (
             <Card className="h-[32rem] overflow-hidden">
-              <Conversation dog={dog} embedded />
+              <Conversation dog={dog} />
             </Card>
           )}
     </div>

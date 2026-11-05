@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Send } from "lucide-react";
+import { Search, Send } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import { friendlyError } from "../../lib/errors.ts";
 import { useAuth } from "../../lib/useAuth.ts";
@@ -8,21 +8,34 @@ import {
   fetchDogMessages,
   fetchDogMessageThreads,
   fetchDogs,
+  fetchMonitoringBoard,
+  fetchMonitoringBoardRowForDog,
   getMediaSignedUrl,
   markDogMessagesRead,
   sendDogMessage,
   type DogMessage,
   type DogMessageThread,
+  type MonitoringBoardRow,
 } from "../../lib/queries.ts";
+import { DogPhoto } from "../../components/DogPhoto.tsx";
+import { StressLevelBadge } from "../../components/StressLevelBadge.tsx";
 import { Card, CardContent } from "../../components/ui/card.tsx";
 import { Button } from "../../components/ui/button.tsx";
-import { Textarea } from "../../components/ui/input.tsx";
+import { Input, Textarea } from "../../components/ui/input.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { CardSkeleton } from "../../components/ui/skeleton.tsx";
 import { useToast } from "../../components/ui/toast.tsx";
 import { cn } from "../../lib/cn.ts";
-import { formatPhilippineTime } from "../../lib/time.ts";
-import type { Dog } from "../../../../../packages/shared/types/index.ts";
+import { formatPhilippineTime, timeAgo } from "../../lib/time.ts";
+import type { Dog, StressLevel } from "../../../../../packages/shared/types/index.ts";
+
+const LEVEL_DOT: Record<StressLevel, string> = {
+  calm: "bg-calm-fg",
+  mild: "bg-mild-fg",
+  moderate: "bg-moderate-fg",
+  high: "bg-high-fg",
+};
+const LEVEL_RANK: Record<StressLevel, number> = { calm: 1, mild: 2, moderate: 3, high: 4 };
 
 const ALERT_TITLES: Record<string, string> = {
   high_stress: "High stress alert",
@@ -100,16 +113,7 @@ function MessageBubble({ message, mine }: { message: DogMessage; mine: boolean }
   );
 }
 
-export function Conversation({
-  dog,
-  onRead,
-  embedded = false,
-}: {
-  dog: Dog;
-  onRead?: () => void;
-  /** On the dog's own page, where the name and link would repeat. */
-  embedded?: boolean;
-}) {
+export function Conversation({ dog, onRead }: { dog: Dog; onRead?: () => void }) {
   const { session } = useAuth();
   const toast = useToast();
   const userId = session?.user.id;
@@ -170,14 +174,6 @@ export function Conversation({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {!embedded && (
-        <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
-          <h2 className="m-0 text-base font-semibold text-ink">{dog.name}</h2>
-          <Link to={`/dogs/${dog.id}`} className="text-sm text-brand">
-            View patient
-          </Link>
-        </div>
-      )}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {loading ? (
           <CardSkeleton />
@@ -209,6 +205,67 @@ export function Conversation({
   );
 }
 
+/** The dog's status beside its chat, refreshed as new classifications arrive. */
+function DogStatusPanel({ dog }: { dog: Dog }) {
+  const [row, setRow] = useState<MonitoringBoardRow | null>(null);
+
+  useEffect(() => {
+    const refresh = () => {
+      fetchMonitoringBoardRowForDog(supabase, dog).then(setRow).catch(() => {});
+    };
+    refresh();
+    const channel = supabase
+      .channel(`dog_status_${dog.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "stress_classifications",
+          filter: `dog_id=eq.${dog.id}`,
+        },
+        refresh,
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [dog]);
+
+  const reading = row?.latestReading;
+  return (
+    <aside className="flex flex-col gap-2 border-t border-hairline p-4 md:border-l md:border-t-0">
+      <h2 className="m-0 truncate text-base font-semibold text-ink">{dog.name}</h2>
+      {row?.device?.status === "offline" ? (
+        <span className="w-fit rounded-full bg-surface-alt px-2.5 py-0.5 text-xs font-semibold text-ink-muted">
+          Offline
+        </span>
+      ) : row?.latestClassification ? (
+        <span className="w-fit">
+          <StressLevelBadge level={row.latestClassification.stress_level} />
+        </span>
+      ) : (
+        <p className="m-0 text-xs text-ink-muted">No stress reading yet</p>
+      )}
+      {reading && (
+        <dl className="m-0 grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 text-xs">
+          <dt className="text-ink-muted">Heart</dt>
+          <dd className="m-0 text-ink">{reading.heart_rate_bpm ?? "—"} bpm</dd>
+          <dt className="text-ink-muted">Breathing</dt>
+          <dd className="m-0 text-ink">{reading.respiratory_rate_bpm ?? "—"} br/min</dd>
+          <dt className="text-ink-muted">Open alerts</dt>
+          <dd className="m-0 text-ink">{row?.openAlertCount ?? 0}</dd>
+          <dt className="text-ink-muted">Updated</dt>
+          <dd className="m-0 text-ink">{timeAgo(reading.captured_at)}</dd>
+        </dl>
+      )}
+      <Link to={`/dogs/${dog.id}`} className="mt-auto text-sm font-semibold text-brand">
+        Open dog
+      </Link>
+    </aside>
+  );
+}
+
 /** Vet inbox (ADR-026): every dog's conversation, unread first in view. Owner
  * media and messages are supplementary and never reach the classifier. */
 export function Messages() {
@@ -216,6 +273,9 @@ export function Messages() {
   const toast = useToast();
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [threads, setThreads] = useState<DogMessageThread[]>([]);
+  const [levels, setLevels] = useState<Map<string, StressLevel>>(new Map());
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   const refreshThreads = useCallback(() => {
@@ -232,6 +292,19 @@ export function Messages() {
       })
       .catch((err) => toast("error", friendlyError(err, "load messages")))
       .finally(() => setLoading(false));
+    fetchMonitoringBoard(supabase)
+      .then((board) =>
+        setLevels(
+          new Map(
+            board.flatMap(({ dog, device, latestClassification }) =>
+              latestClassification && device?.status !== "offline"
+                ? [[dog.id, latestClassification.stress_level]]
+                : [],
+            ),
+          ),
+        ),
+      )
+      .catch(() => {});
   }, [toast]);
 
   useEffect(() => {
@@ -252,33 +325,88 @@ export function Messages() {
     () => new Map(threads.map((t) => [t.dog_id, t])),
     [threads],
   );
-  const rows = useMemo(
-    () =>
-      [...dogs].sort((a, b) => {
+  const unreadOf = useCallback(
+    (dogId: string) => Number(threadByDog.get(dogId)?.unread_count ?? 0),
+    [threadByDog],
+  );
+  // Unread first, then the most stressed dogs, then the latest conversation.
+  const rows = useMemo(() => {
+    const rank = (id: string) => LEVEL_RANK[levels.get(id) ?? "calm"];
+    const query = search.trim().toLowerCase();
+    return dogs
+      .filter((d) => !unreadOnly || unreadOf(d.id) > 0)
+      .filter((d) => [d.name, d.breed].some((text) => text?.toLowerCase().includes(query)))
+      .sort((a, b) => {
         const at = threadByDog.get(a.id)?.last_at ?? "";
         const bt = threadByDog.get(b.id)?.last_at ?? "";
-        return bt.localeCompare(at) || a.name.localeCompare(b.name);
-      }),
-    [dogs, threadByDog],
-  );
+        return (
+          Number(unreadOf(b.id) > 0) - Number(unreadOf(a.id) > 0) ||
+          rank(b.id) - rank(a.id) ||
+          bt.localeCompare(at) ||
+          a.name.localeCompare(b.name)
+        );
+      });
+  }, [dogs, levels, search, threadByDog, unreadOf, unreadOnly]);
+  const unreadTotal = dogs.filter((d) => unreadOf(d.id) > 0).length;
   const selected = dogs.find((d) => d.id === params.get("dog")) ?? null;
 
   if (loading) return <CardSkeleton />;
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="m-0 text-2xl font-bold text-ink">Messages</h1>
-        <p className="m-0 text-sm text-ink-muted">
-          Conversations with owners. Supplementary context, not used by the stress classifier.
-        </p>
-      </div>
+      <h1 className="m-0 text-2xl font-bold text-ink">Messages</h1>
       <Card>
-        <CardContent className="grid h-[70vh] min-h-96 grid-cols-1 gap-0 p-0 md:grid-cols-[280px_1fr]">
-          <ul className="m-0 min-h-0 list-none overflow-y-auto border-b border-hairline p-0 md:border-b-0 md:border-r">
+        <CardContent
+          className={cn(
+            "grid h-[calc(100vh-6.25rem)] min-h-96 grid-cols-1 gap-0 p-0",
+            selected ? "md:grid-cols-[260px_1fr_200px]" : "md:grid-cols-[260px_1fr]",
+          )}
+        >
+          <div className="flex min-h-0 flex-col border-b border-hairline md:border-b-0 md:border-r">
+            <div className="relative border-b border-hairline p-2">
+              <Search
+                size={14}
+                aria-hidden="true"
+                className="absolute left-4.5 top-1/2 -translate-y-1/2 text-ink-muted"
+              />
+              <Input
+                type="search"
+                aria-label="Search patients"
+                placeholder="Search patients"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
+            <div className="flex gap-1.5 border-b border-hairline p-2">
+              {[
+                { label: "All", active: !unreadOnly, value: false },
+                { label: `Unread ${unreadTotal}`, active: unreadOnly, value: true },
+              ].map(({ label, active, value }) => (
+                <button
+                  key={label}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setUnreadOnly(value)}
+                  className={cn(
+                    "cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold",
+                    active
+                      ? "border-brand bg-brand text-white"
+                      : "border-hairline bg-surface text-ink-muted hover:bg-surface-alt",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0">
+              {rows.length === 0 && (
+                <li className="p-4 text-sm text-ink-muted">No patients match your search.</li>
+              )}
             {rows.map((dog) => {
               const thread = threadByDog.get(dog.id);
-              const unread = Number(thread?.unread_count ?? 0);
+              const unread = unreadOf(dog.id);
+              const level = levels.get(dog.id);
               return (
                 <li key={dog.id}>
                   <button
@@ -290,15 +418,23 @@ export function Messages() {
                       selected?.id === dog.id && "bg-brand-soft",
                     )}
                   >
+                    <DogPhoto dog={dog} className="h-8 w-8 rounded-lg" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-ink">{dog.name}</span>
+                      <span className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+                        <span
+                          aria-hidden="true"
+                          className={cn("h-2 w-2 shrink-0 rounded-full", level ? LEVEL_DOT[level] : "bg-hairline")}
+                        />
+                        <span className="truncate">{dog.name}</span>
+                        {level && <span className="sr-only">, {level}</span>}
+                      </span>
                       <span
                         className={cn(
                           "block truncate text-xs text-ink-muted",
                           unread > 0 && "font-semibold text-ink",
                         )}
                       >
-                        {thread ? threadPreview(thread) : "No messages yet"}
+                        {thread ? `${timeAgo(thread.last_at)} · ${threadPreview(thread)}` : "No messages yet"}
                       </span>
                     </span>
                     {unread > 0 && (
@@ -313,9 +449,13 @@ export function Messages() {
                 </li>
               );
             })}
-          </ul>
+            </ul>
+          </div>
           {selected ? (
-            <Conversation key={selected.id} dog={selected} onRead={refreshThreads} />
+            <>
+              <Conversation key={selected.id} dog={selected} onRead={refreshThreads} />
+              <DogStatusPanel key={`status-${selected.id}`} dog={selected} />
+            </>
           ) : (
             <div className="flex items-center justify-center p-6">
               <EmptyState>Choose a dog to read or reply.</EmptyState>
