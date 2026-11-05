@@ -14,8 +14,8 @@
 #include <Adafruit_MAX1704X.h>
 #include <math.h>
 
-const char* WIFI_SSID     = "YOUR-WIFI-SSID";
-const char* WIFI_PASSWORD = "YOUR-WIFI-PASSWORD";
+const char* WIFI_SSID     = "PLDTHOMEFIBR4KfTy";
+const char* WIFI_PASSWORD = "PLDTWIFIx7yT2";
 const char* SERVER_URL    = "http://192.168.1.22:8765/imu"; // desktop's IP (ipconfig), same network as the ESP32
 
 MPU9250_asukiaaa imu;
