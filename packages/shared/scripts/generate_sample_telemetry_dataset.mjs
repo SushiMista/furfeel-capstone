@@ -75,7 +75,8 @@ function scoreReading(reading, baseline, prior3Scores) {
     const hit = tier(reading.motion_activity, cfg.scoring_rules.motion_restlessness.tiers);
     if (hit) { score += hit.points; reasons.push(hit.reason); }
     const pr = cfg.scoring_rules.posture_moving_with_high_motion;
-    if (reading.posture === pr.posture && reading.motion_activity >= pr.motion_activity_min) {
+    const isMoving = reading.posture === pr.posture || reading.posture === "walking" || reading.posture === "running";
+    if (isMoving && reading.motion_activity >= pr.motion_activity_min) {
       score += pr.points; reasons.push(pr.reason);
     }
   }
@@ -109,7 +110,7 @@ function buildSweepRows(dog, rng, startTick) {
     const heart_rate_bpm = Math.round(jitter(lerp(CALM.heart_rate_bpm, HIGH.heart_rate_bpm, t), 3, rng));
     const respiratory_rate_bpm = Math.round(jitter(lerp(CALM.respiratory_rate_bpm, HIGH.respiratory_rate_bpm, t), 2, rng));
     const motion_activity = round(clamp(jitter(lerp(CALM.motion_activity, HIGH.motion_activity, t), 0.05, rng), 0, 1), 3);
-    const posture = motion_activity > 0.6 ? "moving" : t > 0.3 ? "standing" : "lying";
+    const posture = motion_activity > 0.6 ? "running" : motion_activity > 0.4 ? "walking" : t > 0.3 ? "standing" : "lying";
     const reading = {
       device_code: `FURFEEL-DEV-${dog.size_class.toUpperCase()}`,
       captured_at: new Date(Date.UTC(2026, 6, 20, 8, 0, 0) + (startTick + i) * 10_000).toISOString(),

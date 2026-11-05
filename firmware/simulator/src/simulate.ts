@@ -104,7 +104,8 @@ function buildPayload(config: SimulatorConfig, tick: number): TelemetryPayload {
   const motion_activity = Number(
     clamp(jitter(lerp(CALM.motion_activity, HIGH.motion_activity, t), 0.05), 0, 1).toFixed(3),
   );
-  const posture: Posture = motion_activity > 0.6 ? "moving" : t > 0.3 ? "standing" : "lying";
+  const posture: Posture =
+    motion_activity > 0.6 ? "running" : motion_activity > 0.4 ? "walking" : t > 0.3 ? "standing" : "lying";
 
   // Battery: starts near-full and drains slowly (~0.05%/tick); --low-battery
   // pins it near-empty to exercise the low_battery alert path.
