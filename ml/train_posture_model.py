@@ -101,7 +101,7 @@ def main():
     )
 
     model = RandomForestClassifier(
-        n_estimators=100, criterion="gini", max_depth=None, bootstrap=True, random_state=42
+        n_estimators=15, criterion="gini", max_depth=6, bootstrap=True, random_state=42
     )
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
