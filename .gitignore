@@ -56,7 +56,6 @@ __pycache__/
 *.swp
 
 # Local AI / agent state
-.claude/*
-!.claude/settings.json
+.claude/
 .agents/
 skills-lock.json

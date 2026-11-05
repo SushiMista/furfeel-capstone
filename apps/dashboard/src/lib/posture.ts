@@ -37,6 +37,27 @@ export function formatPosture(posture: Posture | string | null | undefined): Pos
         badge: "bg-amber-50 text-amber-700 border-amber-200",
         description: "Walking, pacing, or active movement",
       };
+    case "walking":
+      return {
+        label: "Walking",
+        shortLabel: "Walking",
+        badge: "bg-teal-50 text-teal-700 border-teal-200",
+        description: "Pacing or casual walk",
+      };
+    case "running":
+      return {
+        label: "Running",
+        shortLabel: "Running",
+        badge: "bg-orange-50 text-orange-700 border-orange-200",
+        description: "Fast or vigorous running",
+      };
+    case "trembling":
+      return {
+        label: "Trembling / Shaking",
+        shortLabel: "Trembling",
+        badge: "bg-rose-50 text-rose-700 border-rose-200",
+        description: "Involuntary muscle shaking or trembling",
+      };
     default:
       return {
         label: "Unknown",
