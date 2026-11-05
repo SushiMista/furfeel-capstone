@@ -555,7 +555,7 @@ export function MonitoringBoard() {
                 </div>
 
                 {view === "grid" ? (
-                  <div className="ff-enter-list grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="ff-enter-list grid gap-3 grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
                     {sectionRows.map((row) => (
                       <DogCard key={row.dog.id} row={row} onPhotoChanged={refreshDog} />
                     ))}
@@ -567,8 +567,8 @@ export function MonitoringBoard() {
             ))}
           </div>
         ) : view === "grid" ? (
-          /* Ungrouped Cards View: Full Width 1 / 2 / 3 Column Grid */
-          <div className="ff-enter-list grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+          /* Ungrouped Cards View */
+          <div className="ff-enter-list grid gap-3 grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
             {visible.map((row) => (
               <DogCard key={row.dog.id} row={row} onPhotoChanged={refreshDog} />
             ))}

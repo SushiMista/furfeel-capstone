@@ -1,37 +1,19 @@
-// Monitoring board card (docs/05), matching the mobile app: full photo, a
-// gradient in the stress colour, and glass chips with what staff need at a
-// glance. Photos can be changed in place.
+// Monitoring board tile (docs/05), a compact take on the mobile card: photo, a
+// gradient in the stress colour, and only the vitals staff scan for. Battery
+// and alerts appear when there's a problem; the rest shows on hover or focus.
+// Photos can be changed in place.
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Activity,
-  Bell,
-  Camera,
-  HeartPulse,
-  MapPin,
-  PawPrint,
-  RefreshCw,
-  Thermometer,
-  Wind,
-} from "lucide-react";
+import { Bell, Camera, PawPrint, RefreshCw } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.ts";
 import { getMediaSignedUrl, uploadDogPhoto, type MonitoringBoardRow } from "../lib/queries.ts";
 import { formatPosture } from "../lib/posture.ts";
+import { timeAgo } from "../lib/time.ts";
 import { HarnessBattery } from "./HarnessBattery.tsx";
 import { cn } from "../lib/cn.ts";
 import { dogTint } from "../lib/dogTint.ts";
 import { useToast } from "./ui/toast.tsx";
 import { friendlyError } from "../lib/errors.ts";
-
-function timeAgo(iso: string): string {
-  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
-}
 
 /** Frosted chip for the card's photo, matching the mobile app. */
 function GlassChip({
@@ -141,6 +123,9 @@ export function DogCard({
   const isMaintenance = device?.status === "maintenance";
   const online = (hasReading || device?.status === "active") && !isMaintenance;
   const offline = !hasReading && device?.status === "offline";
+  const battery = latestReading?.battery_percent ?? device?.battery_percent;
+  const showBattery = device?.status === "offline" || (typeof battery === "number" && battery <= 15);
+  const urgent = level === "moderate" || level === "high";
 
   // Same gradient as the mobile card: clear over the photo, rising into the
   // stress colour so urgent dogs stand out across a room.
@@ -153,6 +138,21 @@ export function DogCard({
       : offline
         ? "Offline"
         : "Unassigned";
+  const details = [
+    [dog.breed, row.ownerName],
+    [
+      dog.ward_location,
+      dog.admission_status && dog.admission_status !== "outpatient"
+        ? dog.admission_status.replace(/_/g, " ")
+        : null,
+    ],
+    [
+      latestReading?.ambient_temperature_c != null ? `${latestReading.ambient_temperature_c}°C` : null,
+      latestReading ? formatPosture(latestReading.posture).shortLabel : null,
+    ],
+  ]
+    .map((line) => line.filter(Boolean).join(" · "))
+    .filter(Boolean);
   const updated = uploadError
     ? "Upload failed"
     : latestReading
@@ -167,10 +167,12 @@ export function DogCard({
         navigate(`/dogs/${dog.id}`);
       }}
       className={cn(
-        "group relative h-80 overflow-hidden rounded-2xl shadow-sm cursor-pointer transition-all duration-200",
-        "hover:shadow-xl hover:-translate-y-1 active:scale-[0.992]",
+        "group relative h-40 overflow-hidden rounded-xl shadow-sm cursor-pointer transition-shadow duration-200",
+        "hover:shadow-lg",
+        urgent && "outline outline-[3px] -outline-offset-[3px]",
         !photoUrl && dogTint(dog.id),
       )}
+      style={urgent ? { outlineColor: tone } : undefined}
     >
       {photoUrl ? (
         <img
@@ -181,8 +183,8 @@ export function DogCard({
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
       ) : (
-        <div className="absolute inset-x-0 top-10 flex justify-center text-white/70">
-          <PawPrint size={72} aria-hidden="true" />
+        <div className="absolute inset-x-0 top-6 flex justify-center text-white/70">
+          <PawPrint size={48} aria-hidden="true" />
         </div>
       )}
 
@@ -193,6 +195,11 @@ export function DogCard({
         }}
       />
 
+      <div
+        className="absolute inset-0 bg-black/45 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        aria-hidden="true"
+      />
+
       {uploading && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px]">
           <RefreshCw size={22} className="animate-spin text-white mb-1.5" />
@@ -200,27 +207,36 @@ export function DogCard({
         </div>
       )}
 
-      <div className="absolute inset-0 z-10 flex flex-col justify-between p-3.5">
-        <div className="flex items-start justify-between gap-2">
-          <HarnessBattery
-            onPhoto
-            percent={latestReading?.battery_percent ?? device?.battery_percent}
-            reportedAt={latestReading?.captured_at}
-            offline={device?.status === "offline"}
-          />
-          <div className="flex items-center gap-1.5">
+      <div className="absolute inset-0 z-10 flex flex-col justify-between p-2">
+        <div className="flex items-start justify-between gap-1">
+          <div className="flex min-w-0 items-center gap-1">
+            {showBattery && (
+              <HarnessBattery
+                onPhoto
+                percent={battery}
+                reportedAt={latestReading?.captured_at}
+                offline={device?.status === "offline"}
+              />
+            )}
+            {openAlertCount > 0 && (
+              <GlassChip icon={Bell} title="Open alerts">
+                {openAlertCount}
+              </GlassChip>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               disabled={uploading}
               onClick={() => fileRef.current?.click()}
               aria-label={dog.photo_path ? `Replace ${dog.name}'s photo` : `Add photo of ${dog.name}`}
               title={dog.photo_path ? `Change photo of ${dog.name}` : `Add photo of ${dog.name}`}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100 focus-visible:opacity-100 disabled:opacity-60"
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white opacity-0 backdrop-blur-sm transition-opacity hover:bg-white/30 focus-visible:opacity-100 group-hover:opacity-100"
             >
               {uploading ? (
-                <RefreshCw size={13} aria-hidden="true" className="animate-spin" />
+                <RefreshCw size={12} aria-hidden="true" className="animate-spin" />
               ) : (
-                <Camera size={13} aria-hidden="true" />
+                <Camera size={12} aria-hidden="true" />
               )}
             </button>
             <GlassChip>
@@ -238,51 +254,28 @@ export function DogCard({
           onChange={handleFileChange}
         />
 
-        <div className="flex flex-col gap-1.5 text-white">
-          <div className="min-w-0">
-            <Link
-              to={`/dogs/${dog.id}`}
-              className="block truncate text-xl font-bold leading-tight text-white hover:underline"
-            >
-              {dog.name}
-            </Link>
-            <p className="m-0 truncate text-xs text-white/80">
-              {[dog.breed, row.ownerName].filter(Boolean).join(" · ")}
+        <div className="min-w-0 text-white">
+          <Link
+            to={`/dogs/${dog.id}`}
+            className="block truncate text-base font-bold leading-tight text-white hover:underline"
+          >
+            {dog.name}
+          </Link>
+          <p className="m-0 truncate text-xs text-white/90">
+            {latestReading?.heart_rate_bpm != null || latestReading?.respiratory_rate_bpm != null
+              ? `${latestReading.heart_rate_bpm ?? "—"} bpm · ${latestReading.respiratory_rate_bpm ?? "—"} br/min`
+              : "No recent data"}
+          </p>
+          <div className="hidden pt-1 text-[11px] leading-snug text-white/85 group-hover:block group-focus-within:block">
+            {details.map((line) => (
+              <p key={line} className="m-0 truncate">
+                {line}
+              </p>
+            ))}
+            <p className="m-0 truncate" aria-live="polite">
+              {collarStatus} · {updated}
             </p>
           </div>
-
-          {(dog.ward_location || (dog.admission_status && dog.admission_status !== "outpatient")) && (
-            <div className="flex flex-wrap gap-1.5">
-              {dog.ward_location && <GlassChip icon={MapPin}>{dog.ward_location}</GlassChip>}
-              {dog.admission_status && dog.admission_status !== "outpatient" && (
-                <GlassChip>
-                  <span className="capitalize">{dog.admission_status.replace(/_/g, " ")}</span>
-                </GlassChip>
-              )}
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-1.5">
-            <GlassChip icon={HeartPulse} title="Heart rate">
-              {latestReading?.heart_rate_bpm ?? "—"} bpm
-            </GlassChip>
-            <GlassChip icon={Wind} title="Respiration">
-              {latestReading?.respiratory_rate_bpm ?? "—"} bpm
-            </GlassChip>
-            <GlassChip icon={Thermometer} title="Ambient temperature">
-              {latestReading?.ambient_temperature_c ?? "—"}°C
-            </GlassChip>
-            <GlassChip icon={Activity} title="Posture">
-              {formatPosture(latestReading?.posture).shortLabel}
-            </GlassChip>
-            <GlassChip icon={Bell} title="Open alerts">
-              {openAlertCount}
-            </GlassChip>
-          </div>
-
-          <p className="m-0 truncate text-[11px] text-white/75" aria-live="polite">
-            {collarStatus} · {updated}
-          </p>
         </div>
       </div>
     </div>

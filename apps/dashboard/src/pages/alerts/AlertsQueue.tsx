@@ -1,8 +1,9 @@
 import { friendlyError } from "../../lib/errors.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, CheckCheck, Volume2, VolumeX, WifiOff } from "lucide-react";
+import { CheckCheck, Volume2, VolumeX } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
-import { acknowledgeAlert, acknowledgeAlerts, fetchAlertsQueue, fetchDogs } from "../../lib/queries.ts";
+import { acknowledgeAlerts, fetchAlertsQueue, fetchDogs } from "../../lib/queries.ts";
+import { COLLAR_ALERT_TYPES, groupAlerts } from "../../lib/alertCopy.ts";
 import { useAuth } from "../../lib/useAuth.ts";
 import { playAlertChime } from "../../lib/sound.ts";
 import { AlertCard } from "../../components/AlertCard.tsx";
@@ -15,7 +16,7 @@ import type { Alert, Dog } from "../../../../../packages/shared/types/index.ts";
 
 const SEVERITY_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2 };
 
-type TypeFilter = "all" | "critical" | "device_offline" | "stress";
+type TypeFilter = "all" | "stress" | "collar";
 
 /** Alerts queue (docs/05): every RLS-visible alert across the clinic's dogs, open
  * first for fast triage, live via Realtime with audio chime and multi-vet synchronization. */
@@ -103,25 +104,21 @@ export function AlertsQueue() {
 
   const dogNames = useMemo(() => new Map(dogs.map((d) => [d.id, d.name])), [dogs]);
 
+  const isCollar = (a: Alert) => COLLAR_ALERT_TYPES.includes(a.type);
+
   // Counts for filter pills
   const counts = useMemo(() => {
-    const critical = alerts.filter((a) => a.status === "open" && a.severity === "critical").length;
-    const offline = alerts.filter((a) => a.status === "open" && a.type === "device_offline").length;
-    const stress = alerts.filter((a) => a.status === "open" && a.type !== "device_offline").length;
-    const totalOpen = alerts.filter((a) => a.status === "open").length;
-    return { critical, offline, stress, totalOpen, total: alerts.length };
+    const open = alerts.filter((a) => a.status === "open");
+    return {
+      all: open.length,
+      stress: open.filter((a) => !isCollar(a)).length,
+      collar: open.filter(isCollar).length,
+    };
   }, [alerts]);
 
   const filtered = useMemo(() => {
-    if (typeFilter === "critical") {
-      return alerts.filter((a) => a.severity === "critical");
-    }
-    if (typeFilter === "device_offline") {
-      return alerts.filter((a) => a.type === "device_offline");
-    }
-    if (typeFilter === "stress") {
-      return alerts.filter((a) => a.type !== "device_offline");
-    }
+    if (typeFilter === "stress") return alerts.filter((a) => !isCollar(a));
+    if (typeFilter === "collar") return alerts.filter(isCollar);
     return alerts;
   }, [alerts, typeFilter]);
 
@@ -137,19 +134,25 @@ export function AlertsQueue() {
     [filtered],
   );
 
+  const groups = useMemo(() => groupAlerts(sorted), [sorted]);
+
   const openIds = useMemo(
     () => sorted.filter((a) => a.status === "open").map((a) => a.id),
     [sorted],
   );
 
-  const acknowledgeAllOpen = async () => {
+  const acknowledge = async (ids: string[]) => {
     const userId = session?.user.id;
-    if (!userId || openIds.length === 0) return;
+    if (!userId || ids.length === 0) return;
+    const updated = await acknowledgeAlerts(supabase, ids, userId);
+    const byId = new Map(updated.map((a) => [a.id, a]));
+    setAlerts((prev) => prev.map((a) => byId.get(a.id) ?? a));
+  };
+
+  const acknowledgeAllOpen = async () => {
     setAcking(true);
     try {
-      const updated = await acknowledgeAlerts(supabase, openIds, userId);
-      const byId = new Map(updated.map((a) => [a.id, a]));
-      setAlerts((prev) => prev.map((a) => byId.get(a.id) ?? a));
+      await acknowledge(openIds);
     } catch (err) {
       setError(friendlyError(err, "acknowledge alerts"));
     } finally {
@@ -157,47 +160,37 @@ export function AlertsQueue() {
     }
   };
 
+  const chipClass = (active: boolean) =>
+    cn(
+      "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+      active
+        ? "border-brand bg-brand text-white"
+        : "border-hairline bg-surface text-ink-muted hover:bg-surface-alt hover:text-ink",
+    );
+
   if (loading) return <CardSkeleton lines={5} />;
   if (error)
     return (
-      <p role="alert" className="rounded-md bg-[#DC2626] px-4 py-3 text-sm font-semibold text-white shadow-sm">
+      <p role="alert" className="rounded-md bg-high-soft px-4 py-3 text-sm font-semibold text-high-fg">
         {error}
       </p>
     );
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header Section */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="m-0 text-2xl font-extrabold text-ink tracking-tight">Alerts Queue</h1>
-            {counts.totalOpen > 0 && (
-              <span className="inline-flex items-center rounded-full bg-[#DC2626] px-2.5 py-0.5 text-xs font-bold text-white shadow-xs">
-                {counts.totalOpen} Active
-              </span>
-            )}
-          </div>
-          <p className="m-0 mt-1 text-xs text-ink-muted">
-            Live clinical telemetry triage &amp; hardware monitoring
-          </p>
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="m-0 text-2xl font-bold text-ink">Alerts Queue</h1>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant="ghost"
             onClick={toggleSound}
-            title={soundEnabled ? "Critical audio chime enabled — click to mute" : "Critical audio chime muted — click to enable"}
-            className={cn(
-              "font-bold text-xs shadow-xs border flex items-center gap-1.5",
-              soundEnabled
-                ? "border-brand/30 bg-brand-soft text-brand-strong hover:bg-brand-soft/80"
-                : "border-hairline bg-surface-alt text-ink-muted hover:bg-surface-alt/80",
-            )}
+            title={soundEnabled ? "Mute the alert sound" : "Turn on the alert sound"}
+            className="gap-1.5"
           >
-            {soundEnabled ? <Volume2 size={14} className="text-brand" /> : <VolumeX size={14} />}
-            <span>{soundEnabled ? "Audio Alarm On" : "Alarm Muted"}</span>
+            {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            {soundEnabled ? "Sound on" : "Sound off"}
           </Button>
 
           {openIds.length > 1 && (
@@ -206,104 +199,45 @@ export function AlertsQueue() {
               variant="secondary"
               disabled={acking}
               onClick={acknowledgeAllOpen}
-              className="font-bold shadow-xs"
+              className="gap-1.5"
             >
-              <CheckCheck size={14} className="text-emerald-600" />
-              <span>{acking ? "Acknowledging…" : `Acknowledge All (${openIds.length})`}</span>
+              <CheckCheck size={14} />
+              {acking ? "Acknowledging…" : `Acknowledge all (${openIds.length})`}
             </Button>
           )}
-
-          <label className="inline-flex items-center gap-2 text-xs font-semibold text-ink-muted cursor-pointer select-none bg-surface-alt px-3 py-1.5 rounded-lg border border-hairline">
-            <input
-              type="checkbox"
-              className="accent-[#0088D6] rounded"
-              checked={showAll}
-              onChange={(e) => setShowAll(e.target.checked)}
-            />
-            <span>Include history</span>
-          </label>
         </div>
       </div>
 
-      {/* Filter Tabs matching Alert 27 color categories */}
       <div className="flex flex-wrap items-center gap-2">
+        {(
+          [
+            ["all", "Open", counts.all],
+            ["stress", "Stress", counts.stress],
+            ["collar", "Collar", counts.collar],
+          ] as const
+        ).map(([id, label, count]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={typeFilter === id}
+            onClick={() => setTypeFilter(id)}
+            className={chipClass(typeFilter === id)}
+          >
+            {label} {count}
+          </button>
+        ))}
         <button
           type="button"
-          onClick={() => setTypeFilter("all")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold transition-all border cursor-pointer",
-            typeFilter === "all"
-              ? "bg-ink text-white border-ink shadow-xs"
-              : "bg-surface text-ink-muted border-hairline hover:bg-surface-alt hover:text-ink",
-          )}
+          aria-pressed={showAll}
+          onClick={() => setShowAll((value) => !value)}
+          className={chipClass(showAll)}
         >
-          <span>All Alerts</span>
-          <span className={cn("rounded-full px-1.5 py-0.2 text-[10px] font-extrabold", typeFilter === "all" ? "bg-white/20 text-white" : "bg-surface-alt text-ink-muted")}>
-            {showAll ? counts.total : counts.totalOpen}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTypeFilter("critical")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold transition-all border cursor-pointer",
-            typeFilter === "critical"
-              ? "bg-[#DC2626] text-white border-[#DC2626] shadow-xs"
-              : "bg-surface text-ink-muted border-hairline hover:bg-red-50 hover:text-[#DC2626]",
-          )}
-        >
-          <AlertTriangle size={13} className={typeFilter === "critical" ? "text-white" : "text-[#DC2626]"} />
-          <span>Critical</span>
-          {counts.critical > 0 && (
-            <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] font-extrabold text-white">
-              {counts.critical}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTypeFilter("stress")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold transition-all border cursor-pointer",
-            typeFilter === "stress"
-              ? "bg-[#E65100] text-white border-[#E65100] shadow-xs"
-              : "bg-surface text-ink-muted border-hairline hover:bg-orange-50 hover:text-[#E65100]",
-          )}
-        >
-          <AlertCircle size={13} className={typeFilter === "stress" ? "text-white" : "text-[#E65100]"} />
-          <span>Stress Alerts</span>
-          {counts.stress > 0 && (
-            <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] font-extrabold text-white">
-              {counts.stress}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTypeFilter("device_offline")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold transition-all border cursor-pointer",
-            typeFilter === "device_offline"
-              ? "bg-[#0088D6] text-white border-[#0088D6] shadow-xs"
-              : "bg-surface text-ink-muted border-hairline hover:bg-sky-50 hover:text-[#0088D6]",
-          )}
-        >
-          <WifiOff size={13} strokeWidth={1.75} className={typeFilter === "device_offline" ? "text-white" : "text-[#0088D6]"} />
-          <span>Device Offline</span>
-          {counts.offline > 0 && (
-            <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] font-extrabold text-white">
-              {counts.offline}
-            </span>
-          )}
+          History
         </button>
       </div>
 
-      {/* Main Alert List Container */}
-      <div className="ff-enter-list flex flex-col gap-3">
-        {sorted.length === 0 ? (
+      <div className="ff-enter-list flex flex-col">
+        {groups.length === 0 ? (
           <Card className="border-dashed border-2 border-hairline">
             <CardContent className="p-8">
               <EmptyState>
@@ -312,19 +246,15 @@ export function AlertsQueue() {
             </CardContent>
           </Card>
         ) : (
-          sorted.map((a) => (
+          groups.map(({ latest, earlier }) => (
             <AlertCard
-              key={a.id}
-              alert={a}
-              dogName={dogNames.get(a.dog_id)}
-              onAcknowledge={async (alert) => {
-                const userId = session?.user.id;
-                if (!userId) return;
-                const updated = await acknowledgeAlert(supabase, alert.id, userId);
-                if (updated) {
-                  setAlerts((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-                }
-              }}
+              key={latest.id}
+              alert={latest}
+              earlier={earlier}
+              dogName={dogNames.get(latest.dog_id)}
+              onAcknowledge={() =>
+                acknowledge([latest, ...earlier].filter((a) => a.status === "open").map((a) => a.id))
+              }
             />
           ))
         )}

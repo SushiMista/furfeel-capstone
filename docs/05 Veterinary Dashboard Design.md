@@ -18,7 +18,7 @@ Left sidebar: **Overview · Monitoring Board · Alerts · Reports · Vet Review 
 
 ### 1. Veterinary Dashboard Module (Monitoring Board)
 - Multi-dog live board = **all dogs where `dogs.clinic_id` = the staff member's clinic** (RLS `is_clinic_member`). When an owner creates/links a dog to this clinic, it appears here **live via Realtime** with no refresh. Stress-sorted so above-calm floats up.
-- **Photo dog-cards (make it feel full-fledged):** each dog shows as a rich card with its **profile photo** (`dogs.photo_path`), name/breed, a status ring in its stress color, current vitals, and a mini trend. A clinic can **upload/replace a dog's photo** from the dashboard (Storage), so monitored dogs are recognizable at a glance, not just rows. Offer both a **card grid** and a compact table view (toggle).
+- **Photo dog-cards (make it feel full-fledged):** each dog shows as a rich card with its **profile photo** (`dogs.photo_path`), name, a status gradient (with a ring for moderate and high), and heart and breathing rates. Breed, owner, ward, temperature and posture show on hover or focus. A clinic can **upload/replace a dog's photo** from the dashboard (Storage), so monitored dogs are recognizable at a glance, not just rows. Offer both a **card grid** and a compact table view (toggle).
 - Vet **account menu + settings** (theme, profile photo via `users.avatar_path`, sign out) so the dashboard is a real signed-in product too.
 - Columns: dog, device status (online dot), current stress pill, HR, RR, motion, last reading, open-alert count.
 - Live via Realtime. Filter: all / needs attention.
@@ -57,7 +57,7 @@ Every delete in the UI routes through a shared confirmation dialog (`ConfirmDele
 - **Heatmap Analytics:** exploratory clinic analytics over stress patterns; still decision-support only.
 
 ## Alerts queue
-Triage list grouped by severity; acknowledge (sets `acknowledged_by`/`acknowledged_at`); device-offline + stress alerts. **Bulk-acknowledge** (2026-07-19): "Acknowledge all open (n)" flips every open alert in one guarded update (same open-status race guard + RLS as the per-card button).
+Triage list sorted by severity, with repeats of one alert for one dog collapsed into a row (acknowledging it covers the repeats) and plain wording matching mobile; acknowledge (sets `acknowledged_by`/`acknowledged_at`); device-offline + stress alerts. **Bulk-acknowledge** (2026-07-19): "Acknowledge all open (n)" flips every open alert in one guarded update (same open-status race guard + RLS as the per-card button).
 
 ## Monitoring board filters (2026-07-19)
 Search by dog/breed plus **saved quick filters** — All / Needs attention / Offline devices / Moderate / High — persisted per browser (localStorage) like the grid↔table toggle.
@@ -79,7 +79,7 @@ As-built: Board, Dog detail, Alerts queue, Vet notes, Reports, Vet Review media 
 On the dog detail page, Manage owners beside Registered Owners opens an editor for existing patients. Display current linked owners, search registered active owner accounts by name/email, select one or more additional accounts, and save to dog_owners. Preserve existing links and the compatibility owner_user_id field. Owner accounts must already exist. Only show success after writes and a refreshed owner list confirm the additions. Supabase RLS and foreign keys remain enforced; rejected writes stay visible for retry.
 
 ### Harness battery visibility
-Monitoring Board card/list views and dog detail display battery percentage using telemetry_readings.battery_percent with devices.battery_percent as last-reported fallback. Existing Device Management battery display remains available. Missing/invalid values display Unavailable; zero is a valid value; <=15% uses the existing Low indication. Offline status and reported-value tooltip prevent interpreting offline values as live. Device battery is separate from canine stress status. No firmware or schema change is required for these displays.
+On the Monitoring Board, cards show battery only when it is low (15% or under) or the harness is offline, to keep tiles scannable. The table view and dog detail display battery percentage using telemetry_readings.battery_percent with devices.battery_percent as last-reported fallback. Existing Device Management battery display remains available. Missing/invalid values display Unavailable; zero is a valid value; <=15% uses the existing Low indication. Offline status and reported-value tooltip prevent interpreting offline values as live. Device battery is separate from canine stress status. No firmware or schema change is required for these displays.
 
 ### Messages (ADR-026)
 Sidebar page `/messages`: every dog's conversation with its owners, latest first with unread counts, reading attached alerts and media and replying in place. Each dog page links to its conversation. New owner messages raise a toast. This replaces per-submission media review; stress confirmation (`stress_labels`) is unchanged.

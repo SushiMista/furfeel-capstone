@@ -67,7 +67,7 @@ describe("DogDetail section tabs (docs/05 information architecture)", () => {
 
     // Hero + default tab: the alert list is visible, telemetry is not.
     expect(await screen.findByRole("heading", { name: /Biscuit/ })).toBeInTheDocument();
-    expect(screen.getByText("Biscuit is showing high stress")).toBeInTheDocument();
+    expect(screen.getByText(/Biscuit is showing high stress/)).toBeInTheDocument();
     expect(screen.queryByText("Live telemetry", { selector: "h3, [class*=title]" })).not.toBeInTheDocument();
 
     const alertsTab = screen.getByRole("tab", { name: /Alerts/ });
@@ -76,7 +76,7 @@ describe("DogDetail section tabs (docs/05 information architecture)", () => {
 
     // Switching tabs swaps the section without losing the hero.
     await userEvent.click(screen.getByRole("tab", { name: "Live telemetry" }));
-    expect(screen.queryByText("Biscuit is showing high stress")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Biscuit is showing high stress/)).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Live telemetry" })).toHaveAttribute(
       "aria-selected",
       "true",
