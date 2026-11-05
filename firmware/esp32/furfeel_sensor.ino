@@ -45,7 +45,7 @@ String wifiSSID = "";
 String wifiPassword = "";
 
 const char* DEVICE_CODE = "FURFEEL-DEV-0002";
-const char* DEVICE_KEY = "YOUR_DEVICE_KEY";
+const char* DEVICE_KEY = "014561cd2c1ab0f56a5e5c3ee0814122a868837f45ec441e";
 
 const char* FUNCTION_URL =
     "https://kkbumkjvltlrggfefnkp.supabase.co/functions/v1/telemetry-intake";
