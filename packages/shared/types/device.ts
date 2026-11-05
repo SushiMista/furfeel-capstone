@@ -7,6 +7,8 @@ export interface Device {
   id: string;
   dog_id: string | null;
   device_code: string;
+  /** Staff-editable name. device_code stays the hardware identity. */
+  display_name?: string | null;
   status: DeviceStatus;
   last_seen_at: string | null;
   firmware_version: string | null;

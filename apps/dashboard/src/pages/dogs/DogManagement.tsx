@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient.ts";
 import {
+  collarName,
   fetchDogs,
   getMediaSignedUrl,
   uploadDogPhoto,
@@ -37,6 +38,7 @@ import { Dialog } from "../../components/ui/dialog.tsx";
 import { useToast } from "../../components/ui/toast.tsx";
 import { friendlyError } from "../../lib/errors.ts";
 import { cn } from "../../lib/cn.ts";
+import { formatDogAge } from "../../lib/dogAge.ts";
 
 export function DogManagement() {
   const navigate = useNavigate();
@@ -292,10 +294,7 @@ export function DogManagement() {
         });
 
         const selectedDev = availableDevices.find((d) => d.id === selectedCollarId);
-        if (selectedDev?.device_code === "FURFEEL-DEV-0002") {
-          await supabase.from("stress_classifications").delete().eq("dog_id", targetDogId);
-          await supabase.from("telemetry_readings").delete().eq("dog_id", targetDogId);
-        } else {
+        if (selectedDev?.device_code !== "FURFEEL-DEV-0002") {
           await seedInitialBiotelemetry(supabase, {
             dogId: targetDogId,
             deviceId: selectedCollarId,
@@ -377,11 +376,11 @@ export function DogManagement() {
         <div className="flex items-center gap-2.5">
           <Button
             type="button"
-            onClick={() => navigate("/intake")}
+            onClick={() => navigate("/admission")}
             className="flex items-center gap-2 font-bold shadow-xs bg-brand hover:bg-brand-strong text-white"
           >
             <Plus size={16} />
-            <span>+ Admit New Patient</span>
+            <span>Admit New Patient</span>
           </Button>
         </div>
       </div>
@@ -436,7 +435,7 @@ export function DogManagement() {
             <div className="p-8">
               <EmptyState>
                 {dogs.length === 0
-                  ? "No patient dogs admitted yet. Click '+ Admit New Patient' to begin intake."
+                  ? "No patient dogs admitted yet. Click 'Admit New Patient' to begin intake."
                   : "No patients matched your search criteria."}
               </EmptyState>
             </div>
@@ -520,8 +519,8 @@ export function DogManagement() {
                           <span className="font-semibold text-ink">
                             {d.weight_kg != null ? `${d.weight_kg} kg` : "—"}
                           </span>
-                          <span className="text-[11px]">
-                            {d.birthdate ? d.birthdate : "No DOB"}
+                          <span className="text-[11px]" title={d.birthdate ?? undefined}>
+                            {formatDogAge(d.birthdate) ?? "No birth date"}
                           </span>
                         </div>
                       </Td>
@@ -547,7 +546,7 @@ export function DogManagement() {
                               to={`/devices?device_code=${assignedDevice.device_code}`}
                               className="font-mono font-bold text-brand hover:underline"
                             >
-                              {assignedDevice.device_code}
+                              {collarName(assignedDevice)}
                             </Link>
                             <button
                               type="button"
@@ -772,7 +771,7 @@ export function DogManagement() {
                 <option value="">— Select an available collar —</option>
                 {availableDevices.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.device_code} (FW: {d.firmware_version ?? "0.1.0"})
+                    {collarName(d)} (FW: {d.firmware_version ?? "0.1.0"})
                   </option>
                 ))}
               </Select>

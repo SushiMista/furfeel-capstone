@@ -22,7 +22,7 @@ export function UserRoleChart({ users }: UserRoleChartProps) {
     {
       name: "Dog Owners",
       value: ownerCount,
-      fill: "var(--brand, #2563EB)",
+      fill: "var(--brand, #2F56A7)",
     },
     {
       name: "Veterinarians",

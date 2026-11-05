@@ -6,17 +6,38 @@ import { signIn } from "../../lib/useAuth.ts";
 import { Button } from "../../components/ui/button.tsx";
 import { Input, Label } from "../../components/ui/input.tsx";
 
-/** Hero illustration — generated image of a vet monitoring a dog's health.
- *  Sits on the blue gradient panel with a clean transparent background. */
-function HeroIllustration() {
+/** Brand panel: a paw with a pulse line running through it, FurFeel in one
+ * image. Drawn in code so it follows the brand colour. */
+function BrandPanel() {
   return (
-    <img
-      src="/login-hero.png"
-      alt=""
-      aria-hidden="true"
-      className="w-full max-w-[440px] drop-shadow-xl select-none"
-      draggable={false}
-    />
+    <div className="relative hidden overflow-hidden bg-brand lg:block lg:w-1/2">
+      <svg
+        viewBox="0 0 240 170"
+        aria-hidden="true"
+        className="absolute -right-[12%] -top-[4%] w-[105%] fill-white opacity-[.13]"
+      >
+        <ellipse cx="62" cy="52" rx="15" ry="20" />
+        <ellipse cx="100" cy="36" rx="15" ry="21" />
+        <ellipse cx="140" cy="36" rx="15" ry="21" />
+        <ellipse cx="178" cy="52" rx="15" ry="20" />
+        <path d="M120 66c-31 0-58 28-58 56 0 19 14 28 31 26 12-1 18-5 27-5s15 4 27 5c17 2 31-7 31-26 0-28-27-56-58-56z" />
+      </svg>
+      <svg
+        viewBox="0 0 320 60"
+        aria-hidden="true"
+        className="absolute inset-x-0 top-[42%] w-full fill-none stroke-white opacity-85"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M0 34h104l12-22 18 44 14-30 8 8h164" />
+      </svg>
+      <h2 className="absolute bottom-14 left-14 m-0 text-5xl font-bold leading-[1.1] tracking-tight text-white">
+        Every heartbeat,
+        <br />
+        in plain sight.
+      </h2>
+    </div>
   );
 }
 
@@ -160,28 +181,7 @@ export function Login() {
         </p>
       </div>
 
-      {/* Right panel — branded hero illustration */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden items-center justify-center bg-gradient-to-br from-brand via-brand-strong to-brand-ink text-white">
-        {/* Soft radial glow */}
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            background:
-              "radial-gradient(circle at 30% 40%, rgba(20, 184, 166, 0.4) 0%, transparent 60%), " +
-              "radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.08) 0%, transparent 50%)",
-          }}
-        />
-
-        {/* Decorative circles */}
-        <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-white/5" />
-        <div className="absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-white/5" />
-        <div className="absolute top-1/3 right-10 h-40 w-40 rounded-full bg-white/5" />
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col items-center px-12 text-center">
-          <HeroIllustration />
-        </div>
-      </div>
+      <BrandPanel />
     </div>
   );
 }

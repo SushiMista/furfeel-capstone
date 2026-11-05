@@ -14,7 +14,7 @@ import type {
  * the admin role, so a non-admin gets empty reads and rejected writes. */
 
 const USER_COLUMNS = "id, name, email, role, clinic_id, is_active, deactivated_at, created_at";
-const DEVICE_COLUMNS = "id, dog_id, device_code, status, last_seen_at, firmware_version, created_at";
+const DEVICE_COLUMNS = "id, dog_id, device_code, display_name, status, last_seen_at, firmware_version, created_at";
 
 export async function fetchAllUsers(client: SupabaseClient): Promise<User[]> {
   const { data, error } = await client.from("users").select(USER_COLUMNS).order("name");
@@ -241,7 +241,7 @@ export async function registerDevice(
 export async function updateDevice(
   client: SupabaseClient,
   deviceId: string,
-  patch: { dog_id?: string | null; status?: DeviceStatus; firmware_version?: string | null },
+  patch: { dog_id?: string | null; display_name?: string | null; status?: DeviceStatus; firmware_version?: string | null },
 ): Promise<Device> {
   // Enforce 1 dog = 1 device protocol: if binding to a dog, unassign any existing device for that dog first
   if (patch.dog_id) {

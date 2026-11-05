@@ -26,7 +26,7 @@ export async function fetchMyTheme(client: SupabaseClient, userId: string): Prom
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;
-  return (data?.theme as ThemeSetting) ?? "system";
+  return (data?.theme as ThemeSetting) ?? "light";
 }
 
 export async function saveMyTheme(
@@ -87,13 +87,13 @@ export function useAccount(): AccountState {
   const userId = session?.user.id;
   const [profile, setProfile] = useState<User | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [theme, setThemeState] = useState<ThemeSetting>("system");
+  const [theme, setThemeState] = useState<ThemeSetting>("light");
 
   useEffect(() => {
     if (!userId) {
       setProfile(null);
       setAvatarUrl(null);
-      applyTheme("system");
+      applyTheme("light");
       return;
     }
     let cancelled = false;
