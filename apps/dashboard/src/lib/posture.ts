@@ -53,7 +53,7 @@ export function formatPosture(posture: Posture | string | null | undefined): Pos
       };
     case "trembling":
       return {
-        label: "Trembling / Shaking",
+        label: "Trembling",
         shortLabel: "Trembling",
         badge: "bg-rose-50 text-rose-700 border-rose-200",
         description: "Involuntary muscle shaking or trembling",
