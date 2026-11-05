@@ -406,7 +406,7 @@ export function Devices() {
             className="flex items-center gap-2 font-bold shadow-xs bg-brand hover:bg-brand-strong text-white"
           >
             <Plus size={16} />
-            <span>+ Build / Register Collar</span>
+            <span>Build / Register Collar</span>
           </Button>
         </div>
       </div>
