@@ -112,13 +112,13 @@ describe("deleteUserAccount & reactivateUserAccount", () => {
     expect(invoke).toHaveBeenCalledWith("admin-delete-user", { body: { userId: "u1", mode: "deactivate", reassignOwnerId: "u2" } });
   });
 
-  it("invokes reactivateUserAccount with reactivate: true", async () => {
+  it("invokes admin-reactivate-user with the target id", async () => {
     const invoke = vi.fn().mockResolvedValue({ data: { ok: true, action: "reactivated" }, error: null });
     const client = { functions: { invoke } } as unknown as SupabaseClient;
 
     await reactivateUserAccount(client, "u1");
 
-    expect(invoke).toHaveBeenCalledWith("admin-delete-user", { body: { userId: "u1", reactivate: true } });
+    expect(invoke).toHaveBeenCalledWith("admin-reactivate-user", { body: { userId: "u1" } });
   });
 
   it("surfaces the function's JSON error body (e.g. an owner who still owns dogs)", async () => {

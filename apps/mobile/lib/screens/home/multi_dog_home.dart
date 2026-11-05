@@ -455,13 +455,32 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+<<<<<<< HEAD
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
+=======
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          HarnessBattery(
+                            device: widget.overview.device,
+                            reading: widget.overview.reading,
+                          ),
+                          const SizedBox(width: FurFeelTokens.space1),
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
                           if (level != null)
                             Expanded(
                               child: Align(
                                 alignment: Alignment.topRight,
+<<<<<<< HEAD
                                 child: StressPill(level: level, onDark: true),
+=======
+                                // Scales down beside the battery pill when a
+                                // long word like "Moderate" would overflow.
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: StressPill(level: level, onDark: true),
+                                ),
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
                               ),
                             )
                           else
@@ -484,6 +503,7 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                         ],
                       ),
                       const Spacer(),
+<<<<<<< HEAD
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
@@ -499,6 +519,8 @@ class _DogOverviewCardState extends State<DogOverviewCard> {
                         ),
                       ),
                       const SizedBox(height: 6),
+=======
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
                       Text(
                         dog.name,
                         maxLines: 1,

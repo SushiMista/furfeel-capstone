@@ -19,6 +19,7 @@ import {
   PawPrint,
   Radio,
   UserCog,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "../lib/useAuth.ts";
 import { useCurrentRole } from "../lib/useCurrentRole.ts";
@@ -56,6 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/intake", label: "Patient Intake", icon: PawPrint },
       { to: "/patients", label: "Patient Dogs", icon: Dog },
       { to: "/alerts", label: "Alerts Queue", icon: BellRing },
+      { to: "/messages", label: "Messages", icon: MessageSquare },
       { to: "/handover", label: "Handover Notes", icon: ClipboardList },
     ],
   },
@@ -129,39 +131,43 @@ export function AppShell({ children }: { children: ReactNode }) {
       .catch(() => { });
   }, [session, location.pathname]);
 
-  // Global realtime media submission toast
+  // Global realtime toast for new owner messages
   useEffect(() => {
     if (!session) return;
 
     const channel = supabase
-      .channel("media_submissions_global")
+      .channel("dog_messages_global")
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "media_submissions",
+          table: "dog_messages",
         },
         async (payload) => {
           try {
-            const submission = payload.new;
-            const dog = await fetchDog(supabase, submission.dog_id);
+            const message = payload.new;
+            if (message.author_user_id === session.user.id) return;
+            const dog = await fetchDog(supabase, message.dog_id);
             if (!dog) return;
 
-            const imageUrl = await getMediaSignedUrl(supabase, submission.storage_path, 3600);
-
-            toast(
-              "info",
-              <ImageAttachmentNotification
-                dogId={dog.id}
-                dogName={dog.name}
-                imageUrl={imageUrl}
-                fileName={submission.storage_path.split("/").pop() || "photo.jpg"}
-                metaText="New Upload"
-              />,
-            );
+            if (message.media_type === "image") {
+              const imageUrl = await getMediaSignedUrl(supabase, message.media_path, 3600);
+              toast(
+                "info",
+                <ImageAttachmentNotification
+                  dogId={dog.id}
+                  dogName={dog.name}
+                  imageUrl={imageUrl}
+                  fileName={message.media_path.split("/").pop() || "photo.jpg"}
+                  metaText="New message"
+                />,
+              );
+            } else {
+              toast("info", `New message about ${dog.name}`);
+            }
           } catch (err) {
-            console.error("Failed to process realtime media submission:", err);
+            console.error("Failed to process realtime message:", err);
           }
         },
       )

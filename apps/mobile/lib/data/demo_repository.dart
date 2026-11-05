@@ -405,33 +405,43 @@ class DemoRepository implements FurFeelRepository {
 
   // ---- Media ----
   @override
-  Future<List<MediaMessage>> fetchMediaMessages(String mediaSubmissionId) async => const [];
+  String? get currentUserId => 'demo-user';
   @override
-  Future<MediaMessage> sendMediaMessage(String mediaSubmissionId, String body) async =>
-      throw const FurFeelDataException('Demo mode is read-only.');
+  Future<List<DogMessageThread>> fetchDogMessageThreads() async => const [];
   @override
-  Future<MediaMessage> updateMediaMessage(String messageId, String body) async =>
-      throw const FurFeelDataException('Demo mode is read-only.');
+  Future<List<DogMessage>> fetchDogMessages(String dogId) async => const [];
   @override
+<<<<<<< HEAD
   Future<void> deleteMediaMessage(String messageId) async =>
       throw const FurFeelDataException('Demo mode is read-only.');
   @override
-  Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50}) async =>
-      List.of(_media);
-  @override
-  Future<MediaSubmission> submitObservation({
+=======
+  Future<void> sendDogMessage({
     required String dogId,
-    required Uint8List bytes,
-    required String fileExtension,
-    required String mediaType,
-    String? note,
+    String? body,
+    Uint8List? mediaBytes,
+    String? mediaExtension,
+    String? mediaType,
+    String? alertId,
+    String? readingId,
   }) async =>
       throw const FurFeelDataException(
-          'Demo mode cannot upload media — create a free account to share observations.');
+          'Demo mode can\'t send messages. Create a free account to chat with your clinic.');
   @override
-  Future<void> deleteMediaSubmission(MediaSubmission submission) async =>
+  Future<void> updateDogMessage(String messageId, String body) async =>
       throw const FurFeelDataException('Demo mode is read-only.');
-
+  @override
+  Future<void> deleteDogMessage(DogMessage message) async =>
+      throw const FurFeelDataException('Demo mode is read-only.');
+  @override
+  Future<void> markDogMessagesRead(String dogId) async {}
+  @override
+  Unsubscribe subscribeToDogMessages(String dogId, void Function() onChange) =>
+      () async {};
+  @override
+>>>>>>> 20e52663b2b04379741610740390fdb8af7f9fb9
+  Future<List<MediaSubmission>> fetchMediaSubmissions(String dogId, {int limit = 50}) async =>
+      List.of(_media);
   // ---- Consent: the gate protects real monitoring data; the demo is synthetic. ----
   @override
   Future<bool> hasAcceptedConsent(String policyVersion) async => true;

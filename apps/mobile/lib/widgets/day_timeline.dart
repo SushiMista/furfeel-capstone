@@ -108,26 +108,15 @@ class _DayTimelineState extends State<DayTimeline> {
             Text('TODAY, HOUR BY HOUR', style: textTheme.labelSmall),
             const SizedBox(height: FurFeelTokens.space2),
             // Readout: names the hour the colour band can only imply.
-            _HourReadout(hour: readoutHour, hours: hours),
+            HourReadout(hour: readoutHour, hours: hours),
             const SizedBox(height: FurFeelTokens.space3),
-            SizedBox(
-              height: 30,
-              child: Row(
-                children: [
-                  for (final (hour, level) in hours.indexed)
-                    Expanded(
-                      child: _HourBlock(
-                        hour: hour,
-                        level: level,
-                        isFuture: hour > nowHour,
-                        isSelected: hour == readoutHour,
-                        onTap: () => setState(
-                          // Tapping the selected block clears back to "latest".
-                          () => _selectedHour = _selectedHour == hour ? null : hour,
-                        ),
-                      ),
-                    ),
-                ],
+            HourStrip(
+              hours: hours,
+              lastHour: nowHour,
+              selectedHour: readoutHour,
+              onSelect: (hour) => setState(
+                // Tapping the selected block clears back to "latest".
+                () => _selectedHour = _selectedHour == hour ? null : hour,
               ),
             ),
             const SizedBox(height: FurFeelTokens.space1),
@@ -175,6 +164,43 @@ class _DayTimelineState extends State<DayTimeline> {
   }
 }
 
+/// A day as 24 tappable blocks. Hours after [lastHour] haven't happened yet.
+class HourStrip extends StatelessWidget {
+  const HourStrip({
+    super.key,
+    required this.hours,
+    required this.lastHour,
+    required this.selectedHour,
+    required this.onSelect,
+  });
+
+  final List<StressLevel?> hours;
+  final int lastHour;
+  final int? selectedHour;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: Row(
+        children: [
+          for (final (hour, level) in hours.indexed)
+            Expanded(
+              child: _HourBlock(
+                hour: hour,
+                level: level,
+                isFuture: hour > lastHour,
+                isSelected: hour == selectedHour,
+                onTap: () => onSelect(hour),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// One hour in the strip. Discrete rounded block with a gap rather than a slice
 /// of a continuous bar, so each hour reads as its own unit you can aim at.
 class _HourBlock extends StatelessWidget {
@@ -212,7 +238,7 @@ class _HourBlock extends StatelessWidget {
         child: Padding(
           // Gap between blocks; padding (not margin) keeps the tap target
           // full-width so thin hourly blocks stay reachable.
-          padding: const EdgeInsets.symmetric(horizontal: 0.75),
+          padding: const EdgeInsets.symmetric(horizontal: 1),
           child: AnimatedContainer(
             duration: context.reduceMotion ? Duration.zero : FurFeelTokens.motionFast,
             decoration: BoxDecoration(
@@ -234,8 +260,8 @@ class _HourBlock extends StatelessWidget {
 }
 
 /// Plain-language line naming the hour under inspection.
-class _HourReadout extends StatelessWidget {
-  const _HourReadout({required this.hour, required this.hours});
+class HourReadout extends StatelessWidget {
+  const HourReadout({super.key, required this.hour, required this.hours});
 
   final int? hour;
   final List<StressLevel?> hours;

@@ -26,7 +26,7 @@ class SettingsController extends ChangeNotifier {
       final results = await Future.wait<Object?>([
         _repository.fetchMyProfile(),
         _repository.fetchMySettings(),
-      ]);
+      ]).timeout(const Duration(seconds: 10));
       profile = results[0] as UserProfile;
       settings = results[1] as UserSettings;
     } catch (_) {

@@ -47,7 +47,7 @@ void main() {
 
     expect(find.textContaining('Biscuit seems quite stressed'), findsOneWidget);
     // Severity as word + icon (docs/19), never color alone.
-    expect(find.descendant(of: find.byType(SnackBar), matching: find.text('Critical')),
+    expect(find.descendant(of: find.byType(SnackBar), matching: find.text('Check soon')),
         findsOneWidget);
     expect(
         find.descendant(

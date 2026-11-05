@@ -329,3 +329,19 @@ The existing service UUID is retained. A new control characteristic (`f58dc8aa-6
 The firmware keeps BLE active while joining Wi-Fi and saves credentials only after a successful join. It retains the result for 30 seconds, then disables BLE. Failed joins retain BLE for retry. Lost Wi-Fi reopens BLE setup. A successful Wi-Fi join does not establish successful telemetry delivery. The mobile app explicitly distinguishes those states. Older firmware must be flashed before the new network selector can work.
 
 BLE setup currently uses the existing unpaired GATT service. Physical-device validation and authenticated provisioning remain required before production distribution; this change does not claim that the BLE credential channel is encrypted.
+
+## ADR-026: One Ongoing Vet Conversation per Dog
+Status: Accepted (2026-11-05, requested by project owner)
+
+Owners found Observation Assessment unfamiliar: a form, a submission list, and a review status, with no way to message the clinic without a photo or video. It is replaced by one ongoing conversation per dog, in the Chat destination.
+
+`dog_messages` holds text, an optional photo or video, and an optional alert with the reading behind it. **Message vet** on an alert opens the dog's chat with that alert attached. `dog_message_reads` tracks unread state per person. Access follows `is_dog_owner` + `is_clinic_member`, so linked owners take part, which `media_messages` did not allow.
+
+We chose one chat per dog over a thread per topic because it matches how people already message, and gives clinic staff one place per dog. The cost is that unrelated topics share a timeline.
+
+Existing submissions, review notes and replies are copied into `dog_messages`. `media_submissions` and `media_messages` stay as the historical record and are no longer written by the owner app.
+
+Guardrails unchanged: messages and media are supplementary and NEVER a classifier input (ADR-010), and the app words nothing as a diagnosis. Chat states that it isn't monitored around the clock, because a message isn't a route for emergencies.
+
+All dogs currently belong to one clinic, so every dog can use Chat. Reassess the clinic-less case and device-policy scoping before onboarding a second clinic.
+
